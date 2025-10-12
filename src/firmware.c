@@ -17,7 +17,8 @@
  *
  */
 
-#include <tinylib.h>
+#include "tinylib.h"
+#include "tinydonut.h"
 
 extern uint32_t _sidata, _sdata, _edata;
 extern uint32_t _sbss, _ebss;

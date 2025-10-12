@@ -3,6 +3,7 @@
 #include <tinyuart.h>
 #include <tinysh.h>
 #include <tinylib.h>
+#include <tinydonut.h>
 
 char getchar_prompt(char *prompt)
 {
@@ -59,7 +60,8 @@ void tinysh()
         printf("   [l] run lcd test\n");
         printf("   [b] run tiny benchmark\n");
         printf("   [m] run Memtest\n");
-        printf("   [e] echo uart\n\n");
+        printf("   [e] echo uart\n");
+        printf("   [d] run donut test\n\n");
 
         for (int rep = 10; rep > 0; rep--)
         {
@@ -108,6 +110,9 @@ void tinysh()
                 break;
             case 'e':
                 tinysh_echo();
+                break;
+            case 'd':
+                donut();
                 break;
             default:
                 continue;

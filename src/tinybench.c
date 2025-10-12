@@ -47,9 +47,10 @@ uint32_t tinybench(bool verbose, uint32_t *instns_p)
 
     if (verbose)
     {
-        printf("Cycles: 0x%x\n", cycles_end - cycles_begin);
-        printf("Instns: 0x%x\n", instns_end - instns_begin);
-        printf("Chksum: 0x%x\n", x32);
+        printf("Cycles: %d\n", cycles_end - cycles_begin);
+        printf("Instns: %d\n", instns_end - instns_begin);
+        printf("Chksum: %d\n", x32);
+        printf("Cycle/Instns: %d\n", (cycles_end - cycles_begin) / (instns_end - instns_begin));
     }
 
     if (instns_p)
