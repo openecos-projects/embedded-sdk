@@ -4,6 +4,7 @@
 #include <tinysh.h>
 #include <tinylib.h>
 #include <tinydonut.h>
+#include <tinyclock.h>
 
 char getchar_prompt(char *prompt)
 {
@@ -61,7 +62,8 @@ void tinysh()
         printf("   [b] run tiny benchmark\n");
         printf("   [m] run Memtest\n");
         printf("   [e] echo uart\n");
-        printf("   [d] run donut test\n\n");
+        printf("   [d] run donut test\n");
+        printf("   [c] run clock test\n\n");
 
         for (int rep = 10; rep > 0; rep--)
         {
@@ -113,6 +115,9 @@ void tinysh()
                 break;
             case 'd':
                 donut();
+                break;
+             case 'c':
+                clock_test();
                 break;
             default:
                 continue;
