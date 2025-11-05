@@ -2,17 +2,18 @@
 
 BUILD_DIR = ./build
 
-GCC = riscv64-linux-gnu-
+GCC = riscv64-unknown-elf-
 AS = $(GCC)as
 LD = $(GCC)ld
 OBJDUMP = $(GCC)objdump
 OBJCOPY = $(GCC)objcopy
 LDFLAGS += -T flash.ld
-APP ?= sdram
+APP ?= hello
 APP_ALL = $(APP)-asm
 
 all: $(APP).s
-	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)/flash
+	@mkdir -p ../../bin/flash
 	$(AS) $(APP).s -o $(APP_ALL).o
 	$(LD) $(LDFLAGS) $(APP_ALL).o -o $(APP_ALL).elf
 	$(OBJDUMP) -d $(APP_ALL).elf > $(APP_ALL).txt
