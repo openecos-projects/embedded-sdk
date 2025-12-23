@@ -152,7 +152,7 @@ install_toolchain() {
     fi
     
     # 2. 检查本地ZIP包或需要下载
-    local url="https://github.com/ecoslab/ecos-embed-sdk/releases/download/v1.0.0-alpha.3/riscv.tar.gz"
+    local url="https://github.com/ecoslab/ecos-embed-sdk/releases/download/v1.0.0/riscv.tar.gz"
     local zip_path="$TOOLS_DIR/riscv.tar.gz"
     ensure_dir "$TOOLS_DIR"    
     local zip_status
