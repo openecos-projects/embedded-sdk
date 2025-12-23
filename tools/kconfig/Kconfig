@@ -10,6 +10,11 @@ menu "Target Hardware Configuration"
         help
           StarrySky_C1 RISC-V based embedded platform
 
+    config STARRYSKY_C2
+        bool "StarrySky_C2 Platform"
+        help
+          StarrySky_C2 RISC-V based embedded platform
+
     config STARRYSKY_L3
         bool "StarrySky_L3 Platform"
         help
@@ -19,11 +24,12 @@ menu "Target Hardware Configuration"
     config BOARD_NAME
         string
         default "starrysky_c1" if STARRYSKY_C1
+        default "starrysky_c2" if STARRYSKY_C2
         default "starrysky_l3" if STARRYSKY_L3
         
     config ARCH_RISCV32
         bool
-        default y if STARRYSKY_C1 
+        default y if STARRYSKY_C1 || STARRYSKY_C2
 
     config ARCH_RISCV64
         bool
@@ -31,13 +37,34 @@ menu "Target Hardware Configuration"
 
     config GPIO_IP_ID
         int
-        default 0 if STARRYSKY_C1
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
         default 1 if STARRYSKY_L3
 
     config SYS_UART_IP_ID
         int
-        default 0 if STARRYSKY_C1
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
         default 1 if STARRYSKY_L3
+
+    choice
+        prompt "Memory Region Selection"
+        depends on STARRYSKY_C2
+        default LINK_RAM_REGION_FLASH
+
+    config LINK_RAM_REGION_FLASH
+        bool "Flash (Execute in Place)"
+        help
+          Code executes from Flash, Data in SRAM.
+
+    config LINK_RAM_REGION_PSRAM
+        bool "PSRAM (Execute in Place)"
+        help
+          Code executes from PSRAM.
+
+    config LINK_RAM_REGION_SRAM
+        bool "SRAM (Execute in Place)"
+        help
+          Code executes from internal SRAM.
+    endchoice
 endmenu
 
 menu "System Configuration"
