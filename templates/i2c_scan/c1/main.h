@@ -12,7 +12,7 @@
 #include "gpio.h"
 // #include "pwm.h"
 // #include "hp_uart.h"
-// #include "i2c.h"
+#include "i2c.h"
 
 // Device headers
 // #include "st7735.h"
