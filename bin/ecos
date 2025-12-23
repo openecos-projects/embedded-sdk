@@ -25,6 +25,7 @@ show_help() {
     echo ""
     echo "Board list:"
     echo "  c1                                StarrySky C1 board"
+    echo "  c2                                StarrySky C2 board"
     echo "  l3                                StarrySky L3 board"
     echo ""
     echo "Examples:"
