@@ -16,6 +16,7 @@ PROJECT_PATH := $(shell pwd)
 CFLAGS := -mabi=ilp32 \
 	  -march=rv32im \
 	  -Wl,-Bstatic,-T,$(BUILD_DIR)/retrosoc_sections.lds,--strip-debug \
+	  -Wl,-Map=$(BUILD_DIR)/$(FIRMWARE_NAME).map,--cref \
 	  -ffreestanding \
 	  -nostdlib
 
@@ -67,6 +68,10 @@ $(FIRMWARE_NAME):
 	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/$@ $(BUILD_DIR)/$(FIRMWARE_NAME).bin
 	@echo "Generating $(FIRMWARE_NAME).txt..."
 	@$(CROSS)objdump -d $(BUILD_DIR)/$@ > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
+	@echo "------------------------------------------------------------------------------"
+	@echo "Memory Usage:"
+	@$(CROSS)size $(BUILD_DIR)/$@
+	@echo "------------------------------------------------------------------------------"
 	@echo "Done."
 
 # 清理构建产物
