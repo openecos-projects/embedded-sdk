@@ -19,7 +19,7 @@ void qspi_write_8(uint8_t data){
     REG_QSPI_0_LEN = 0x80000;
     REG_QSPI_0_TXFIFO = wdat;
     REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
+    while ((REG_QSPI_0_STATUS & 0xFFFF) != 1)
         ;
 }
 

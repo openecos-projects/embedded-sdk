@@ -44,6 +44,31 @@ menu "Target Hardware Configuration"
         int
         default 0 if STARRYSKY_C1 || STARRYSKY_C2
         default 1 if STARRYSKY_L3
+    
+    config I2C_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+    
+    config PWM_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config QSPI_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config TIMER_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config HP_UART_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
 
     choice
         prompt "Memory Region Selection"
