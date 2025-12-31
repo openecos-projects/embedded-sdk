@@ -20,6 +20,17 @@ CFLAGS := -mabi=ilp32 \
 	  -ffreestanding \
 	  -nostdlib
 
+# 根据配置文件设置链接选项
+ifdef CONFIG_LINK_RAM_REGION_SRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+endif
+
+ifdef CONFIG_LINK_RAM_REGION_PSRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+endif
+
 # 根据配置文件添加编译优化选项
 ifdef CONFIG_BUILD_OPT_FLAGS
 CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
@@ -54,6 +65,9 @@ CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
 # 链接脚本路径
 LDS_PATH := ./sections.lds
 
+# 包含内存报告工具
+-include $(ECOS_SDK_HOME)/tools/scripts/mem_report.mk
+
 # 主要构建目标：生成固件的所有格式文件
 $(FIRMWARE_NAME):
 	@echo "Building $(FIRMWARE_NAME)..."
@@ -68,10 +82,7 @@ $(FIRMWARE_NAME):
 	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/$@ $(BUILD_DIR)/$(FIRMWARE_NAME).bin
 	@echo "Generating $(FIRMWARE_NAME).txt..."
 	@$(CROSS)objdump -d $(BUILD_DIR)/$@ > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
-	@echo "------------------------------------------------------------------------------"
-	@echo "Memory Usage:"
-	@$(CROSS)size $(BUILD_DIR)/$@
-	@echo "------------------------------------------------------------------------------"
+	$(call show_mem_usage, $(BUILD_DIR)/$@)
 	@echo "Done."
 
 # 清理构建产物
