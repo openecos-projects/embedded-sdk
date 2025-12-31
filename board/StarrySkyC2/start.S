@@ -35,6 +35,74 @@ addi x29, zero, 0
 addi x30, zero, 0
 addi x31, zero, 0
 
+#ifdef CONFIG_LINK_RAM_REGION_PSRAM
+# init qspi
+lui	a5,0x20007
+li	a4,16
+sw	a4,0(a5)
+sw	zero,0(a5)
+sw	zero,36(a5)
+sw	zero,20(a5)
+li	a4,1
+sw	a4,4(a5)
+
+# init gpio
+lui a5, 0x10000
+sw  zero,4(a5)
+sw  zero,0(a5)
+
+# init PSRAM
+lui a5, 0x10004
+li  a4, 18
+sw  a4, 0(a5)
+li  a4, 4
+sw  a4, 4(a5)
+
+lui a5, 0x20007
+lui a4, 0x80
+sw  a4, 16(a5)
+lui a4, 0x66000
+sw  a4, 24(a5)
+li  a4, 0x102
+sw  a4, 0(a5)
+li  a3, 1
+LOOP1:
+lw  a4, 0(a5)
+bne a4,a3,LOOP1
+
+lui a4, 0x80
+sw  a4, 16(a5)
+lui a4, 0x99000
+sw  a4, 24(a5)
+li  a4, 0x102
+sw  a4, 0(a5)
+li  a3, 1
+LOOP2:
+lw  a4, 0(a5)
+bne a4,a3,LOOP2
+
+lui a4, 0x80
+sw  a4, 16(a5)
+lui a4, 0x35000
+sw  a4, 24(a5)
+li  a4, 0x102
+sw  a4, 0(a5)
+li  a3, 1
+LOOP3:
+lw  a4, 0(a5)
+bne a4,a3,LOOP3
+
+lui a5, 0x10000
+lui  a4, 0x8
+sw  a4, 0(a5)
+
+lui a5, 0x10004
+li  a4, 8
+sw  a4, 0(a5)
+li  a4, 0
+sw  a4, 4(a5)
+#endif
+
 # copy data section
 la a0, _sidata
 la a1, _sdata

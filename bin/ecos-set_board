@@ -109,7 +109,7 @@ set_board() {
             local board_file="board.h"
             local make_file="Makefile"
             local lds_file="sections.lds"
-            local start_file="start.s"
+            local start_file="start.S"
 
             local board_source_path="$SDK_ROOT/board/StarrySkyC2/$board_file"
             local make_source_path="$SDK_ROOT/board/StarrySkyC2/$make_file"
@@ -119,7 +119,7 @@ set_board() {
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
             local lds_target_path="./sections.lds"
-            local start_target_path="./start.s"
+            local start_target_path="./start.S"
 
             if [[ ! -f "$board_source_path" ]]; then
                 err "Board config file not found: $board_source_path"
