@@ -63,7 +63,8 @@ void tinysh()
         printf("   [m] run Memtest\n");
         printf("   [e] echo uart\n");
         printf("   [d] run donut test\n");
-        printf("   [c] run clock test\n\n");
+        printf("   [c] run clock test\n");
+		printf("   [j] run SM3 test\n\n");
 
         for (int rep = 10; rep > 0; rep--)
         {
@@ -119,6 +120,8 @@ void tinysh()
              case 'c':
                 clock_test();
                 break;
+            case 'j':
+                SM3Test();
             default:
                 continue;
             }

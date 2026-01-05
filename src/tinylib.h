@@ -19,6 +19,7 @@
 #include <tinypsram.h>
 #include <tinybench.h>
 #include <tinysh.h>
+#include <SM3Test.h>
 
 #ifdef __cplusplus
 extern "C"

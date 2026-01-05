@@ -39,7 +39,10 @@ SRC_PATH := ./start.s \
 	    ./tinysh.c \
 	    ./tinydonut.c \
 	    ./donut_tft.c \
-		./tinyclock.c \
+		 ./tinyclock.c \
+	    ./SM3.c \
+		 ./tool.c \
+		 ./SM3Test.c\
 	    ./firmware.c
 
 # 链接脚本路径
