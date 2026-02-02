@@ -192,30 +192,49 @@ install_toolchain() {
     fi
 }
 
+update_rc_file() {
+    local rc_file="$1"
+    local env_name="$2"
+    local env_value="$3"
+
+    if grep -qF "$env_value" "$rc_file"; then
+        log "  $env_name 环境变量已存在于 $rc_file，跳过添加"
+    else
+        log "  添加 $env_name 环境变量到 $rc_file..."
+        echo "$env_value" >> "$rc_file"
+    fi
+}
+
 add_env() {
-  # 检查配置文件中是否包含相同设置
-  if grep -q "export PATH=$PREFIX/bin:\$PATH" ~/.bashrc; then
-    log "ecos 环境变量已存在于 ~/.bashrc，跳过添加"
-  else
-    log "添加 ecos 环境变量到 ~/.bashrc..."
-    echo "export PATH=$PREFIX/bin:\$PATH" >> ~/.bashrc
-  fi
+    local rc_files=()
 
-  if grep -q "export PATH=$PREFIX/toolchain/riscv_unknown/bin:\$PATH" ~/.bashrc; then
-    log "工具链环境变量已存在于 ~/.bashrc，跳过添加"
-  else
-    log "添加工具链环境变量到 ~/.bashrc..."
-    echo "export PATH=$PREFIX/toolchain/riscv_unknown/bin:\$PATH" >> ~/.bashrc
-  fi
+    if [[ -f "$HOME/.zshrc" ]]; then
+        rc_files+=("$HOME/.zshrc")
+    fi
 
-  if grep -q "export ECOS_SDK_HOME=$PREFIX" ~/.bashrc; then
-    log "ecos 环境变量已存在于 ~/.bashrc，跳过添加"
-  else
-    log "添加 ecos 环境变量到 ~/.bashrc..."
-    echo "export ECOS_SDK_HOME=$PREFIX" >> ~/.bashrc
-  fi
+    if [[ -f "$HOME/.bashrc" ]]; then
+        rc_files+=("$HOME/.bashrc")
+    fi
 
-    log "环境变量已添加到 ~/.bashrc"
+    if [[ ${#rc_files[@]} -eq 0 ]]; then
+        if [[ "$SHELL" == *"zsh"* ]]; then
+            touch "$HOME/.zshrc"
+            rc_files+=("$HOME/.zshrc")
+        else
+            touch "$HOME/.bashrc"
+            rc_files+=("$HOME/.bashrc")
+        fi
+    fi
+
+    local unique_rc_files=($(echo "${rc_files[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+
+    for rc_file in "${unique_rc_files[@]}"; do
+        log "正在配置 $rc_file ..."
+        update_rc_file "$rc_file" "ecos PATH" "export PATH=$PREFIX/bin:\$PATH"
+        update_rc_file "$rc_file" "工具链 PATH" "export PATH=$PREFIX/toolchain/riscv_unknown/bin:\$PATH"
+        update_rc_file "$rc_file" "ECOS_SDK_HOME" "export ECOS_SDK_HOME=$PREFIX"
+        log "环境变量配置完成: $rc_file"
+    done
 }
 
 # 主安装流程
@@ -233,7 +252,11 @@ main() {
     echo "检查toolchain版本 'riscv64-unknown-elf-gcc --version'"
     echo ""
     log "后续步骤："
-    echo "1. 重新加载环境: source ~/.bashrc"
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        echo "1. 重新加载环境: source ~/.zshrc"
+    else
+        echo "1. 重新加载环境: source ~/.bashrc"
+    fi
     echo "2. 检测SDK是否安装成功: ecos help"
     echo "3. 检测工具链是否安装成功: riscv64-unknown-elf-gcc --version"
     echo "4. 创建示例工程（在当前目录生成）: ecos init_project hello"
