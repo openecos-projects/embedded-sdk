@@ -1,5 +1,5 @@
-#ifndef ST7735_TYPE_H
-#define ST7735_TYPE_H
+#ifndef ST7789_TYPE_H
+#define ST7789_TYPE_H
 
 #include <stdint.h>
 

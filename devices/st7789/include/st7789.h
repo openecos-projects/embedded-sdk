@@ -1,5 +1,5 @@
-#ifndef __ST7735_H__
-#define __ST7735_H__
+#ifndef __ST7789_H__
+#define __ST7789_H__
 
 #include "st7789_type.h"
 
