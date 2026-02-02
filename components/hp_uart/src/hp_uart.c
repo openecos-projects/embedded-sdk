@@ -22,6 +22,24 @@ void hp_uart_init(uint32_t baudrate){
 #endif
 }
 
+
+void hp_uart_config(hp_uart_config_t* config){
+    // 禁用UART
+    REG_UART_1_LCR = 0x00;
+
+    // 设置波特率
+    REG_UART_1_DIV = (CONFIG_CPU_FREQ_MHZ * 1000000 / config->baudrate) - 1;
+
+    // 启用FIFO和接收中断
+    REG_UART_1_FCR = 0x0F;  
+    REG_UART_1_FCR = 0x0C;
+
+    // 设置数据位，校验位，停止位
+    REG_UART_1_LCR = (config->data_bits - 5) << 0 |
+                     (config->parity << 1) |
+                     (config->stop_bits << 2);
+}
+
 void hp_uart_send(char c){
 #if CONFIG_HP_UART_IP_ID == 0
     while (((REG_UART_1_LSR & 0x100) >> 8) == 1);
