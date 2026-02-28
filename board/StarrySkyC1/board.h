@@ -50,12 +50,12 @@
 #define REG_UART_0_DATA         (*(volatile uint32_t*)0x03000014)  // UART数据寄存器
 
 /* ========== 定时器 寄存器组 =========== */
-#define REG_TIM0_CONFIG       (*(volatile uint32_t*)0x0300005c)  // 定时器0配置寄存器
-#define REG_TIM0_VALUE        (*(volatile uint32_t*)0x03000060)  // 定时器0计数值寄存器
-#define REG_TIM0_DATA         (*(volatile uint32_t*)0x03000064)  // 定时器0数据寄存器
+#define REG_TIM_0_CONFIG       (*(volatile uint32_t*)0x0300005c)  // 定时器0配置寄存器
+#define REG_TIM_0_VALUE        (*(volatile uint32_t*)0x03000060)  // 定时器0计数值寄存器
+#define REG_TIM_0_DATA         (*(volatile uint32_t*)0x03000064)  // 定时器0数据寄存器
 
-#define REG_TIM1_CONFIG       (*(volatile uint32_t*)0x03000068)  // 定时器1配置寄存器
-#define REG_TIM1_VALUE        (*(volatile uint32_t*)0x0300006c)  // 定时器1计数值寄存器
-#define REG_TIM1_DATA         (*(volatile uint32_t*)0x03000070)  // 定时器1数据寄存器
+#define REG_TIM_1_CONFIG       (*(volatile uint32_t*)0x03000068)  // 定时器1配置寄存器
+#define REG_TIM_1_VALUE        (*(volatile uint32_t*)0x0300006c)  // 定时器1计数值寄存器
+#define REG_TIM_1_DATA         (*(volatile uint32_t*)0x03000070)  // 定时器1数据寄存器
 
 #endif
