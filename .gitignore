@@ -14,9 +14,6 @@
 !prog/
 !prog/**
 
-!docs/
-!docs/**
-
 !board
 !board/**
 
