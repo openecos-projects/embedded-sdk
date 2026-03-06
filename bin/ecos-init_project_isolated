@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ECOS `init_project` subcommand
+# Initializes a new isolated project
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Color output
+log () { echo -e "\033[1;32m[ECOS]\033[0m $*";  }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $*";  }
+err () { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+tips() { echo -e "\033[1;94m[ECOS]\033[0m $*";  }
+
+# The actual init_project logic
+init_project() {
+    local new_project_name="${1:-HelloWorld}"
+    local target_board="${2:-c1}"
+
+    # Check if project directory exists
+    if [[ -d "$new_project_name" ]]; then
+        err "Project directory already exists: $new_project_name"
+        exit 1
+    fi
+
+    # Copy project source must needed from sdk
+    log "Initializing project '$new_project_name' isolated..."
+    mkdir -p "$new_project_name/Workspace/Library"
+    mkdir -p "$new_project_name/Workspace/Startup"
+    mkdir -p "$new_project_name/Workspace/User"
+    mkdir -p "$new_project_name/Workspace/Hardware"
+    mkdir -p "$new_project_name/Workspace/System"
+    find "$SDK_ROOT/components" -mindepth 2 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
+         -exec cp {} "$new_project_name/Workspace/Library" \;
+    find "$SDK_ROOT/components" -maxdepth 1 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
+         -exec cp {} "$new_project_name/Workspace/User" \;
+    echo "cd .. && make" > "$new_project_name/Workspace/compile.sh"
+    chmod +x "$new_project_name/Workspace/compile.sh"
+    
+
+    cd "$new_project_name"
+    # Initialize project config file
+    local board_to_set="${target_board:-c1}"
+    echo "BOARD=${board_to_set}" > ".ecos-project"
+    log "Initialized project: $new_project_name"
+    log "Config file: .ecos-project"
+
+    # Set default board
+    ecos set_board_isolated "${board_to_set}"
+
+    # Create configs directory and copy scripts
+    mkdir -p configs
+    cp -r "$SDK_ROOT/tools/scripts/" "."
+    log "Project '$new_project_name' created successfully in './$new_project_name'"
+    tips "Please set menuconfig before project isolation"
+}
+
+# Main entry point for the subcommand
+if [[ $# -eq 0 ]]; then
+    err "Missing project name argument"
+    echo ""
+    echo "Usage: ecos init_project <new_project_name> [-target target_board]"
+    echo "       ecos init_project list"
+    echo "Example: ecos init_project hello"
+    echo "         ecos init_project hello -target l3"
+    exit 1
+fi
+
+new_project_name=""
+target_board=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -target)
+            target_board="$2"
+            shift 2
+            ;;
+        *)
+            if [[ -z "$new_project_name" ]]; then
+                new_project_name="$1"
+                shift
+            else
+                err "Unknown argument: $1"
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+init_project "${new_project_name}" "${target_board}"
