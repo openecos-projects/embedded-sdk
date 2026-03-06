@@ -54,7 +54,8 @@ FIRMWARE_NAME := main
 endif
 
 # 源文件列表
-SRC_PATH := $(shell find Workspace -type f -name "*.c")
+SRC_PATH := $(shell find Workspace -type f -name "*.s")
+SRC_PATH += $(shell find Workspace -type f -name "*.c")
 
 CFLAGS += -I./configs 
 CFLAGS += $(addprefix -I,$(shell find Workspace -type d))

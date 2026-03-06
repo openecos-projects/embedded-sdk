@@ -37,6 +37,8 @@ init_project() {
          -exec cp {} "$new_project_name/Workspace/User" \;
     echo "cd .. && make" > "$new_project_name/Workspace/compile.sh"
     chmod +x "$new_project_name/Workspace/compile.sh"
+    echo "cd .. && make menuconfig" > "$new_project_name/Workspace/menuconfig.sh"
+    chmod +x "$new_project_name/Workspace/menuconfig.sh"
     
 
     cd "$new_project_name"
