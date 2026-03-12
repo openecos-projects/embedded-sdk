@@ -188,8 +188,8 @@ if [[ -z "$template_name" ]]; then
     exit 1
 fi
 
-if [[isIsolated]]; then
+if [[ "${isIsolated:-false}" == false ]]; then
     init_project "$template_name" "${new_project_name:-$template_name}" "${target_board:-c2}"
 else
-    init_project_isolated "$template_name" "${target_board:-c2}"
+    init_project_isolated "${new_project_name:-$template_name}" "${target_board:-c2}"
 fi
