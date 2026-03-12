@@ -119,6 +119,9 @@ init_project_isolated() {
          -exec cp {} "$isolated_project_name/Library" \;
     find "$SDK_ROOT/components" -maxdepth 1 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
          -exec cp {} "$isolated_project_name/User" \;
+    find "$SDK_ROOT/devices" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
+         -exec cp {} "$isolated_project_name/Hardware" \;
+    cp "$SDK_ROOT/docs/isolated_guide.md" "$isolated_project_name"
     
 
     cd "$isolated_project_name"
