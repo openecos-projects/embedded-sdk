@@ -6,13 +6,14 @@
 // System Configuration
 #include "generated/autoconf.h"
 
-// Components headers
-// #include "timer.h"
-// #include "qspi.h"
-// #include "gpio.h"
-// #include "pwm.h"
-// #include "hp_uart.h"
-// #include "i2c.h"
+// HAL headers (replacing component headers)
+#include "hal/sys_uart.h"
+// #include "hal/timer.h"
+// #include "hal/qspi.h"
+// #include "hal/gpio.h"
+// #include "hal/pwm.h"
+// #include "hal/hp_uart.h"
+// #include "hal/i2c.h"
 
 // Device headers
 // #include "st7735.h"

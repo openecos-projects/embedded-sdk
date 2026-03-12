@@ -1,0 +1,36 @@
+# HAL (Hardware Abstraction Layer) Makefile fragment
+# Include this in your main Makefile to build HAL components
+
+# HAL source directories
+HAL_SRC_DIR = hal/src
+DRIVERS_SRC_DIR = drivers
+
+# HAL include directories
+HAL_INC_DIRS = \
+	hal/include \
+	drivers/gpio/starrysky_c1 \
+	drivers/uart/starrysky_c1 \
+	drivers/timer/starrysky_c1
+
+# HAL source files
+HAL_SRCS = \
+	$(HAL_SRC_DIR)/hal_gpio.c
+
+# Driver source files (add more as needed)
+DRIVER_SRCS = \
+
+# HAL object files
+HAL_OBJS = $(HAL_SRCS:.c=.o)
+DRIVER_OBJS = $(DRIVER_SRCS:.c=.o)
+
+# HAL CFLAGS
+HAL_CFLAGS = $(addprefix -I,$(HAL_INC_DIRS))
+
+# Default HAL build rule
+hal: $(HAL_OBJS) $(DRIVER_OBJS)
+
+# Clean HAL objects
+hal-clean:
+	rm -f $(HAL_OBJS) $(DRIVER_OBJS)
+
+.PHONY: hal hal-clean
