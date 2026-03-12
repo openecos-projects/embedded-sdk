@@ -119,8 +119,8 @@ init_project_isolated() {
          -exec cp {} "$isolated_project_name/Library" \;
     find "$SDK_ROOT/components" -maxdepth 1 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
          -exec cp {} "$isolated_project_name/User" \;
-    find "$SDK_ROOT/devices" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
-         -exec cp {} "$isolated_project_name/Hardware" \;
+    # due to diversity of the device drivers, copy its whole structure
+    find "$SDK_ROOT/devices" -maxdepth 1 -mindepth 1 -type d -exec cp -r {} "$isolated_project_name/Hardware" \; 
     cp "$SDK_ROOT/docs/isolated_guide.md" "$isolated_project_name"
     
 
@@ -145,13 +145,14 @@ init_project_isolated() {
 if [[ $# -eq 0 ]]; then
     err "Missing project name or 'list' argument"
     echo ""
-    echo "Usage: ecos init_project <template_name> [-name new_project_name] [-target target_board]"
+    echo "Usage: ecos init_project <template_name> [-isolated] [-name new_project_name] [-target target_board]"
     echo "       ecos init_project list"
     echo "Example: ecos init_project hello"
     echo "         ecos init_project hello -name my_new_hello"
     echo "         ecos init_project hello -name my_new_hello -target l3"
     echo "         ecos init_project my_project -isolated"
     echo "         ecos init_project my_project -isolated -target c2"
+    echo "         ecos init_project my_project -isolated -name my_new_project -target c2"
     exit 1
 fi
 

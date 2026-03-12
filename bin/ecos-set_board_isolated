@@ -234,10 +234,7 @@ set_board() {
 
 # Main entry point for the subcommand
 if [[ $# -eq 0 ]]; then
-    err "Missing board name argument."
-    echo ""
-    echo "Usage: ecos set_board <board_name>"
-    echo "Example: ecos set_board c1"
+    err "Missing board name argument for isolated project."
     exit 1
 fi
 

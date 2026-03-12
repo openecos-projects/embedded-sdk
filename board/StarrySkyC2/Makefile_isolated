@@ -53,18 +53,18 @@ else
 FIRMWARE_NAME := main
 endif
 
-# find排除文件参数
-EXCLUDE_DIRS := \( -path "configs" -o -path "scripts" -path "build" \) -prune
+# find包含目录
+INCLUDE_DIRS := Library Startup User Hardware System
 
 # 源文件列表
-SRC_PATH := $(shell find . $(EXCLUDE_DIRS) -o -type f -name "*.s")
-SRC_PATH += $(shell find . $(EXCLUDE_DIRS) -o -type f -name "*.c")
+SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.s")
+SRC_PATH += $(shell find $(INCLUDE_DIRS) -type f -name "*.c")
 
 CFLAGS += -I./configs 
-CFLAGS += $(addprefix -I,$(shell find . $(EXCLUDE_DIRS) -o -type d))
+CFLAGS += $(addprefix -I,$(shell find $(INCLUDE_DIRS) -type d))
 		
 # 链接脚本路径
-LDS_PATH := $(shell find . $(EXCLUDE_DIRS) -o -type f -name "sections.lds")
+LDS_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "sections.lds")
 
 # 包含内存报告工具
 -include ./scripts/mem_report.mk
