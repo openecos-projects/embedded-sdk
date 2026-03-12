@@ -8,9 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Color output
-log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
-err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+log()  { echo -e "\033[1;32m[ECOS]\033[0m $*";  }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $*";  }
+err()  { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+tips() { echo -e "\033[1;94m[ECOS]\033[0m $*";  }
 
 echo_available_templates() {
     log "Available project templates:"
@@ -97,6 +98,46 @@ init_project() {
     log "Project '$new_project_name' created successfully in './$new_project_name'"
 }
 
+init_project_isolated() {
+    local isolated_project_name="${1:-HelloWorld}"
+    local target_board="${2:-c2}"
+
+    # Check if project directory exists
+    if [[ -d "$isolated_project_name" ]]; then
+        err "Project directory already exists: $isolated_project_name"
+        exit 1
+    fi
+
+    # Copy project source must needed from sdk
+    log "Initializing project '$isolated_project_name' isolated..."
+    mkdir -p "$isolated_project_name/Library"
+    mkdir -p "$isolated_project_name/Startup"
+    mkdir -p "$isolated_project_name/User"
+    mkdir -p "$isolated_project_name/Hardware"
+    mkdir -p "$isolated_project_name/System"
+    find "$SDK_ROOT/components" -mindepth 2 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
+         -exec cp {} "$isolated_project_name/Library" \;
+    find "$SDK_ROOT/components" -maxdepth 1 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
+         -exec cp {} "$isolated_project_name/User" \;
+    
+
+    cd "$isolated_project_name"
+    # Initialize project config file
+    local board_to_set="${target_board:-c2}"
+    echo "BOARD=${board_to_set}" > ".ecos-project"
+    log "Initialized project: $isolated_project_name"
+    log "Config file: .ecos-project"
+
+    # Set default board
+    ecos set_board_isolated "${board_to_set}"
+
+    # Create configs directory and copy scripts
+    mkdir -p configs
+    cp -r "$SDK_ROOT/tools/scripts/" "."
+    log "Project '$isolated_project_name' created successfully in './$isolated_project_name'"
+    tips "Please set menuconfig before project isolation"
+}
+
 # Main entry point for the subcommand
 if [[ $# -eq 0 ]]; then
     err "Missing project name or 'list' argument"
@@ -106,12 +147,15 @@ if [[ $# -eq 0 ]]; then
     echo "Example: ecos init_project hello"
     echo "         ecos init_project hello -name my_new_hello"
     echo "         ecos init_project hello -name my_new_hello -target l3"
+    echo "         ecos init_project my_project -isolated"
+    echo "         ecos init_project my_project -isolated -target c2"
     exit 1
 fi
 
 template_name=""
 new_project_name=""
 target_board=""
+isIsolated=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -122,6 +166,10 @@ while [[ $# -gt 0 ]]; do
         -target)
             target_board="$2"
             shift 2
+            ;;
+        -isolated)
+            isIsolated=true
+            shift 1
             ;;
         *)
             if [[ -z "$template_name" ]]; then
@@ -140,4 +188,8 @@ if [[ -z "$template_name" ]]; then
     exit 1
 fi
 
-init_project "$template_name" "${new_project_name:-$template_name}" "${target_board:-c1}"
+if [[isIsolated]]; then
+    init_project "$template_name" "${new_project_name:-$template_name}" "${target_board:-c2}"
+else
+    init_project_isolated "$template_name" "${target_board:-c2}"
+fi

@@ -14,7 +14,7 @@ err () { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 tips() { echo -e "\033[1;94m[ECOS]\033[0m $*";  }
 
 # The actual init_project logic
-init_project() {
+init_project_isolated() {
     local new_project_name="${1:-HelloWorld}"
     local target_board="${2:-c1}"
 
@@ -26,19 +26,15 @@ init_project() {
 
     # Copy project source must needed from sdk
     log "Initializing project '$new_project_name' isolated..."
-    mkdir -p "$new_project_name/Workspace/Library"
-    mkdir -p "$new_project_name/Workspace/Startup"
-    mkdir -p "$new_project_name/Workspace/User"
-    mkdir -p "$new_project_name/Workspace/Hardware"
-    mkdir -p "$new_project_name/Workspace/System"
+    mkdir -p "$new_project_name/Library"
+    mkdir -p "$new_project_name/Startup"
+    mkdir -p "$new_project_name/User"
+    mkdir -p "$new_project_name/Hardware"
+    mkdir -p "$new_project_name/System"
     find "$SDK_ROOT/components" -mindepth 2 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
-         -exec cp {} "$new_project_name/Workspace/Library" \;
+         -exec cp {} "$new_project_name/Library" \;
     find "$SDK_ROOT/components" -maxdepth 1 -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' \
-         -exec cp {} "$new_project_name/Workspace/User" \;
-    echo "cd .. && make" > "$new_project_name/Workspace/compile.sh"
-    chmod +x "$new_project_name/Workspace/compile.sh"
-    echo "cd .. && make menuconfig" > "$new_project_name/Workspace/menuconfig.sh"
-    chmod +x "$new_project_name/Workspace/menuconfig.sh"
+         -exec cp {} "$new_project_name/User" \;
     
 
     cd "$new_project_name"
@@ -62,10 +58,9 @@ init_project() {
 if [[ $# -eq 0 ]]; then
     err "Missing project name argument"
     echo ""
-    echo "Usage: ecos init_project <new_project_name> [-target target_board]"
-    echo "       ecos init_project list"
-    echo "Example: ecos init_project hello"
-    echo "         ecos init_project hello -target l3"
+    echo "Usage: ecos init_project <new_project_name> -isolated [-target target_board]"
+    echo "Example: ecos init_project hello -isolated"
+    echo "         ecos init_project hello -isolated -target c2"
     exit 1
 fi
 

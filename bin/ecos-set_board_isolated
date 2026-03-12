@@ -68,9 +68,9 @@ set_board() {
             local make_source_path="$SDK_ROOT/board/StarrySkyC1/$make_file"
             local lds_source_path="$SDK_ROOT/board/StarrySkyC1/$lds_file"
             
-            local board_target_path="./Workspace/Library/board.h"
+            local board_target_path="./Library/board.h"
             local make_target_path="./Makefile"
-            local lds_target_path="./Workspace/Startup/sections.lds"
+            local lds_target_path="./Startup/sections.lds"
 
             if [[ ! -f "$board_source_path" ]]; then
                 err "Board config file not found: $board_source_path"
@@ -94,8 +94,8 @@ set_board() {
 
             # Copy start.s if exists (C1 support)
             if [[ -f "$SDK_ROOT/board/StarrySkyC1/start.s" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyC1/start.s" "./Workspace/Startup/start.s"
-                log "Set startup code: ./Workspace/Startup/start.s"
+                cp "$SDK_ROOT/board/StarrySkyC1/start.s" "./Startup/start.s"
+                log "Set startup code: ./Startup/start.s"
             fi
 
             # Update project config file if it exists
@@ -119,10 +119,10 @@ set_board() {
             local lds_source_path="$SDK_ROOT/board/StarrySkyC2/$lds_file"
             local start_source_path="$SDK_ROOT/board/StarrySkyC2/$start_file"
 
-            local board_target_path="./Workspace/Library/board.h"
+            local board_target_path="./Library/board.h"
             local make_target_path="./Makefile"
-            local lds_target_path="./Workspace/Startup/sections.lds"
-            local start_target_path="./Workspace/Startup/start.s"
+            local lds_target_path="./Startup/sections.lds"
+            local start_target_path="./Startup/start.s"
 
             if [[ ! -f "$board_source_path" ]]; then
                 err "Board config file not found: $board_source_path"
@@ -173,10 +173,10 @@ set_board() {
             local make_source_path="$SDK_ROOT/board/StarrySkyL3/$make_file"
             local lds_source_path="$SDK_ROOT/board/StarrySkyL3/$lds_file"
 
-            local board_target_path="./Workspace/Library/board.h"
+            local board_target_path="./Library/board.h"
             local make_target_path="./Makefile"
-            local lds_target_path="./Workspace/Startup/sections.lds"
-            local start_target_path="./Workspace/Startup/start.s"
+            local lds_target_path="./Startup/sections.lds"
+            local start_target_path="./Startup/start.s"
 
             if [[ ! -f "$board_source_path" ]]; then
                 err "Board config file not found: $board_source_path"
@@ -206,7 +206,7 @@ set_board() {
 
             # Copy bootloader
             local bootloader_source_path="$SDK_ROOT/board/StarrySkyL3/loader"
-            local bootloader_target_path="./Workspace/Startup/loader"
+            local bootloader_target_path="./Startup/loader"
             cp -r "$bootloader_source_path" "$bootloader_target_path"
             log "Set bootloader: $bootloader_target_path"
 
