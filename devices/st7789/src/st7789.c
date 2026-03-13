@@ -140,53 +140,56 @@ void st7789_init(st7789_device_t* dev){
 }
 
 void st7789_addr_set(st7789_device_t* dev, uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend){
+	uint16_t x_shift = dev->horizontal_offset;
+	uint16_t y_shift = dev->vertical_offset;
+
 	if(dev->rotation==0){
 		st7789_wr_cmd(dev, 0x2a);
-		st7789_wr_data8(dev, xsta>>8);
-		st7789_wr_data8(dev, xsta);
-		st7789_wr_data8(dev, xend>>8);
-		st7789_wr_data8(dev, xend);
+		st7789_wr_data8(dev, (xsta+x_shift)>>8);
+		st7789_wr_data8(dev, xsta+x_shift);
+		st7789_wr_data8(dev, (xend+x_shift)>>8);
+		st7789_wr_data8(dev, xend+x_shift);
 		st7789_wr_cmd(dev, 0x2b);
-		st7789_wr_data8(dev, ysta>>8);
-		st7789_wr_data8(dev, ysta);
-		st7789_wr_data8(dev, yend>>8);
-		st7789_wr_data8(dev, yend);
+		st7789_wr_data8(dev, (ysta+y_shift)>>8);
+		st7789_wr_data8(dev, ysta+y_shift);
+		st7789_wr_data8(dev, (yend+y_shift)>>8);
+		st7789_wr_data8(dev, yend+y_shift);
 		st7789_wr_cmd(dev, 0x2c);
 	}else if(dev->rotation==1){
 		st7789_wr_cmd(dev, 0x2a);
-		st7789_wr_data8(dev, xsta>>8);
-		st7789_wr_data8(dev, xsta);
-		st7789_wr_data8(dev, xend>>8);
-		st7789_wr_data8(dev, xend);
+		st7789_wr_data8(dev, (xsta+x_shift)>>8);
+		st7789_wr_data8(dev, xsta+x_shift);
+		st7789_wr_data8(dev, (xend+x_shift)>>8);
+		st7789_wr_data8(dev, xend+x_shift);
 		st7789_wr_cmd(dev, 0x2b);
-		st7789_wr_data8(dev, (ysta+80)>>8);
-		st7789_wr_data8(dev, ysta+80);
-		st7789_wr_data8(dev, (yend+80)>>8);
-		st7789_wr_data8(dev, yend+80);
+		st7789_wr_data8(dev, (ysta+y_shift)>>8);
+		st7789_wr_data8(dev, ysta+y_shift);
+		st7789_wr_data8(dev, (yend+y_shift)>>8);
+		st7789_wr_data8(dev, yend+y_shift);
 		st7789_wr_cmd(dev, 0x2c);
 	}else if(dev->rotation==2){
 		st7789_wr_cmd(dev, 0x2a);
-		st7789_wr_data8(dev, xsta>>8);
-		st7789_wr_data8(dev, xsta);
-		st7789_wr_data8(dev, xend>>8);  
-		st7789_wr_data8(dev, xend);
+		st7789_wr_data8(dev, (xsta+x_shift)>>8);
+		st7789_wr_data8(dev, xsta+x_shift);
+		st7789_wr_data8(dev, (xend+x_shift)>>8);  
+		st7789_wr_data8(dev, xend+x_shift);
 		st7789_wr_cmd(dev, 0x2b);
-		st7789_wr_data8(dev, ysta>>8);
-		st7789_wr_data8(dev, ysta);
-		st7789_wr_data8(dev, yend>>8);
-		st7789_wr_data8(dev, yend);
+		st7789_wr_data8(dev, (ysta+y_shift)>>8);
+		st7789_wr_data8(dev, ysta+y_shift);
+		st7789_wr_data8(dev, (yend+y_shift)>>8);
+		st7789_wr_data8(dev, yend+y_shift);
 		st7789_wr_cmd(dev, 0x2c);
 	}else{
 		st7789_wr_cmd(dev, 0x2a);
-		st7789_wr_data8(dev, (xsta+80)>>8);
-		st7789_wr_data8(dev, xsta+80);
-		st7789_wr_data8(dev, (xend+80)>>8);
-		st7789_wr_data8(dev, xend+80);
+		st7789_wr_data8(dev, (xsta+x_shift)>>8);
+		st7789_wr_data8(dev, xsta+x_shift);
+		st7789_wr_data8(dev, (xend+x_shift)>>8);
+		st7789_wr_data8(dev, xend+x_shift);
 		st7789_wr_cmd(dev, 0x2b);
-		st7789_wr_data8(dev, ysta>>8);
-		st7789_wr_data8(dev, ysta);
-		st7789_wr_data8(dev, yend>>8);
-		st7789_wr_data8(dev, yend);
+		st7789_wr_data8(dev, (ysta+y_shift)>>8);
+		st7789_wr_data8(dev, ysta+y_shift);
+		st7789_wr_data8(dev, (yend+y_shift)>>8);
+		st7789_wr_data8(dev, yend+y_shift);
 		st7789_wr_cmd(dev, 0x2c);
 	}
 }
@@ -203,7 +206,7 @@ void st7789_fill(st7789_device_t* dev, uint16_t xsta, uint16_t ysta, uint16_t xe
     //         st7789_wr_data16(dev, color);
     //     }
     // }
-	for(uint16_t i = 0; i < (xend - xsta) * (yend - ysta); i+=64){
+	for(uint16_t i = 0; i < (xend - xsta) * (yend - ysta) / 2; i+=32){
         st7789_wr_data32x32(dev, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, 
           color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32, color32);
     }
