@@ -55,12 +55,18 @@ endif
 
 # 源文件列表
 SRC_PATH := ./start.S ./main.c 
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components -name "*.c")
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2 -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
+
+# SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components -name "*.c")
+# SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices -name "*.c")
 
 CFLAGS += -I./configs 
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal -type d))
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
+# CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
 		
 # 链接脚本路径
 LDS_PATH := ./sections.lds
