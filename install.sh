@@ -69,6 +69,10 @@ install_sdk_core() {
     ensure_dir "$PREFIX/components/"
     cp -r "$SCRIPT_DIR/components/." "$PREFIX/components/"
     
+    # 拷贝HAL库
+    ensure_dir "$PREFIX/hal/"
+    cp -r "$SCRIPT_DIR/hal/." "$PREFIX/hal/"
+    
     # 拷贝模板工程
     cp -r "$SCRIPT_DIR/templates" "$PREFIX/"
 
