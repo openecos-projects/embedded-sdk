@@ -5,7 +5,7 @@
 static int puts_helper(const char *str) {
     int count = 0;
     while (*str) {
-        sys_putchar(*str++);
+        hal_sys_putchar(*str++);
         count++;
     }
     return count;
@@ -83,7 +83,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'c': {
                     // 字符
                     char c = (char)va_arg(args, int);
-                    sys_putchar(c);
+                    hal_sys_putchar(c);
                     count++;
                     break;
                 }
@@ -134,8 +134,8 @@ int vprintf(const char *fmt, va_list args) {
                 case 'p': {
                     // 指针（作为十六进制处理）
                     void *ptr = va_arg(args, void*);
-                    sys_putchar('0');
-                    sys_putchar('x');
+                    hal_sys_putchar('0');
+                    hal_sys_putchar('x');
                     count += 2;
                     int len = itoa_hex((unsigned long)ptr, buffer, 0);
                     count += puts_helper(buffer);
@@ -144,7 +144,7 @@ int vprintf(const char *fmt, va_list args) {
                 
                 case '%': {
                     // 字面量 '%'
-                    sys_putchar('%');
+                    hal_sys_putchar('%');
                     count++;
                     break;
                 }
@@ -171,15 +171,15 @@ int vprintf(const char *fmt, va_list args) {
                 
                 default: {
                     // 不支持的格式，输出原样
-                    sys_putchar('%');
-                    sys_putchar(*fmt);
+                                    hal_sys_putchar('%');
+                                    hal_sys_putchar(*fmt);
                     count += 2;
                     break;
                 }
             }
         } else {
             // 普通字符
-            sys_putchar(*fmt);
+                    hal_sys_putchar(*fmt);
             count++;
         }
         fmt++;
