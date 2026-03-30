@@ -28,6 +28,7 @@ echo_available_templates() {
     echo "| spi_st7735       |    | √  |    |"
     echo "| spi_st7735_clock |    | √  |    |"
     echo "| spi_st7735_donut |    | √  |    |"
+    echo "| spi_st7789       |    |    | √  |"
     echo "|------------------|----|----|----|"
 }
 
