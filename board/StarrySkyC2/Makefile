@@ -5,7 +5,7 @@
 CROSS=riscv64-unknown-elf-
 BUILD_DIR := build
 PROJECT_PATH := $(shell pwd)
-CATAGORY := StarrySkyC2
+CATEGORY := StarrySkyC2
 
 # 包含配置文件
 -include configs/config/auto.conf
@@ -30,7 +30,7 @@ CFLAGS += -I./configs
 LDS_PATH := ./sections.lds
 
 # 包含可选的设置
-include $(ECOS_SDK_HOME)/board/$(CATAGORY)/build_conf.mk
+include $(ECOS_SDK_HOME)/board/StarrySkyC2/build_conf.mk
 
 # 包含内存报告工具
 -include $(ECOS_SDK_HOME)/tools/scripts/mem_report.mk
