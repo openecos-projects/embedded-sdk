@@ -10,7 +10,7 @@ endchoice
 
 choice
     prompt "Memory Region Selection"
-    default LINK_RAM_REGION_FLASH
+    default LINK_RAM_REGION_PSRAM
 
     config LINK_RAM_REGION_PSRAM
         bool "PSRAM (Execute in Place)"
