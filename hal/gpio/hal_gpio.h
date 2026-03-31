@@ -3,35 +3,37 @@
 
 #include "hal_gpio_type.h"
 
+/**
+ * @brief 启用指定GPIO为输入模式
+ * 
+ * @param hal GPIO HAL实例指针[暂时未使用]
+ * @param gpio_num GPIO编号
+ */
+void gpio_hal_input_enable(void *hal, uint8_t gpio_num);
 
 /**
- * @brief 设置单个GPIO引脚方向函数
+ * @brief 启用指定GPIO为输出模式
  * 
- * 设置指定GPIO引脚的方向为输入或输出。
- * 
- * @param gpio_num GPIO引脚号，枚举类型gpio_num_t
- * @param direction GPIO方向，枚举类型gpio_mode_t
+ * @param hal GPIO HAL实例指针[暂时未使用]
+ * @param gpio_num GPIO编号
  */
-void hal_gpio_set_direction(gpio_num_t gpio_num, gpio_mode_t direction);
+void gpio_hal_output_enable(void *hal, uint8_t gpio_num);
 
 /**
- * @brief GPIO设置电平函数
+ * @brief 设置指定GPIO为高电平
  * 
- * 设置指定GPIO引脚的电平为高或低。
- * 
- * @param gpio_num GPIO引脚号，枚举类型gpio_num_t
- * @param level GPIO电平，枚举类型gpio_level_t
+ * @param hal GPIO HAL实例指针[暂时未使用]
+ * @param gpio_num GPIO编号
  */
-void hal_gpio_set_level(gpio_num_t gpio_num, gpio_level_t level);
+void gpio_hal_set_level(void *hal, uint8_t gpio_num, uint8_t level);
 
 /**
- * @brief GPIO获取电平函数
+ * @brief 获取指定GPIO的电平
  * 
- * 获取指定GPIO引脚的当前电平。
- * 
- * @param gpio_num GPIO引脚号，枚举类型gpio_num_t
- * @return int32_t GPIO电平，0表示低电平，1表示高电平
+ * @param hal GPIO HAL实例指针[暂时未使用]
+ * @param gpio_num GPIO编号
+ * @return uint8_t GPIO电平
  */
-int32_t hal_gpio_get_level(gpio_num_t gpio_num);
+uint8_t gpio_hal_get_level(void *hal, uint8_t gpio_num);
 
 #endif
