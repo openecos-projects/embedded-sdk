@@ -1,8 +1,30 @@
-#ifndef GPIO_H__
-#define GPIO_H__
+# HAL接口设计
+## 系统抽象层
+### sys_uart
+```c
+/**
+ * @brief 初始化系统串口
+ * 
+ */
+void hal_sys_uart_init(void);
 
-#include "hal_gpio_type.h"
+/**
+ * @brief 发送一个字符到系统串口
+ * 
+ * @param c 要发送的字符
+ */
+void hal_sys_putchar(char c);
 
+/**
+ * @brief 发送一个字符串到系统串口
+ * 
+ * @param str 要发送的字符串
+ */
+void hal_sys_putstr(char *str);
+```
+## 外设抽象层
+### gpio
+```c
 /**
  * @brief 启用指定GPIO为输入模式
  * 
@@ -35,5 +57,4 @@ void gpio_hal_set_level(void *hal, uint8_t gpio_num, uint8_t level);
  * @return uint8_t GPIO电平
  */
 uint8_t gpio_hal_get_level(void *hal, uint8_t gpio_num);
-
-#endif
+```
