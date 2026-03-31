@@ -5,6 +5,8 @@
 CROSS=riscv64-unknown-elf-
 BUILD_DIR := build
 PROJECT_PATH := $(shell pwd)
+CATAGORY := StarrySkyC2
+
 # 包含配置文件
 -include configs/.config
 

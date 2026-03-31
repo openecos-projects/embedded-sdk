@@ -1,25 +1,7 @@
 mainmenu "ECOS Embedded SDK Configuration"
 
 menu "Target Hardware Configuration"
-    choice
-        prompt "Target SoC Platform"
-        default STARRYSKY_C1
-        
-    config STARRYSKY_C1
-        bool "StarrySky_C1 Platform"
-        help
-          StarrySky_C1 RISC-V based embedded platform
-
-    config STARRYSKY_C2
-        bool "StarrySky_C2 Platform"
-        help
-          StarrySky_C2 RISC-V based embedded platform
-
-    config STARRYSKY_L3
-        bool "StarrySky_L3 Platform"
-        help
-          StarrySky_L3 RISC-V based embedded platform
-    endchoice
+    source "$(KconfigExport)"
     
     config BOARD_NAME
         string
@@ -69,27 +51,6 @@ menu "Target Hardware Configuration"
         int
         default 0 if STARRYSKY_C1 || STARRYSKY_C2
         default 1 if STARRYSKY_L3
-
-    choice
-        prompt "Memory Region Selection"
-        depends on STARRYSKY_C2
-        default LINK_RAM_REGION_FLASH
-
-    config LINK_RAM_REGION_FLASH
-        bool "Flash (Execute in Place)"
-        help
-          Code executes from Flash, Data in SRAM.
-
-    config LINK_RAM_REGION_PSRAM
-        bool "PSRAM (Execute in Place)"
-        help
-          Code executes from PSRAM.
-
-    config LINK_RAM_REGION_SRAM
-        bool "SRAM (Execute in Place)"
-        help
-          Code executes from internal SRAM.
-    endchoice
 endmenu
 
 menu "System Configuration"
