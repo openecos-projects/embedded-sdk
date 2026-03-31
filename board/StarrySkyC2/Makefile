@@ -30,7 +30,7 @@ CFLAGS += -I./configs
 LDS_PATH := ./sections.lds
 
 # 包含可选的设置
-include $(ECOS_SDK_HOME)/board/$(CATAGORY)/Makefile
+include $(ECOS_SDK_HOME)/board/$(CATAGORY)/build_conf.mk
 
 # 包含内存报告工具
 -include $(ECOS_SDK_HOME)/tools/scripts/mem_report.mk
