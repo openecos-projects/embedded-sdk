@@ -33,6 +33,14 @@ CONF   := $(KCONFIG_PATH)/build/conf
 MCONF  := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 
+
+
+ifeq ($(CATAGORY),StarrySkyC2)
+	export KconfigExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/Kconfig
+else
+	export KconfigExport := $(ECOS_SDK_HOME)/board/StarrySkyC1/Kconfig
+endif
+
 $(CONF):
 	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=conf
 

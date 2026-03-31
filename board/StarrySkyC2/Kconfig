@@ -1,0 +1,19 @@
+choice
+    prompt "Target SoC Platform"
+    default STARRYSKY_C2
+
+    config STARRYSKY_C2
+        bool "StarrySky_C2 Platform"
+        help
+            StarrySky_C2 RISC-V based embedded platform
+endchoice
+
+choice
+    prompt "Memory Region Selection"
+    default LINK_RAM_REGION_PSRAM
+
+    config LINK_RAM_REGION_PSRAM
+        bool "PSRAM (Execute in Place)"
+        help
+            Code executes from PSRAM.
+endchoice
