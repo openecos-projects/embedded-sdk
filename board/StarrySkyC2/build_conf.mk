@@ -42,6 +42,11 @@ ifdef CONFIG_DRIVER_SYS_UART
 	CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/sys_uart -type d))
 endif
 
+ifdef CONFIG_DRIVER_TIMER
+	SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/timer -name "*.c")
+	CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/timer -type d))
+endif
+
 ifdef CONFIG_LINK_LIBC
 	SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
 	CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include

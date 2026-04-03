@@ -113,11 +113,11 @@ menu "Peripheral Drivers"
     #     help
     #       Enable PWM driver for pulse width modulation
           
-    # config DRIVER_TIMER
-    #     bool "Timer Driver Support"
-    #     default y
-    #     help
-    #       Enable timer driver for timing functions
+    config DRIVER_TIMER
+        bool "Timer Driver Support"
+        default y
+        help
+          Enable timer driver for timing functions
 endmenu
 
 menu "Build Configuration"
