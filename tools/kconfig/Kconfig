@@ -3,11 +3,11 @@ mainmenu "ECOS Embedded SDK Configuration"
 menu "Target Hardware Configuration"
     source "$(KconfigExport)"
     
-    config BOARD_NAME
-        string
-        default "starrysky_c1" if STARRYSKY_C1
-        default "starrysky_c2" if STARRYSKY_C2
-        default "starrysky_l3" if STARRYSKY_L3
+    # config BOARD_NAME
+    #     string
+    #     default "starrysky_c1" if STARRYSKY_C1
+    #     default "starrysky_c2" if STARRYSKY_C2
+    #     default "starrysky_l3" if STARRYSKY_L3
         
     # config ARCH_RISCV32
     #     bool

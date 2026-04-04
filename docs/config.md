@@ -22,5 +22,6 @@ Menuconfig引用链为：Makefile -> build_conf.mk -> auto.conf(由script/config
 2. 配置script/config.mk，将板卡型号添加进CATEGORY_LIST
 3. 配置Makefile，先包含auto.conf，再包含build_conf.mk
 4. 创建build_conf.mk，使用生成的配置信息，来配置项目的编译链接
+在适配新板卡时，推荐使用已有板卡的配置文件作为参考，并在此基础上进行修改
 
 
