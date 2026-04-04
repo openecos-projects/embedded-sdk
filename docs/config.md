@@ -16,7 +16,7 @@
 ### Firmware Configuration
 存放与固件最终构建相关的可配置信息
 
-## Menuconfig适配方式
+## 新版卡的Menuconfig适配方式
 Menuconfig引用链为：Makefile -> build_conf.mk -> auto.conf(由script/config.mk、kconfig/Kconfig、board/板卡型号/Kconfig共同生成)
 1. 创建board/Kconfig，并编写与板卡型号有关的只读信息（显示在Target Hardware Configuration中）
 2. 配置script/config.mk，将板卡型号添加进CATEGORY_LIST

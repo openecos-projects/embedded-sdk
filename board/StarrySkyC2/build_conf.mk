@@ -31,17 +31,22 @@ else
 FIRMWARE_NAME := main
 endif
 
-# 可选的源文件列表
-ifdef CONFIG_DRIVER_GPIO
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/gpio -name "*.c")
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/gpio -type d))
+# 可选的驱动列表
+define driver_template
+ifdef CONFIG_DRIVER_$(1)
+        SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/$(2) -name "*.c")
+        CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
 endif
+endef
+DRIVER_DIR := $(ECOS_SDK_HOME)/board/StarrySkyC2/driver
+DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -type d))
 
-ifdef CONFIG_DRIVER_SYS_UART
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/sys_uart -name "*.c")
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/sys_uart -type d))
-endif
+$(foreach subdir,$(DRIVER_SUBDIRS), \
+    $(eval CONFIG_NAME := $(shell echo $(subdir) | tr '[:lower:]' '[:upper:]')) \
+    $(eval $(call driver_template,$(CONFIG_NAME),$(subdir))) \
+)
 
+# 可选的链接库列表
 ifdef CONFIG_LINK_LIBC
 SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include
