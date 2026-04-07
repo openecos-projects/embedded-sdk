@@ -1,5 +1,5 @@
-#ifndef __HP_UART_TYPE_H__
-#define __HP_UART_TYPE_H__
+#ifndef __HAL_HP_UART_TYPE_H__
+#define __HAL_HP_UART_TYPE_H__
 
 #include <stdint.h>
 
