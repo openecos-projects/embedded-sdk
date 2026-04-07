@@ -37,10 +37,12 @@ FIXDEP := $(FIXDEP_PATH)/build/fixdep
 CATEGORY_LIST := StarrySkyC2
 # CATEGORY_LIST += StarrySkyL3
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
-export KconfigExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/Kconfig
+export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
+export DriverExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/driver.kconfig
 else
 $(warning $(COLOR_RED)Board category is not existed, default to StarrySkyC2.$(COLOR_END))
-export KconfigExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/Kconfig
+export BoardExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/board.kconfig
+export DriverExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/driver.kconfig
 endif
 
 $(CONF):
