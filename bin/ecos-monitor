@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ECOS `monitor` subcommand
+# Opens the serial monitor using minicom
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Color output
+log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
+err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+
+# Check if minicom is installed
+if ! command -v minicom &> /dev/null; then
+    err "minicom could not be found."
+    warn "Please install minicom first (e.g., 'sudo apt install minicom' or 'sudo pacman -S minicom')."
+    exit 1
+fi
+
+PORT=""
+
+# If user provided a specific port argument, use it
+if [[ $# -gt 0 ]]; then
+    if [[ -e "$1" ]]; then
+        PORT="$1"
+    else
+        err "Provided serial port does not exist: $1"
+        exit 1
+    fi
+else
+    # Find all available serial ports
+    PORTS=()
+    for p in /dev/ttyUSB* /dev/ttyACM*; do
+        if [[ -e "$p" ]]; then
+            PORTS+=("$p")
+        fi
+    done
+
+    if [[ ${#PORTS[@]} -eq 0 ]]; then
+        err "No serial port found (/dev/ttyUSB* or /dev/ttyACM*)."
+        warn "Please make sure the device is connected."
+        exit 1
+    elif [[ ${#PORTS[@]} -eq 1 ]]; then
+        PORT="${PORTS[0]}"
+    else
+        # Interactive selection if multiple ports exist
+        log "Multiple serial ports found. Please select one:"
+        # Use select for simple interactive menu
+        PS3="Enter a number to choose the port: "
+        select opt in "${PORTS[@]}"; do
+            if [[ -n "$opt" ]]; then
+                PORT="$opt"
+                break
+            else
+                err "Invalid selection. Please try again."
+            fi
+        done
+    fi
+fi
+
+log "Opening serial port $PORT at 115200 baud..."
+log "Press 'Ctrl+A' then 'X' to exit minicom."
+
+# Execute minicom
+exec minicom -D "$PORT" -b 115200
