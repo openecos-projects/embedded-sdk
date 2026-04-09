@@ -11,11 +11,11 @@ menu "Peripheral Drivers"
         help
             Enable GPIO driver for pin control
 
-    # config DRIVER_UART
-    #     bool "UART Driver Support"
-    #     default y
-    #     help
-    #       Enable UART driver for serial communication
+    config DRIVER_HP_UART
+        bool "UART Driver Support"
+        default y
+        help
+          Enable UART driver for serial communication
             
     # config DRIVER_SPI
     #     bool "SPI Driver Support"
@@ -35,9 +35,9 @@ menu "Peripheral Drivers"
     #     help
     #       Enable PWM driver for pulse width modulation
             
-    # config DRIVER_TIMER
-    #     bool "Timer Driver Support"
-    #     default y
-    #     help
-    #       Enable timer driver for timing functions
+    config DRIVER_TIMER
+        bool "Timer Driver Support"
+        default y
+        help
+          Enable timer driver for timing functions
 endmenu
