@@ -4,6 +4,8 @@
 /* ========== GPIO 寄存器组 ========== */
 #define REG_GPIO_0_DR         (*(volatile uint32_t*)0x10000000)  // GPIO数据寄存器
 #define REG_GPIO_0_DDR        (*(volatile uint32_t*)0x10000004)  // GPIO数据方向寄存器
+#define REG_GPIO_0_PUB        (*(volatile uint32_t*)0x10000008)  // GPIO上拉使能寄存器
+#define REG_GPIO_0_PDB        (*(volatile uint32_t*)0x1000000c)  // GPIO下拉使能寄存器
 
 /* ========== SYS_UART 接口寄存器 ====== */
 #define REG_UART_0_CLKDIV     (*(volatile uint32_t*)0x10001000)  // UART时钟分频寄存器

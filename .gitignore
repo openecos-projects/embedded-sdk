@@ -20,9 +20,6 @@
 !board
 !board/**
 
-!hal
-!hal/**
-
 !components
 !components/**
 

@@ -69,10 +69,6 @@ install_sdk_core() {
     ensure_dir "$PREFIX/components/"
     cp -r "$SCRIPT_DIR/components/." "$PREFIX/components/"
     
-    # 拷贝HAL库
-    ensure_dir "$PREFIX/hal/"
-    cp -r "$SCRIPT_DIR/hal/." "$PREFIX/hal/"
-    
     # 拷贝模板工程
     cp -r "$SCRIPT_DIR/templates" "$PREFIX/"
 
@@ -241,41 +237,6 @@ add_env() {
     done
 }
 
-install_completion() {
-    echo ""
-    read -p "是否需要为 ecos 指令安装自动补全功能 (Tab补全)？这将在您的 shell 配置文件末尾追加加载脚本。[Y/n]: " install_comp
-    if [[ "$install_comp" =~ ^[Nn]$ ]]; then
-        log "已跳过自动补全功能的安装。"
-        return 0
-    fi
-
-    local rc_files=()
-    if [[ -f "$HOME/.zshrc" ]]; then rc_files+=("$HOME/.zshrc"); fi
-    if [[ -f "$HOME/.bashrc" ]]; then rc_files+=("$HOME/.bashrc"); fi
-    
-    if [[ ${#rc_files[@]} -eq 0 ]]; then
-        if [[ "$SHELL" == *"zsh"* ]]; then rc_files+=("$HOME/.zshrc"); else rc_files+=("$HOME/.bashrc"); fi
-    fi
-
-    local comp_script="source $PREFIX/bin/ecos-completion.zsh"
-    
-    for rc_file in "${rc_files[@]}"; do
-        if grep -qF "ecos-completion.zsh" "$rc_file"; then
-            log "自动补全已配置在 $rc_file 中，跳过。"
-        else
-            log "正在配置自动补全到 $rc_file ..."
-            echo "" >> "$rc_file"
-            echo "# ECOS command completion" >> "$rc_file"
-            if [[ "$rc_file" == *".zshrc" ]]; then
-                echo "autoload -U +X compinit && compinit" >> "$rc_file"
-                echo "autoload -U +X bashcompinit && bashcompinit" >> "$rc_file"
-            fi
-            echo "$comp_script" >> "$rc_file"
-        fi
-    done
-    log "自动补全功能安装完成！请在新终端中体验。"
-}
-
 # 主安装流程
 main() {
     log "开始一键安装 ECOS Embedded SDK..."
@@ -285,7 +246,6 @@ main() {
     install_sdk_core
     install_toolchain
     add_env
-    install_completion
 
     echo ""
     log "安装完成！"

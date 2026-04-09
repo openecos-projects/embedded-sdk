@@ -21,8 +21,6 @@ show_help() {
     echo "Available commands:"
     echo "  set_board <board_name>            Set the board configuration"
     echo "  init_project <project_name>|list  Initialize a project or list available projects"
-    echo "  flash                             Flash the compiled firmware to the device"
-    echo "  monitor                           Open serial monitor using minicom"
     echo "  help                              Show this help message"
     echo ""
     echo "Board list:"
@@ -34,8 +32,6 @@ show_help() {
     echo "  ecos set_board c1                 Set the board to StarrySky C1"
     echo "  ecos init_project hello           Initialize a new project named 'hello'"
     echo "  ecos init_project list            List all available project templates"
-    echo "  ecos flash                        Flash the compiled firmware to the device"
-    echo "  ecos monitor                      Open the default serial port at 115200 baud"
     echo ""
 }
 

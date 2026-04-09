@@ -1,18 +1,30 @@
 #include "main.h"
-#include "stddef.h"
 
 void main(void){
     
-    hal_sys_uart_init();
-    hal_sys_putstr("GPIO TEST!\n\r");
+    sys_uart_init();
+    printf("GPIO test\n");
 
-    gpio_hal_output_enable(NULL,GPIO_NUM_0);
+    gpio_config_t gpio_config_out = {
+        .pin_bit_mask = (1ULL << GPIO_NUM_0),
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    gpio_config(&gpio_config_out);
+
+    gpio_config_t gpio_config_in = {
+        .pin_bit_mask = (1ULL << GPIO_NUM_1),
+        .mode = GPIO_MODE_INPUT,
+    };
+    gpio_config(&gpio_config_in);
 
     while(1){
-        gpio_hal_set_level(NULL,GPIO_NUM_0,GPIO_LEVEL_HIGH);
-        hal_delay_s(1,1);
-        gpio_hal_set_level(NULL,GPIO_NUM_0,GPIO_LEVEL_LOW);
-        hal_delay_s(1,1);
+        if(gpio_get_level(GPIO_NUM_1) == GPIO_LEVEL_HIGH){
+            gpio_set_level(GPIO_NUM_0, GPIO_LEVEL_HIGH);
+        }
+        else{
+            gpio_set_level(GPIO_NUM_0, GPIO_LEVEL_LOW);
+        }
     }
+
 
 }

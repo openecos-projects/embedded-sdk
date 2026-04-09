@@ -5,10 +5,8 @@
 CROSS=riscv64-unknown-elf-
 BUILD_DIR := build
 PROJECT_PATH := $(shell pwd)
-CATEGORY := StarrySkyC2
-
 # 包含配置文件
--include configs/config/auto.conf
+-include configs/.config
 
 # 编译器标志配置
 # -mabi=ilp32: 使用ILP32 ABI
@@ -22,15 +20,50 @@ CFLAGS := -mabi=ilp32 \
 	  -ffreestanding \
 	  -nostdlib
 
-# 必要的源文件列表
+# 根据配置文件设置链接选项
+ifdef CONFIG_LINK_RAM_REGION_SRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+endif
+
+ifdef CONFIG_LINK_RAM_REGION_PSRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+endif
+
+# 根据配置文件添加编译优化选项
+ifdef CONFIG_BUILD_OPT_FLAGS
+CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
+endif
+
+# 根据配置文件添加调试选项
+ifdef CONFIG_BUILD_DEBUG
+CFLAGS += -g -DDEBUG
+endif
+
+# 根据配置文件添加详细输出选项
+ifdef CONFIG_BUILD_VERBOSE
+VERBOSE := 1
+endif
+
+# 固件名称 - 从配置文件读取，如果未定义则使用默认值
+ifdef CONFIG_FIRMWARE_NAME
+FIRMWARE_NAME := $(subst ",,$(CONFIG_FIRMWARE_NAME))
+else
+FIRMWARE_NAME := main
+endif
+
+# 源文件列表
 SRC_PATH := ./start.S ./main.c 
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices -name "*.c")
+
 CFLAGS += -I./configs 
-
-# 必要的链接脚本路径
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
+		
+# 链接脚本路径
 LDS_PATH := ./sections.lds
-
-# 包含可选的设置
-include $(ECOS_SDK_HOME)/board/StarrySkyC2/build_conf.mk
 
 # 包含内存报告工具
 -include $(ECOS_SDK_HOME)/tools/scripts/mem_report.mk

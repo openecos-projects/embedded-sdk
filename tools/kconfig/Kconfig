@@ -1,37 +1,174 @@
 mainmenu "ECOS Embedded SDK Configuration"
 
-source "$(BoardExport)"
-source "$(DriverExport)"
-menu "Build Configuration"
-    menu "Library Configuration"
-        config LINK_LIBC
-            bool "link libc"
-            default y
-            help
-              Link built-in C standard library
+menu "Target Hardware Configuration"
+    choice
+        prompt "Target SoC Platform"
+        default STARRYSKY_C1
         
-        config LINK_LIBGCC
-            bool "link libgcc"
-            default y
-            help
-              Link built-in GCC library
-    endmenu
+    config STARRYSKY_C1
+        bool "StarrySky_C1 Platform"
+        help
+          StarrySky_C1 RISC-V based embedded platform
 
+    config STARRYSKY_C2
+        bool "StarrySky_C2 Platform"
+        help
+          StarrySky_C2 RISC-V based embedded platform
+
+    config STARRYSKY_L3
+        bool "StarrySky_L3 Platform"
+        help
+          StarrySky_L3 RISC-V based embedded platform
+    endchoice
+    
+    config BOARD_NAME
+        string
+        default "starrysky_c1" if STARRYSKY_C1
+        default "starrysky_c2" if STARRYSKY_C2
+        default "starrysky_l3" if STARRYSKY_L3
+        
+    config ARCH_RISCV32
+        bool
+        default y if STARRYSKY_C1 || STARRYSKY_C2
+
+    config ARCH_RISCV64
+        bool
+        default y if STARRYSKY_L3
+
+    config GPIO_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config SYS_UART_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+    
+    config I2C_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+    
+    config PWM_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config QSPI_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config TIMER_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    config HP_UART_IP_ID
+        int
+        default 0 if STARRYSKY_C1 || STARRYSKY_C2
+        default 1 if STARRYSKY_L3
+
+    choice
+        prompt "Memory Region Selection"
+        depends on STARRYSKY_C2
+        default LINK_RAM_REGION_FLASH
+
+    config LINK_RAM_REGION_FLASH
+        bool "Flash (Execute in Place)"
+        help
+          Code executes from Flash, Data in SRAM.
+
+    config LINK_RAM_REGION_PSRAM
+        bool "PSRAM (Execute in Place)"
+        help
+          Code executes from PSRAM.
+
+    config LINK_RAM_REGION_SRAM
+        bool "SRAM (Execute in Place)"
+        help
+          Code executes from internal SRAM.
+    endchoice
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 72
+        range 1 200
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+    config PSRAM_NUM
+        int "Number of PSRAM Chips"
+        default 1
+        range 1 4
+    config PSRAM_SCLK_MIN_FREQ_MHZ
+        int "PSRAM SCLK Minimum Frequency (MHz)"
+        default 12
+        range 1 200
+    config PSRAM_SCLK_MAX_FREQ_MHZ
+        int "PSRAM SCLK Maximum Frequency (MHz)"
+        default 133
+        range 1 200
+endmenu
+
+menu "Peripheral Drivers"
+    config DRIVER_UART
+        bool "UART Driver Support"
+        default y
+        help
+          Enable UART driver for serial communication
+          
+    config DRIVER_GPIO
+        bool "GPIO Driver Support" 
+        default y
+        help
+          Enable GPIO driver for pin control
+          
+    config DRIVER_SPI
+        bool "SPI Driver Support"
+        default y
+        help
+          Enable SPI driver for serial peripheral interface
+          
+    config DRIVER_I2C
+        bool "I2C Driver Support"
+        default y
+        help
+          Enable I2C driver for inter-integrated circuit
+          
+    config DRIVER_PWM
+        bool "PWM Driver Support"
+        default y
+        help
+          Enable PWM driver for pulse width modulation
+          
+    config DRIVER_TIMER
+        bool "Timer Driver Support"
+        default y
+        help
+          Enable timer driver for timing functions
+endmenu
+
+menu "Build Configuration"
     choice
         prompt "Optimization Level"
         default BUILD_OPT_SIZE
         
-        config BUILD_OPT_NONE
-            bool "No optimization (-O0)"
-            
-        config BUILD_OPT_SIZE
-            bool "Optimize for size (-Os)"
-            
-        config BUILD_OPT_SPEED
-            bool "Optimize for speed (-O2)"
-            
-        config BUILD_OPT_MAX
-            bool "Maximum optimization (-O3)"
+    config BUILD_OPT_NONE
+        bool "No optimization (-O0)"
+        
+    config BUILD_OPT_SIZE
+        bool "Optimize for size (-Os)"
+        
+    config BUILD_OPT_SPEED
+        bool "Optimize for speed (-O2)"
+        
+    config BUILD_OPT_MAX
+        bool "Maximum optimization (-O3)"
     endchoice
     
     config BUILD_OPT_FLAGS
@@ -53,29 +190,28 @@ menu "Build Configuration"
         help
           Show detailed compilation commands
     
-    # choice
-    #     prompt "Link target"
-    #     default LINK_TARGET_FLASH
-    #     help
-    #       choose the storage area used for firmware linking
-        
-    #     config LINK_TARGET_FLASH
-    #         bool "FLASH"
-    #     config LINK_TARGET_SRAM
-    #         bool "SRAM"
-    #     config LINK_TARGET_MEM
-    #         bool "MEM"
-    # endchoice
+    choice
+        prompt "link target"
+        default LINK_TARGET_FLASH
+        help
+          choose the storage area used for firmware linking
+    config LINK_TARGET_FLASH
+        bool "FLASH"
+    config LINK_TARGET_SRAM
+        bool "SRAM"
+    config LINK_TARGET_MEM
+        bool "MEM"
+    endchoice
 
-    # config LINK_ADDRESS
-    #     hex "link address"
-    #     default 0x30000000 if LINK_TARGET_FLASH
-    #     default 0x00000000 if LINK_TARGET_SRAM
-    #     default 0x80000000 if LINK_TARGET_MEM
-    #     help
-    #       choose the starting address for firmware linking
-    #       when selecting a different "link target", the default address will change accordingly.
-    #       If you need to customize the address, please enter the hexadecimal address directly here.
+    config LINK_ADDRESS
+        hex "link address"
+        default 0x30000000 if LINK_TARGET_FLASH
+        default 0x00000000 if LINK_TARGET_SRAM
+        default 0x80000000 if LINK_TARGET_MEM
+        help
+          choose the starting address for firmware linking
+          when selecting a different "link target", the default address will change accordingly.
+          If you need to customize the address, please enter the hexadecimal address directly here.
 endmenu
 
 menu "Firmware Configuration"
