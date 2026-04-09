@@ -5,47 +5,27 @@
 #include "hal_hp_uart_type.h"
 
 /**
- * @brief 配置串口
- * 
- * @param uart_id 串口ID
- * @param config 串口配置
- * @return uint8_t 0 成功，1 失败
+ * @brief 初始化HP_UART
+ * @note 波特率由配置宏自动计算，和SYS_UART初始化逻辑一致
  */
-uint8_t hp_uart_hal_config(uint8_t uart_id, hp_uart_config_t* config);
+void hal_hp_uart_init(void);
 
 /**
- * @brief 发送一个字符到串口
- * 
- * @param uart_id 串口ID
+ * @brief 发送一个字符到HP_UART
  * @param c 要发送的字符
- * @return uint8_t 0 成功，1 失败
  */
-uint8_t hp_uart_hal_send(uint8_t uart_id, char c);
+void hal_hp_uart_putchar(char c);
 
 /**
- * @brief 发送一个字符串到串口
- * 
- * @param uart_id 串口ID
+ * @brief 发送一个字符串到HP_UART
  * @param str 要发送的字符串
- * @return uint8_t 0 成功，1 失败
  */
-uint8_t hp_uart_hal_send_str(uint8_t uart_id, char* str);
+void hal_hp_uart_putstr(char *str);
 
 /**
- * @brief 接收一个字符从串口
- * 
- * @param uart_id 串口ID
- * @param c 接收的字符
- * @return uint8_t 0 成功，1 失败
+ * @brief 从HP_UART读取一个字符
+ * @return char 读取到的字符
  */
-uint8_t hp_uart_hal_recv(uint8_t uart_id, char* c);
+char hal_hp_uart_getchar(void);
 
-/**
- * @brief 接收一个字符串从串口
- * 
- * @param uart_id 串口ID
- * @param str 接收的字符串
- * @return uint8_t 0 成功，1 失败
- */
-uint8_t hp_uart_hal_recv_str(uint8_t uart_id, char* str);
-#endif
+#endif 

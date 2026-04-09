@@ -26,6 +26,7 @@ uint8_t hal_delay_ms(uint8_t timer_id, uint32_t val){
 }
 uint8_t hal_delay_s(uint8_t timer_id, uint32_t val){
     return hal_delay_ms(timer_id, val * 1000);
+  
 }
 uint8_t hal_sys_tick_init(uint8_t timer_id){
     if (timer_id == 0){
