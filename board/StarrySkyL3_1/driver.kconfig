@@ -1,0 +1,25 @@
+menu "Peripheral Drivers"
+    config DRIVER_SYS_UART
+        bool "SYS_UART Driver Support"
+        default y
+        help
+            Enable SYS_UART driver for serial communication
+
+    config DRIVER_GPIO
+        bool "GPIO Driver Support" 
+        default y
+        help
+            Enable GPIO driver for pin control
+            
+    config DRIVER_I2C
+        bool "I2C Driver Support"
+        default y
+        help
+          Enable I2C driver for inter-integrated circuit
+          
+    config DRIVER_QSPI
+        bool "QSPI Driver Support"
+        default y
+        help
+          Enable QSPI driver
+endmenu
