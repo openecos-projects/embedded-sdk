@@ -24,7 +24,7 @@ include $(ECOS_SDK_HOME)/board/StarrySkyL3_1/build_conf.mk
 # CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
 
 # Firmware Sources
-FIRMWARE_SRC_PATH := ./start.s ./main.c $(SDK_SRC_PATH)
+FIRMWARE_SRC_PATH := ./start.S ./main.c $(SDK_SRC_PATH)
 
 # loader Sources
 LOADER_SRC_PATH := loader/start.s loader/loader.c loader/payload.S $(SDK_SRC_PATH)
@@ -49,8 +49,8 @@ $(FIRMWARE_NAME):
 	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/app.lds -o $(BUILD_DIR)/app.elf $(FIRMWARE_SRC_PATH)
 	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/app.bin
 
-ifdef CONFIG_LINK_TARGET_FLASH
-	@echo "Skipping Bootloader (Target is FLASH)..."
+ifdef CONFIG_LINK_TARGET_XIP
+	@echo "Skipping Bootloader (Target is XIP)..."
 	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
 	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
 	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin

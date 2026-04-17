@@ -249,10 +249,10 @@ set_board() {
                 log "Set Linker Script: $lds_target_path"
             fi
             
-             # Copy start.s if exists
-            if [[ -f "$SDK_ROOT/board/StarrySkyL3_1/start.s" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyL3_1/start.s" "./start.s"
-                log "Set startup code: ./start.s"
+             # Copy start.S if exists
+            if [[ -f "$SDK_ROOT/board/StarrySkyL3_1/start.S" ]]; then
+                cp "$SDK_ROOT/board/StarrySkyL3_1/start.S" "./start.S"
+                log "Set startup code: ./start.S"
             fi
 
             # Copy bootloader

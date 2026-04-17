@@ -6,7 +6,11 @@
 extern uint32_t app_start;
 extern uint32_t app_end;
 
-#define APP_ENTRY CONFIG_LINK_ADDRESS
+#ifdef CONFIG_LINK_TARGET_MEM
+#define APP_ENTRY 0x80000000
+#else
+#define APP_ENTRY 0x30000000
+#endif
 
 void main() {
     hal_sys_uart_init();
