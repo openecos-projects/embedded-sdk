@@ -1,0 +1,36 @@
+menu "Target Hardware Configuration"
+    choice
+    prompt "Target SoC Platform"
+    default STARRYSKY_L3_1
+
+    config STARRYSKY_L3_1
+        bool "StarrySky_L3_1 Platform"
+        help
+            StarrySky_L3_1 RISC-V based embedded platform
+    endchoice
+
+    choice
+        prompt "Memory Region Selection"
+        default LINK_TARGET_FLASH
+
+        config LINK_TARGET_FLASH
+            bool "FLASH (Execute in Place)"
+            help
+                Code executes from FLASH directly.
+        config LINK_TARGET_RAM
+            bool "RAM (Load to RAM)"
+            help
+                Code executes from RAM via Bootloader.
+    endchoice
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 50
+        range 1 200
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+endmenu
