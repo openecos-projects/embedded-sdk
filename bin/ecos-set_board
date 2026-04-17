@@ -194,7 +194,7 @@ set_board() {
                 log "Set Linker Script: $lds_target_path"
             fi
             
-             # Copy start.s if exists
+            # Copy start.s if exists
             if [[ -f "$SDK_ROOT/board/StarrySkyL3/start.s" ]]; then
                 cp "$SDK_ROOT/board/StarrySkyL3/start.s" "./start.s"
                 log "Set startup code: ./start.s"
@@ -216,6 +216,61 @@ set_board() {
                 log "Updated project configuration file."
             fi
             ;;
+        "l3_1")
+            local board_file="board.h"
+            local make_file="Makefile"
+            local lds_file="sections.lds"
+            
+            local board_source_path="$SDK_ROOT/board/StarrySkyL3_1/$board_file"
+            local make_source_path="$SDK_ROOT/board/StarrySkyL3_1/$make_file"
+            local lds_source_path="$SDK_ROOT/board/StarrySkyL3_1/$lds_file"
+
+            local board_target_path="./board.h"
+            local make_target_path="./Makefile"
+            local lds_target_path="./sections.lds"
+
+            if [[ ! -f "$board_source_path" ]]; then
+                err "Board config file not found: $board_source_path"
+                exit 1
+            fi
+
+            # Copy board config file
+            cp "$board_source_path" "$board_target_path"
+            log "Set board configuration to: starrysky_l3_1"
+            log "Config file: $board_target_path"
+
+            # Copy Makefile
+            cp "$make_source_path" "$make_target_path"
+            log "Set Makefile: $make_target_path"
+
+            # Copy Linker Script
+            if [[ -f "$lds_source_path" ]]; then
+                cp "$lds_source_path" "$lds_target_path"
+                log "Set Linker Script: $lds_target_path"
+            fi
+            
+             # Copy start.s if exists
+            if [[ -f "$SDK_ROOT/board/StarrySkyL3_1/start.s" ]]; then
+                cp "$SDK_ROOT/board/StarrySkyL3_1/start.s" "./start.s"
+                log "Set startup code: ./start.s"
+            fi
+
+            # Copy bootloader
+            local bootloader_source_path="$SDK_ROOT/board/StarrySkyL3_1/loader"
+            local bootloader_target_path="./loader"
+            cp -r "$bootloader_source_path" "$bootloader_target_path"
+            log "Set bootloader: $bootloader_target_path"
+
+            # Update project config file if it exists
+            if [[ -f ".ecos-project" ]]; then
+                if grep -q "BOARD=" ".ecos-project"; then
+                    sed -i "s/BOARD=.*/BOARD=$target_board_name/" ".ecos-project"
+                else
+                    echo "BOARD=$target_board_name" >> ".ecos-project"
+                fi
+                log "Updated project configuration file."
+            fi
+            ;;
         *)
             err "Unsupported board: $board_name"
             echo ""
@@ -223,6 +278,7 @@ set_board() {
             echo "  c1    StarrySky C1 board"
             echo "  c2    StarrySky C2 board"
             echo "  l3    StarrySky L3 board"
+            echo "  l3_1  StarrySky L3_1 board"
             exit 1
             ;;
     esac

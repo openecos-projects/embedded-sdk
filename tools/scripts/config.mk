@@ -34,8 +34,7 @@ MCONF  := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 
 
-CATEGORY_LIST := StarrySkyC2
-# CATEGORY_LIST += StarrySkyL3
+CATEGORY_LIST := StarrySkyC2 StarrySkyL3 StarrySkyL3_1
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
 export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
 export DriverExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/driver.kconfig
