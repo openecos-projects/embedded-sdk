@@ -14,6 +14,10 @@ void hal_sys_uart_init(void){
 }
 
 void hal_sys_putchar(char c){
+    if (c == '\n') {
+        while ((REG_UART_0_LS & 0x20) == 0);
+        REG_UART_0_TH = '\r';
+    }
     while ((REG_UART_0_LS & 0x20) == 0);
     REG_UART_0_TH = c;
 

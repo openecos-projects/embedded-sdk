@@ -22,4 +22,77 @@ menu "Peripheral Drivers"
         default y
         help
           Enable QSPI driver
+
+    config DRIVER_PWM
+        bool "PWM Driver Support"
+        default y
+        help
+          Enable PWM driver
+
+    config DRIVER_TIMER
+        bool "TIMER Driver Support"
+        default y
+        help
+          Enable TIMER driver
+
+    config DRIVER_PS2
+        bool "PS2 Driver Support"
+        default n
+        help
+          Enable PS2 driver for keyboard/mouse
+
+    config DRIVER_WDG
+        bool "WDG Driver Support"
+        default n
+        help
+          Enable Watchdog Timer driver
+
+    config DRIVER_RTC
+        bool "RTC Driver Support"
+        default n
+        help
+          Enable Real-Time Clock driver
+
+    config DRIVER_RCU
+        bool "RCU Driver Support"
+        default y
+        help
+          Enable Reset and Clock Control Unit driver
+
+    config DRIVER_ARCHINFO
+        bool "ARCHINFO Driver Support"
+        default y
+        help
+          Enable Architecture Information driver
+
+    config DRIVER_RNG
+        bool "RNG Driver Support"
+        default n
+        help
+          Enable Random Number Generator driver
+
+    config DRIVER_CRC
+        bool "CRC Driver Support"
+        default n
+        help
+          Enable Cyclic Redundancy Check driver
+
+endmenu
+
+menu "External Devices"
+    config DEVICE_ST7735
+        bool "ST7735 LCD Support"
+        default y
+        
+    config DEVICE_ST7789
+        bool "ST7789 LCD Support"
+        default y
+        
+    config DEVICE_SGP30
+        bool "SGP30 Gas Sensor Support"
+        default y
+        
+    config DEVICE_PCF8563
+        bool "PCF8563 RTC Support"
+        default y
 endmenu

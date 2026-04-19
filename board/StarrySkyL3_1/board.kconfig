@@ -33,6 +33,12 @@ menu "System Configuration"
         int "CPU Frequency (MHz)"
         default 50
         range 1 200
+    config TIMER_FREQ_MHZ
+        int "Timer Frequency (MHz)"
+        default 100
+        range 1 200
+        help
+            The clock frequency driving the timer peripheral.
     config UART_BAUD_RATE
         int "UART Baud Rate"
         default 115200
