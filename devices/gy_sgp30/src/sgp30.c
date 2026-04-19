@@ -1,8 +1,9 @@
 #include "sgp30.h"
 #include <stdbool.h>
 #include <stddef.h>
-#include "i2c.h"
-#include "timer.h"
+#include "hal_i2c.h"
+
+extern void delay_ms(uint32_t val);
 
 static uint8_t sensirion_crc8(const uint8_t *data, uint8_t len) {
     uint8_t crc = 0xFF;
@@ -18,13 +19,9 @@ static uint8_t sensirion_crc8(const uint8_t *data, uint8_t len) {
 
 // 发送命令到SGP30（无数据）
 static bool sgp30_send_command(uint16_t command) {
-    uint8_t cmd_data[2];
-    cmd_data[0] = (uint8_t)(command >> 8);
-    cmd_data[1] = (uint8_t)(command & 0xFF);
-    
     // SGP30命令不需要寄存器地址，直接发送命令字节
-    // 使用reg_addr=0和I2C_REG_8，但实际上只发送data部分
-    i2c_write_nbyte(SGP30_I2C_ADDR, command, I2C_REG_16, NULL, 0);
+    // 使用reg_addr=0和HAL_I2C_REG_8，但实际上只发送data部分
+    hal_i2c_write_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, command, HAL_I2C_REG_16, NULL, 0);
     return true;
 }
 
@@ -42,7 +39,7 @@ static bool sgp30_read_command(uint16_t command, uint8_t *data, uint8_t len) {
     }
     
     // 直接使用I2C读取，SGP30的读取命令就是发送命令字然后读取数据
-    i2c_read_nbyte(SGP30_I2C_ADDR, command, I2C_REG_16, data, len);
+    hal_i2c_read_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, command, HAL_I2C_REG_16, data, len);
     return true;
 }
 
@@ -50,7 +47,7 @@ bool sgp30_read_serial_id(uint64_t *serial_id) {
     if (!serial_id) return false;
     uint8_t rx[9] = {0};
     
-    i2c_read_nbyte(SGP30_I2C_ADDR, SGP30_CMD_GET_SERIAL_ID, I2C_REG_16, rx, sizeof(rx));
+    hal_i2c_read_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, SGP30_CMD_GET_SERIAL_ID, HAL_I2C_REG_16, rx, sizeof(rx));
 
     // 校验每个数据字的CRC
     for (int i = 0; i < 9; i += 3) {
@@ -71,7 +68,7 @@ bool sgp30_read_feature_set(uint16_t *feature_set) {
     if (!feature_set) return false;
     uint8_t rx[3] = {0};
     
-    i2c_read_nbyte(SGP30_I2C_ADDR, SGP30_CMD_GET_FEATURE_SET, I2C_REG_16, rx, sizeof(rx));
+    hal_i2c_read_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, SGP30_CMD_GET_FEATURE_SET, HAL_I2C_REG_16, rx, sizeof(rx));
     
     if (sensirion_crc8(rx, 2) != rx[2]) {
         return false;
@@ -142,7 +139,7 @@ bool sgp30_set_baseline(const sgp30_baseline_t *baseline) {
     data[5] = sensirion_crc8(&data[3], 2);
     
     // 使用I2C API发送设置基线命令和数据
-    i2c_write_nbyte(SGP30_I2C_ADDR, SGP30_CMD_SET_BASELINE, I2C_REG_16, data, 6);
+    hal_i2c_write_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, SGP30_CMD_SET_BASELINE, HAL_I2C_REG_16, data, 6);
     return true;
 }
 
@@ -153,7 +150,7 @@ bool sgp30_set_humidity(uint16_t humidity) {
     data[2] = sensirion_crc8(data, 2);
     
     // 使用I2C API发送设置湿度命令和数据
-    i2c_write_nbyte(SGP30_I2C_ADDR, SGP30_CMD_SET_HUMIDITY, I2C_REG_16, data, 3);
+    hal_i2c_write_nbyte(HAL_I2C_PORT_0, SGP30_I2C_ADDR, SGP30_CMD_SET_HUMIDITY, HAL_I2C_REG_16, data, 3);
     return true;
 }
 
