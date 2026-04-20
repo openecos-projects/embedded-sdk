@@ -1,7 +1,7 @@
 menu "Target Hardware Configuration"
     choice
-    prompt "Target SoC Platform"
-    default STARRYSKY_C2
+        bool "Target SoC Platform"
+        default STARRYSKY_C2
 
     config STARRYSKY_C2
         bool "StarrySky_C2 Platform"
@@ -10,7 +10,7 @@ menu "Target Hardware Configuration"
     endchoice
 
     choice
-        prompt "Memory Region Selection"
+        bool "Memory Region Selection"
         default LINK_RAM_REGION_PSRAM
 
         config LINK_RAM_REGION_PSRAM
@@ -49,4 +49,24 @@ menu "System Configuration"
     #     int "PSRAM SCLK Maximum Frequency (MHz)"
     #     default 133
     #     range 1 200
+endmenu
+
+menu "Memory Configuration"
+    config BOARD_RAM_TYPE_NAME
+        string "RAM Type Name"
+        default "PSRAM"
+        help
+            The type of RAM used on the board (e.g. SRAM, PSRAM, SDRAM)
+
+    config BOARD_RAM_SIZE_KB
+        int "RAM Size (in KB)"
+        default 8192
+        help
+            Total available RAM size in Kilobytes
+
+    config BOARD_FLASH_SIZE_KB
+        int "FLASH Size (in KB)"
+        default 16384
+        help
+            Total available FLASH size in Kilobytes
 endmenu

@@ -12,7 +12,7 @@ static int puts_helper(const char *str) {
 }
 
 // 辅助函数：将整数转换为字符串（十进制）
-static int itoa_decimal(int value, char *buffer) {
+static int itoa_decimal(int value, char *buffer, int min_width, char pad_char) {
     char temp[12]; // 足够存储 32 位整数
     int i = 0;
     int is_negative = 0;
@@ -32,7 +32,16 @@ static int itoa_decimal(int value, char *buffer) {
     }
     
     int len = 0;
-    if (is_negative) {
+    if (is_negative && pad_char == '0') {
+        buffer[len++] = '-';
+    }
+
+    while (i + is_negative < min_width) {
+        buffer[len++] = pad_char;
+        min_width--;
+    }
+
+    if (is_negative && pad_char != '0') {
         buffer[len++] = '-';
     }
     
@@ -46,7 +55,7 @@ static int itoa_decimal(int value, char *buffer) {
 }
 
 // 辅助函数：将整数转换为十六进制字符串
-static int itoa_hex(unsigned long value, char *buffer, int uppercase) {
+static int itoa_hex(unsigned long value, char *buffer, int uppercase, int min_width, char pad_char) {
     char temp[17]; // 足够存储 64 位十六进制
     int i = 0;
     const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
@@ -61,6 +70,11 @@ static int itoa_hex(unsigned long value, char *buffer, int uppercase) {
     }
     
     int len = 0;
+    while (i < min_width) {
+        buffer[len++] = pad_char;
+        min_width--;
+    }
+
     // 反转数字
     while (i > 0) {
         buffer[len++] = temp[--i];
@@ -78,6 +92,21 @@ int vprintf(const char *fmt, va_list args) {
     while (*fmt) {
         if (*fmt == '%' && *(fmt + 1)) {
             fmt++; // 跳过 '%'
+            
+            char pad_char = ' ';
+            int min_width = 0;
+            
+            // 解析前导零
+            if (*fmt == '0') {
+                pad_char = '0';
+                fmt++;
+            }
+            
+            // 解析宽度
+            while (*fmt >= '0' && *fmt <= '9') {
+                min_width = min_width * 10 + (*fmt - '0');
+                fmt++;
+            }
             
             switch (*fmt) {
                 case 'c': {
@@ -102,7 +131,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'i': {
                     // 十进制整数
                     int value = va_arg(args, int);
-                    int len = itoa_decimal(value, buffer);
+                    int len = itoa_decimal(value, buffer, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -110,7 +139,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'u': {
                     // 无符号十进制整数
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_decimal((int)value, buffer); // 简化处理
+                    int len = itoa_decimal((int)value, buffer, min_width, pad_char); // 简化处理
                     count += puts_helper(buffer);
                     break;
                 }
@@ -118,7 +147,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'x': {
                     // 小写十六进制
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 0);
+                    int len = itoa_hex(value, buffer, 0, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -126,7 +155,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'X': {
                     // 大写十六进制
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 1);
+                    int len = itoa_hex(value, buffer, 1, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -137,7 +166,7 @@ int vprintf(const char *fmt, va_list args) {
                     hal_sys_putchar('0');
                     hal_sys_putchar('x');
                     count += 2;
-                    int len = itoa_hex((unsigned long)ptr, buffer, 0);
+                    int len = itoa_hex((unsigned long)ptr, buffer, 0, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -150,36 +179,38 @@ int vprintf(const char *fmt, va_list args) {
                 }
 
                 case 'l': {
-                    // 长整数
+                    // 长整数处理 (简化)
                     fmt++;
-                    switch (*fmt) {
-                        case 'l': {
-                            // 长整数
-                            fmt++;
-                            switch (*fmt) {
-                                case 'x': {
-                                    // 长整数
-                                    unsigned long value = va_arg(args, unsigned long);
-                                    int len = itoa_hex(value, buffer, 0);
-                                    count += puts_helper(buffer);
-                                    break;
-                                    }
-                                }
-                            }
-                        }
+                    if (*fmt == 'l') {
+                        fmt++;
                     }
+                    if (*fmt == 'x' || *fmt == 'X') {
+                        unsigned long value = va_arg(args, unsigned long);
+                        int len = itoa_hex(value, buffer, *fmt == 'X', min_width, pad_char);
+                        count += puts_helper(buffer);
+                    } else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') {
+                        long value = va_arg(args, long);
+                        int len = itoa_decimal(value, buffer, min_width, pad_char);
+                        count += puts_helper(buffer);
+                    } else {
+                        hal_sys_putchar('%');
+                        hal_sys_putchar(*fmt);
+                        count += 2;
+                    }
+                    break;
+                }
                 
                 default: {
                     // 不支持的格式，输出原样
-                                    hal_sys_putchar('%');
-                                    hal_sys_putchar(*fmt);
+                    hal_sys_putchar('%');
+                    hal_sys_putchar(*fmt);
                     count += 2;
                     break;
                 }
             }
         } else {
             // 普通字符
-                    hal_sys_putchar(*fmt);
+            hal_sys_putchar(*fmt);
             count++;
         }
         fmt++;

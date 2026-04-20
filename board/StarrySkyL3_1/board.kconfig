@@ -1,0 +1,66 @@
+menu "Target Hardware Configuration"
+    choice
+        bool "Target SoC Platform"
+        default STARRYSKY_L3_1
+
+    config STARRYSKY_L3_1
+        bool "StarrySky_L3_1 Platform"
+        help
+            StarrySky_L3_1 RISC-V based embedded platform
+    endchoice
+
+    choice
+        bool "Memory Region Selection"
+        default LINK_TARGET_XIP
+
+        config LINK_TARGET_XIP
+            bool "XIP Mode (ROM for Code, MEM for Data)"
+            help
+                Execute In Place. Code and read-only data are stored and executed 
+                directly from ROM (Flash). Writable data (.data, .bss) and Stack 
+                are placed in MEM (RAM).
+
+        config LINK_TARGET_MEM
+            bool "MEM Mode (All in MEM)"
+            help
+                Code and data are entirely loaded into MEM (RAM) by the Bootloader 
+                before execution. Provides maximum performance.
+    endchoice
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 50
+        range 1 200
+    config TIMER_FREQ_MHZ
+        int "Timer Frequency (MHz)"
+        default 100
+        range 1 200
+        help
+            The clock frequency driving the timer peripheral.
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+endmenu
+
+menu "Memory Configuration"
+    config BOARD_RAM_TYPE_NAME
+        string "MEM Type Name"
+        default "MEM"
+        help
+            The type of memory used on the board as MEM (e.g. SRAM, PSRAM, SDRAM, MEM)
+
+    config BOARD_RAM_SIZE_KB
+        int "MEM Size (in KB)"
+        default 131072
+        help
+            Total available MEM (RAM) size in Kilobytes
+
+    config BOARD_FLASH_SIZE_KB
+        int "ROM Size (in KB)"
+        default 16384
+        help
+            Total available ROM (FLASH) size in Kilobytes
+endmenu

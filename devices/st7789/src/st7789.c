@@ -1,59 +1,61 @@
 #include "st7789.h"
 #include "stdio.h"
-#include "gpio.h"
-#include "qspi.h"
-#include "timer.h"
+#include "hal_gpio.h"
+#include "hal_qspi.h"
+
+extern void delay_ms(uint32_t val);
 
 void st7789_wr_data8(st7789_device_t* dev, uint8_t data){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_8(data);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_8_cs(dev->qspi_port, data, dev->qspi_cs);
 }
 
 void st7789_wr_data16(st7789_device_t* dev, uint16_t data){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_16(data);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_16_cs(dev->qspi_port, data, dev->qspi_cs);
 }
 
 void st7789_wr_data32(st7789_device_t* dev, uint32_t data){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_32(data);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_32_cs(dev->qspi_port, data, dev->qspi_cs);
 }
 
-
 void st7789_wr_data32x2(st7789_device_t* dev, uint32_t data1, uint32_t data2){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_32x2(data1, data2);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_32x2_cs(dev->qspi_port, data1, data2, dev->qspi_cs);
 }
 
 void st7789_wr_data32x8(st7789_device_t* dev, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_32x8(data1, data2, data3, data4, data5, data6, data7, data8);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_32x8_cs(dev->qspi_port, data1, data2, data3, data4, data5, data6, data7, data8, dev->qspi_cs);
 }
 
 void st7789_wr_data32x16(st7789_device_t* dev, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
      uint32_t data9, uint32_t data10, uint32_t data11, uint32_t data12, uint32_t data13, uint32_t data14, uint32_t data15, uint32_t data16){
-  gpio_set_level(dev->dc_pin, 1);
-  qspi_write_32x16(data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13, data14, data15, data16);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
+  hal_qspi_write_32x16_cs(dev->qspi_port, data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13, data14, data15, data16, dev->qspi_cs);
 }
 
 void st7789_wr_data32x32(st7789_device_t* dev, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
      uint32_t data9, uint32_t data10, uint32_t data11, uint32_t data12, uint32_t data13, uint32_t data14, uint32_t data15, uint32_t data16,
      uint32_t data17, uint32_t data18, uint32_t data19, uint32_t data20, uint32_t data21, uint32_t data22, uint32_t data23, uint32_t data24,
      uint32_t data25, uint32_t data26, uint32_t data27, uint32_t data28, uint32_t data29, uint32_t data30, uint32_t data31, uint32_t data32){
-  gpio_set_level(dev->dc_pin, 1);   
-  qspi_write_32x32(data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13, data14, data15, data16,
-    data17, data18, data19, data20, data21, data22, data23, data24, data25, data26, data27, data28, data29, data30, data31, data32);
+  gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);   
+  hal_qspi_write_32x32_cs(dev->qspi_port, data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13, data14, data15, data16,
+    data17, data18, data19, data20, data21, data22, data23, data24, data25, data26, data27, data28, data29, data30, data31, data32, dev->qspi_cs);
 }
 
 void st7789_wr_cmd(st7789_device_t* dev, uint8_t cmd){
-    gpio_set_level(dev->dc_pin, 0);
-    qspi_write_8(cmd);
+    gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_LOW);
+    hal_qspi_write_8_cs(dev->qspi_port, cmd, dev->qspi_cs);
 }
 
 void st7789_init(st7789_device_t* dev){
-    gpio_set_level(dev->rst_pin,GPIO_LEVEL_LOW);
+    gpio_hal_output_enable(dev->rst_gpio_port, dev->rst_gpio_pin);
+    gpio_hal_output_enable(dev->dc_gpio_port, dev->dc_gpio_pin);
+    gpio_hal_set_level(dev->rst_gpio_port, dev->rst_gpio_pin, GPIO_LEVEL_LOW);
     delay_ms(100);
-    gpio_set_level(dev->rst_pin,GPIO_LEVEL_HIGH);
+    gpio_hal_set_level(dev->rst_gpio_port, dev->rst_gpio_pin, GPIO_LEVEL_HIGH);
     delay_ms(100);
 
 	//************* Start Initial Sequence **********//

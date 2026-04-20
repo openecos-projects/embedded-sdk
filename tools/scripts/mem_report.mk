@@ -1,6 +1,25 @@
 # Memory Usage Reporting Macro
 # Usage: $(call show_mem_usage, <elf_file_path>)
 
+# Use Kconfig variables if they exist, otherwise fallback to defaults
+ifdef CONFIG_BOARD_RAM_TYPE_NAME
+MEM_REPORT_RAM_TYPE := $(subst ",,$(CONFIG_BOARD_RAM_TYPE_NAME))
+else
+MEM_REPORT_RAM_TYPE := "Unknown"
+endif
+
+ifdef CONFIG_BOARD_RAM_SIZE_KB
+MEM_REPORT_RAM_SIZE := $$(( $(CONFIG_BOARD_RAM_SIZE_KB) * 1024 ))
+else
+MEM_REPORT_RAM_SIZE := 0
+endif
+
+ifdef CONFIG_BOARD_FLASH_SIZE_KB
+MEM_REPORT_FLASH_SIZE := $$(( $(CONFIG_BOARD_FLASH_SIZE_KB) * 1024 ))
+else
+MEM_REPORT_FLASH_SIZE := $$(( 16 * 1024 * 1024 ))
+endif
+
 define show_mem_usage
 	@echo "------------------------------------------------------------------------------"
 	@echo "Memory Usage:"
@@ -17,7 +36,7 @@ define show_mem_usage
 	if [ -z "$$bss_size" ]; then bss_size=0; fi; \
 	if [ -z "$$data_vma" ]; then data_vma=$$(grep " .bss " $(dir $(1))sections.info | awk '{print strtonum("0x"$$4)}'); fi; \
 	if [ -z "$$data_vma" ]; then data_vma=0; fi; \
-	flash_total=$$((16 * 1024 * 1024)); \
+	flash_total=$(MEM_REPORT_FLASH_SIZE); \
 	flash_used=$$((text_size + data_size)); \
 	flash_free=$$((flash_total - flash_used)); \
 	flash_pct=$$(awk "BEGIN {printf \"%.2f\", ($$flash_used / $$flash_total) * 100}"); \
@@ -25,15 +44,8 @@ define show_mem_usage
 	flash_total_mb=$$(awk "BEGIN {printf \"%.2f MB\", $$flash_total/1048576}"); \
 	flash_free_mb=$$(awk "BEGIN {printf \"%.2f MB\", $$flash_free/1048576}"); \
 	printf "%-15s %-15s %-15s %-10s %-15s\n" "FLASH" "$$flash_used_kb" "$$flash_total_mb" "$$flash_pct%" "$$flash_free_mb"; \
-	ram_type="Unknown"; \
-	ram_total=0; \
-	if [ $$data_vma -ge $$((0x30000000)) ] && [ $$data_vma -lt $$((0x30020000)) ]; then \
-		ram_type="SRAM"; \
-		ram_total=$$((128 * 1024)); \
-	elif [ $$data_vma -ge $$((0x40000000)) ] && [ $$data_vma -lt $$((0x40800000)) ]; then \
-		ram_type="PSRAM"; \
-		ram_total=$$((8 * 1024 * 1024)); \
-	fi; \
+	ram_type=$(MEM_REPORT_RAM_TYPE); \
+	ram_total=$(MEM_REPORT_RAM_SIZE); \
 	ram_used=$$((data_size + bss_size)); \
 	ram_free=$$((ram_total - ram_used)); \
 	if [ "$$ram_type" != "Unknown" ]; then \
