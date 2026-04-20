@@ -12,10 +12,10 @@ menu "Peripheral Drivers"
             Enable GPIO driver for pin control
 
     config DRIVER_HP_UART
-        bool "UART Driver Support"
+        bool "HP_UART Driver Support"
         default y
         help
-          Enable UART driver for serial communication
+          Enable HP_UART driver for serial communication
             
     # config DRIVER_SPI
     #     bool "SPI Driver Support"
