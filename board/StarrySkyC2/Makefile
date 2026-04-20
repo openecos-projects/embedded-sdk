@@ -23,7 +23,7 @@ CFLAGS := -mabi=ilp32 \
 	  -nostdlib
 
 # 必要的源文件列表
-SRC_PATH := ./start.s ./main.c 
+SRC_PATH := ./start.S ./main.c 
 CFLAGS += -I./configs 
 
 # 必要的链接脚本路径
