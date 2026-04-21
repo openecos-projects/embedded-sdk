@@ -1,14 +1,17 @@
 # SDK配置
 
 ## Menuconfig分类
-### Target Hardware Configuration
+### System Read-Only Information
 存放与板卡型号有关的只读信息
 
 ### System Configuration
 存放与板卡型号有关的可配置信息
 
 ### Peripheral Drivers
-存放与外设相关的可配置信息
+存放与Driver相关的可配置信息
+
+### External Devices
+存放与Device相关的可配置信息
 
 ### Build Configuration
 存放与编译链接相关的可配置信息
