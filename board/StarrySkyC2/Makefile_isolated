@@ -59,7 +59,7 @@ endif
 INCLUDE_DIRS := Library Startup User System # Hardware需要等devices调整好api后再加入编译目录
 
 # 源文件列表
-SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.s")
+SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.S")
 SRC_PATH += $(shell find $(INCLUDE_DIRS) -type f -name "*.c")
 
 CFLAGS += -I./configs 
