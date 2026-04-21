@@ -2,6 +2,12 @@
 #include "generated/autoconf.h"
 #include "board.h"
 
+// 提供一个弱定义的延时函数，供 devices 外设驱动默认调用。
+// 用户可以在自己的应用代码（如 main.c）中重写这个函数，提供更精准的实现。
+__attribute__((weak)) void delay_ms(uint32_t val) {
+    hal_delay_ms(0, val);
+}
+
 uint8_t hal_delay_us(uint8_t timer_id, uint32_t val){
     if (timer_id == 0){
         REG_TIM_0_CONFIG = (uint32_t)0x0100;
