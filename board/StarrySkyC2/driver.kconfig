@@ -17,11 +17,11 @@ menu "Peripheral Drivers"
         help
           Enable UART driver for serial communication
             
-    # config DRIVER_SPI
-    #     bool "SPI Driver Support"
-    #     default y
-    #     help
-    #       Enable SPI driver for serial peripheral interface
+    config DRIVER_SPI
+        bool "SPI Driver Support"
+        default y
+        help
+          Enable SPI driver for serial peripheral interface
             
     config DRIVER_I2C
         bool "I2C Driver Support"
