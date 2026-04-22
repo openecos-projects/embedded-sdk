@@ -17,11 +17,11 @@ menu "Peripheral Drivers"
         help
           Enable HP_UART driver for serial communication
             
-    config DRIVER_SPI
-        bool "SPI Driver Support"
+    config DRIVER_QSPI
+        bool "QSPI Driver Support"
         default y
         help
-          Enable SPI driver for serial peripheral interface
+          Enable QSPI driver for serial peripheral interface
             
     config DRIVER_I2C
         bool "I2C Driver Support"
@@ -29,15 +29,33 @@ menu "Peripheral Drivers"
         help
           Enable I2C driver for inter-integrated circuit
             
-    # config DRIVER_PWM
-    #     bool "PWM Driver Support"
-    #     default y
-    #     help
-    #       Enable PWM driver for pulse width modulation
+    config DRIVER_PWM
+        bool "PWM Driver Support"
+        default y
+        help
+          Enable PWM driver for pulse width modulation
             
     config DRIVER_TIMER
         bool "Timer Driver Support"
         default y
         help
           Enable timer driver for timing functions
+endmenu
+
+menu "External Devices"
+    config DEVICE_ST7735
+        bool "ST7735 LCD Support"
+        default y
+        
+    config DEVICE_ST7789
+        bool "ST7789 LCD Support"
+        default y
+        
+    config DEVICE_SGP30
+        bool "SGP30 Gas Sensor Support"
+        default y
+        
+    config DEVICE_PCF8563
+        bool "PCF8563 RTC Support"
+        default y
 endmenu
