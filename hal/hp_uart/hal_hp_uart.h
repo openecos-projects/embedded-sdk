@@ -1,31 +1,23 @@
-#ifndef __HAL_HP_UART_H__
-#define __HAL_HP_UART_H__
+#ifndef HAL_HP_UART_H__
+#define HAL_HP_UART_H__
 
-#include <stdint.h>
 #include "hal_hp_uart_type.h"
+#include <stdint.h>
 
-/**
- * @brief 初始化HP_UART
- * @note 波特率由配置宏自动计算，和SYS_UART初始化逻辑一致
- */
-void hal_hp_uart_init(void);
 
-/**
- * @brief 发送一个字符到HP_UART
- * @param c 要发送的字符
- */
-void hal_hp_uart_putchar(char c);
+typedef enum{
+    HAL_OK      = 0,
+    HAL_ERROR   = 1,
+    HAL_BUSY    = 2,
+    HAL_TIMEOUT = 3,
+} hal_status_t;
 
-/**
- * @brief 发送一个字符串到HP_UART
- * @param str 要发送的字符串
- */
+
+void hal_hp_uart_init(uint32_t baudrate);
+void hal_hp_uart_config(hp_uart_config_t *config);
+void hal_hp_uart_send(char c);
 void hal_hp_uart_putstr(char *str);
+void hal_hp_uart_recv(char *c);
+void hal_hp_uart_recv_str(char *str);
 
-/**
- * @brief 从HP_UART读取一个字符
- * @return char 读取到的字符
- */
-char hal_hp_uart_getchar(void);
-
-#endif 
+#endif
