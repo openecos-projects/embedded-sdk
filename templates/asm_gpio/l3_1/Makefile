@@ -14,8 +14,8 @@ APP_ALL = $(APP)-asm
 all: $(APP).s
 	@mkdir -p $(BUILD_DIR)/flash
 	@mkdir -p ../../bin/flash
-	$(AS) -mabi=ilp32 -march=rv32im $(APP).s -o $(APP_ALL).o
-	$(LD) -m elf32lriscv $(LDFLAGS) $(APP_ALL).o -o $(APP_ALL).elf
+	$(AS) -mabi=lp64 -march=rv64ifd_zifencei $(APP).s -o $(APP_ALL).o
+	$(LD) -m elf64lriscv $(LDFLAGS) $(APP_ALL).o -o $(APP_ALL).elf
 	$(OBJDUMP) -d $(APP_ALL).elf > $(APP_ALL).txt
 	$(OBJCOPY) -S -O binary $(APP_ALL).elf $(APP_ALL).bin
 	@mv $(APP_ALL).bin $(BUILD_DIR)/$(APP_ALL).bin

@@ -10,6 +10,12 @@ menu "Build Configuration"
             help
               Link built-in C standard library
         
+        config COMPONENT_TIMMOLOG
+            bool "TimmoLog Support"
+            default y
+            help
+              Enable TimmoLog system
+
         config LINK_LIBGCC
             bool "link libgcc"
             default y
