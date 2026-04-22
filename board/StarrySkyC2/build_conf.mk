@@ -35,6 +35,7 @@ endif
 define driver_template
 ifdef CONFIG_DRIVER_$(1)
         SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/$(2) -name "*.c")
+        SRC_PATH += $(shell find $(ECOS_SDK_HOME)/hal/$(2) -name "*.c")    # 新增
         CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
 endif
 endef
@@ -56,4 +57,12 @@ endif
 ifdef CONFIG_LINK_LIBGCC
 SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
+endif
+
+# 新加的修改
+
+ifdef CONFIG_DRIVER_HP_UART
+    # 确保 HP_UART 的头文件路径被添加
+    CFLAGS += -I$(ECOS_SDK_HOME)/hal/hp_uart
+    $(info Manually added HP_UART HAL include: -I$(ECOS_SDK_HOME)/hal/hp_uart)
 endif

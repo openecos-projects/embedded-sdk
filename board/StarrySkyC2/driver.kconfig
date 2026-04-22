@@ -17,17 +17,17 @@ menu "Peripheral Drivers"
         help
           Enable HP_UART driver for serial communication
             
-    # config DRIVER_SPI
-    #     bool "SPI Driver Support"
-    #     default y
-    #     help
-    #       Enable SPI driver for serial peripheral interface
+    config DRIVER_SPI
+        bool "SPI Driver Support"
+        default y
+        help
+          Enable SPI driver for serial peripheral interface
             
-    # config DRIVER_I2C
-    #     bool "I2C Driver Support"
-    #     default y
-    #     help
-    #       Enable I2C driver for inter-integrated circuit
+    config DRIVER_I2C
+        bool "I2C Driver Support"
+        default y
+        help
+          Enable I2C driver for inter-integrated circuit
             
     # config DRIVER_PWM
     #     bool "PWM Driver Support"
