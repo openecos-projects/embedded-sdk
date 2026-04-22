@@ -2,6 +2,14 @@
 #include "board.h"
 #include <stdio.h>
 
+static inline uint32_t get_hw_cs(hal_qspi_cs_t cs) {
+    if (cs == HAL_QSPI_CS_0) return 1 << 8;
+    if (cs == HAL_QSPI_CS_1) return 2 << 8;
+    if (cs == HAL_QSPI_CS_2) return 3 << 8;
+    if (cs == HAL_QSPI_CS_3) return 4 << 8;
+    return 1 << 8;
+}
+
 int hal_qspi_init(hal_qspi_port_t port, const hal_qspi_config_t *config){
     if (port != HAL_QSPI_PORT_0 || !config) return -1;
     REG_QSPI_0_STATUS = (uint32_t)0b10000;
@@ -34,7 +42,7 @@ int hal_qspi_write_8_cs(hal_qspi_port_t port, uint8_t data, hal_qspi_cs_t cs){
     uint32_t wdat = ((uint32_t)data) << 24;
     REG_QSPI_0_LEN = 0x80000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -56,7 +64,7 @@ int hal_qspi_write_16_cs(hal_qspi_port_t port, uint16_t data, hal_qspi_cs_t cs){
     uint32_t wdat = ((uint32_t)data) << 16;
     REG_QSPI_0_LEN = 0x100000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -76,7 +84,7 @@ int hal_qspi_write_32_cs(hal_qspi_port_t port, uint32_t data, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
     REG_QSPI_0_LEN = 0x200000;
     REG_QSPI_0_TXFIFO = data;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -98,7 +106,7 @@ int hal_qspi_write_32x2_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2,
     REG_QSPI_0_LEN = 0x400000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -132,7 +140,7 @@ int hal_qspi_write_32x8_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2,
     REG_QSPI_0_TXFIFO = data6;
     REG_QSPI_0_TXFIFO = data7;
     REG_QSPI_0_TXFIFO = data8;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -184,7 +192,7 @@ int hal_qspi_write_32x16_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
     REG_QSPI_0_TXFIFO = data14;
     REG_QSPI_0_TXFIFO = data15;
     REG_QSPI_0_TXFIFO = data16;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
@@ -224,7 +232,7 @@ int hal_qspi_write_32x32_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
     REG_QSPI_0_TXFIFO = data21; REG_QSPI_0_TXFIFO = data22; REG_QSPI_0_TXFIFO = data23; REG_QSPI_0_TXFIFO = data24;
     REG_QSPI_0_TXFIFO = data25; REG_QSPI_0_TXFIFO = data26; REG_QSPI_0_TXFIFO = data27; REG_QSPI_0_TXFIFO = data28;
     REG_QSPI_0_TXFIFO = data29; REG_QSPI_0_TXFIFO = data30; REG_QSPI_0_TXFIFO = data31; REG_QSPI_0_TXFIFO = data32;
-    REG_QSPI_0_STATUS = cs | 2;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
         ;
     return 0;
