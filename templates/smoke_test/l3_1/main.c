@@ -16,31 +16,27 @@
 #include "pcf8563.h"
 // #include "logo.h"
 #include <stdio.h>
+#include "log.h"
 
 void delay_ms(uint32_t val) {
     hal_delay_ms(0, val);
 }
 
 void archinfo_test(){
-  printf("=============================================\n");
-  printf("             archinfo test                   \n");
-  printf("=============================================\n");
-
+  log_info("[TEST_START] archinfo_test");
+  
   hal_archinfo_info();
-  printf("write regs\n");
+  log_info("write regs");
   hal_archinfo_set_sys(0x4004);
   hal_archinfo_set_idl(0x5F3E);
   hal_archinfo_set_idh(0x6E2);
   hal_archinfo_info();
 
-  printf("=============================================\n\n");
-}
+  }
 
 void crc_test(){
-  printf("==============================================\n");
-  printf("                crc test                      \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] crc_test");
+  
   hal_crc_set_ctrl(0);
   hal_crc_set_init(0xFFFF);
   hal_crc_set_xorv(0);
@@ -49,17 +45,14 @@ void crc_test(){
   for(int i = 0; i < 10; ++i) { // Shortened to 10 for quick test
     hal_crc_set_data(val + i);
     // Add dummy delay/wait for STAT if applicable
-    printf("i: %d CRC: %x\n", i, hal_crc_get_val());
+    log_info("i: %d CRC: %x", i, hal_crc_get_val());
   }
 
-  printf("==============================================\n\n");
-}
+  }
 
 void gpio_led_test(){
-  printf("==============================================\n");
-  printf("              gpio led test                   \n");
-  printf("==============================================\n");
-  
+  log_info("[TEST_START] gpio_led_test");
+    
   // Using GPIO0 Pin 26, 27 as output for LED
   gpio_hal_output_enable(0, 26);
   gpio_hal_output_enable(0, 27);
@@ -73,14 +66,11 @@ void gpio_led_test(){
     delay_ms(500);
   }
 
-  printf("==============================================\n\n");
-}
+  }
 
 void i2c_pcf8563_test(){
-  printf("==============================================\n");
-  printf("            i2c pcf8563b test                 \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] i2c_pcf8563_test");
+  
   gpio_hal_set_fcfg(0, 29, 1);
   gpio_hal_set_fcfg(0, 30, 1);
   gpio_hal_set_mux(0, 29, 0);
@@ -105,8 +95,8 @@ void i2c_pcf8563_test(){
                                 .date.year = 25};
   pcf8563_write_info(&rtc_dev, &init1_info);
 
-  printf("Write 2025 05 15 wednesday 14:33:00 into PCF8563B done\n");
-  printf("read from PCF8563B\n");
+  log_info("Write 2025 05 15 wednesday 14:33:00 into PCF8563B done");
+  log_info("read from PCF8563B");
 
   pcf8563_info_t rd_info = {0};
 
@@ -128,8 +118,8 @@ void i2c_pcf8563_test(){
 
   pcf8563_write_info(&rtc_dev, &init2_info);
 
-  printf("Write 2025 05 22 wednesday 14:05:20 into PCF8563B done\n");
-  printf("read from PCF8563B\n");
+  log_info("Write 2025 05 22 wednesday 14:05:20 into PCF8563B done");
+  log_info("read from PCF8563B");
 
   for (int i = 0; i < 3; ++i) {
     rd_info = pcf8563_read_info(&rtc_dev);
@@ -139,14 +129,11 @@ void i2c_pcf8563_test(){
     delay_ms(1000);
   }
 
-  printf("==============================================\n\n");
-}
+  }
 
 void ps2_test(){
-  printf("==============================================\n");
-  printf("              ps2 test                        \n");
-  printf("==============================================\n");
-  printf("ESC to exit\n");
+  log_info("[TEST_START] ps2_test");
+    log_info("ESC to exit");
   
   gpio_hal_set_fcfg(1, 12, 1);
   gpio_hal_set_fcfg(1, 13, 1);
@@ -158,20 +145,17 @@ void ps2_test(){
   while (1) {
     kdb_code = hal_ps2_get_data();
     if (kdb_code != 0) {
-      printf("[%d] dat: %x\n", i++, kdb_code);
+      log_info("[%d] dat: %x", i++, kdb_code);
     }
     if (kdb_code == 0x76) {
       break;
     }
   }
-  printf("==============================================\n\n");
-}
+  }
 
 void pwm_led_test(){
-  printf("==============================================\n");
-  printf("              pwm led test                    \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] pwm_led_test");
+  
   gpio_hal_set_fcfg(0, 26, 1);
   gpio_hal_set_fcfg(0, 27, 1);
   gpio_hal_set_mux(0, 26, 0);
@@ -196,84 +180,72 @@ void pwm_led_test(){
     }
   }
 
-  printf("==============================================\n\n");
-}
+  }
 
 void rcu_test(){
-  printf("==============================================\n");
-  printf("              rcu test                        \n");
-  printf("==============================================\n");
-  hal_rcu_set_ctrl(0b1011);
+  log_info("[TEST_START] rcu_test");
+    hal_rcu_set_ctrl(0b1011);
   hal_rcu_set_rdiv(256 - 1);
-  printf("STAT: %d\n", hal_rcu_get_stat());
-  printf("==============================================\n\n");
-}
+  log_info("STAT: %d", hal_rcu_get_stat());
+  }
 
 void rng_test(){
-  printf("==============================================\n");
-  printf("              rng test                        \n");
-  printf("==============================================\n");
-  hal_rng_set_ctrl(1);
+  log_info("[TEST_START] rng_test");
+    hal_rng_set_ctrl(1);
   hal_rng_set_seed(0xFE1C);
   for(int i = 0; i < 5; ++i) {
-      printf("[normal]random val: %x\n", hal_rng_get_val());
+      log_info("[normal]random val: %x", hal_rng_get_val());
   }
-  printf("reset the seed\n");
+  log_info("reset the seed");
   hal_rng_set_seed(0);
   for(int i = 0; i < 3; ++i) {
-      printf("[reset]zero val: %x\n", hal_rng_get_val());
+      log_info("[reset]zero val: %x", hal_rng_get_val());
   }
-  printf("==============================================\n\n");
-}
+  }
 
 void rtc_test(){
-  printf("==============================================\n");
-  printf("              rtc test                        \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] rtc_test");
+  
   hal_rtc_set_ctrl(1);
   hal_rtc_set_prescale(48); 
   
   for(uint32_t i = 0; i < 3; ++i) {
     hal_rtc_set_cnt(123 * i);
     hal_rtc_set_alrm(hal_rtc_get_cnt() + 10);
-    printf("[static]CNT: %d\n", hal_rtc_get_cnt());
+    log_info("[static]CNT: %d", hal_rtc_get_cnt());
   }
   hal_rtc_set_cnt(0);
   hal_rtc_set_ctrl(0b0010010); // core and inc trg en
   
-  printf("cnt inc test\n");
+  log_info("cnt inc test");
   for(int i = 0; i < 3; ++i) {
     while(hal_rtc_get_ista() != 1); 
-    printf("RTC_REG_CNT: %d\n", hal_rtc_get_cnt());
+    log_info("RTC_REG_CNT: %d", hal_rtc_get_cnt());
   }
-  printf("cnt inc test done\n");
+  log_info("cnt inc test done");
 
-  printf("==============================================\n\n");
-}
+  }
 
 void timer_test(){
-  printf("==============================================\n");
-  printf("              timer test                      \n"); 
-  printf("==============================================\n");
+  log_info("[TEST_START] timer_test");
+  log_info("==============================================");
+  log_info("              timer test                      "); 
+  log_info("==============================================");
 
   hal_sys_tick_init(0);
   
-  printf("no div test start\n");
+  log_info("no div test start");
   for (int i = 1; i <= 3; ++i) {
     hal_delay_ms(0, 1000);
-    printf("delay 1s\n");
+    log_info("delay 1s");
   }
-  printf("no div test done\n");
+  log_info("no div test done");
 
-  printf("==============================================\n\n");
-}
+  }
 
 void wdg_test(){
-  printf("==============================================\n");
-  printf("              wdg test                        \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] wdg_test");
+  
   hal_wdg_set_key(0x5F3759DF);
   hal_wdg_set_ctrl(0x0);
   
@@ -294,11 +266,10 @@ void wdg_test(){
   
   for(int i = 0; i < 3; ++i){
       while(hal_wdg_get_stat() == 0); 
-      printf("%d wdg reset trigger\n", i);
+      log_info("%d wdg reset trigger", i);
   }
 
-  printf("==============================================\n\n");
-}
+  }
 
 /* ======================================================= */
 /*                     ST7735 LCD Test                     */
@@ -317,7 +288,7 @@ st7735_device_t tft_dev = {
 };
 
 void spi_tft_init() {
-  printf("GPIO INIT:\n");
+  log_info("GPIO INIT:");
   gpio_hal_set_fcfg(1, 0, 1);
   gpio_hal_set_fcfg(1, 1, 1);
   gpio_hal_set_fcfg(1, 2, 1);
@@ -332,20 +303,18 @@ void spi_tft_init() {
   gpio_hal_set_mux(1, 4, 0);
   gpio_hal_set_mux(1, 5, 0);
   
-  printf("GPIO INIT DONE\n");
+  log_info("GPIO INIT DONE");
   
   hal_qspi_config_t qspi_config = { .clkdiv = 4 };
   hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
   
-  printf("tft init begin\n");
+  log_info("tft init begin");
   st7735_init(&tft_dev);
 }
 
 void st7735_test(){
-  printf("==============================================\n");
-  printf("            st7735 lcd test                   \n");
-  printf("==============================================\n");
-
+  log_info("[TEST_START] st7735_test");
+  
   spi_tft_init();
   
   // Note: Since st7735_fill_img takes uint32_t array but gImage_CN is uint8_t, 
@@ -365,12 +334,12 @@ void st7735_test(){
   delay_ms(1000);
 #endif
 
-  printf("==============================================\n\n");
-}
+  }
 
 int main() {
   hal_sys_uart_init();
-  printf("StarrySkyL3_1 Smoke Test Start\n");
+  log_init(LOG_DEBUG, NULL);
+  log_info("[SYSTEM] StarrySkyL3_1 Smoke Test Start");
 
   hal_sys_tick_init(0);
 
@@ -385,12 +354,12 @@ int main() {
   i2c_pcf8563_test();
   st7735_test();
   
-  printf("NOTE: skipping PS2 test by default to prevent blocking.\n");
-  printf("NOTE: skipping WDG test by default to prevent system reset.\n");
+  log_warn("[SKIP] PS2 test skipped to prevent blocking.");
+  log_warn("[SKIP] WDG test skipped to prevent system reset.");
 
   // ps2_test();
   // wdg_test();
 
-  printf("All test done\n");
+  log_info("[SYSTEM] All tests completed successfully");
   return 0;
 }

@@ -48,6 +48,11 @@ $(foreach subdir,$(DRIVER_SUBDIRS), \
 )
 
 # 可选的链接库列表
+ifdef CONFIG_COMPONENT_TIMMOLOG
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/TimmoLog -name "log.c")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/TimmoLog
+endif
+
 ifdef CONFIG_LINK_LIBC
 SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include
