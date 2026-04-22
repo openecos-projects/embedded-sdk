@@ -7,33 +7,40 @@
 #include "assert.h"
 
 
+static uint32_t ddr,dr; // 不可重入的变量
 void gpio_hal_input_enable(uint8_t gpio_id, uint8_t gpio_num){
     
-    REG_GPIO_0_DDR |= (0x01 << gpio_num);
+    ddr |= (1 << gpio_num);
 }
 
 
 void gpio_hal_output_enable(uint8_t gpio_id, uint8_t gpio_num){
 
-    REG_GPIO_0_DDR &= ~(0x01 << gpio_num);
+    ddr &= ~(1 << gpio_num);
 }
 
 
 void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level){
-    
     if (level == GPIO_LEVEL_HIGH)
     {
-        REG_GPIO_0_DR |= (1 << gpio_num);
+        dr |= (1 << gpio_num);
     }
     else
     {
-        REG_GPIO_0_DR &= ~(1 << gpio_num);
+        dr &= ~(1 << gpio_num);
     }
 }
 
-
 uint8_t gpio_hal_get_level(uint8_t gpio_id, uint8_t gpio_num){  
-    return (REG_GPIO_0_DR & (1 << gpio_num)) ? 1 :0;
+    return (dr & (1 << gpio_num)) ? 1 :0;
+}
+
+void gpio_hal_update(){
+    REG_GPIO_0_DDR = ddr;
+    REG_GPIO_0_DR = dr;
+    hal_delay_ms(0,5);
+    ddr = REG_GPIO_0_DDR;
+    dr = REG_GPIO_0_DR;
 }
 
 void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
