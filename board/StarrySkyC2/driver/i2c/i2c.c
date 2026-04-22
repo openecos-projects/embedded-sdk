@@ -65,11 +65,6 @@ int hal_i2c_init(hal_i2c_port_t port, const hal_i2c_config_t *config){
     if (port >= HAL_I2C_PORT_MAX || !config)
         return -1;
 
-#ifdef CONFIG_STARRYSKY_C2
-    hal_gpio_set_function(GPIO_NUM_29, GPIO_FUNCTION_1);
-    hal_gpio_set_function(GPIO_NUM_30, GPIO_FUNCTION_1);
-#endif
-
     REG_I2C_0_CTRL = 0;
     REG_I2C_0_PSCR = config->pscr;
     REG_I2C_0_CTRL = 0x80;

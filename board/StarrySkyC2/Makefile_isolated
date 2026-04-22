@@ -56,7 +56,7 @@ FIRMWARE_NAME := main
 endif
 
 # find包含目录
-INCLUDE_DIRS := Library Startup User System # Hardware需要等devices调整好api后再加入编译目录
+INCLUDE_DIRS := Library Startup User System Hardware # Hardware需要等devices调整好api后再加入编译目录
 
 # 源文件列表
 SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.S")
