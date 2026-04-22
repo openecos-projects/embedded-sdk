@@ -20,7 +20,7 @@
 ### 1. 核心架构与特性
 - **HAL V2 硬件抽象层**：摒弃了旧版直接读写底层寄存器（如 `REG_UART_0_RX`）和魔数配置的 Legacy API。采用全套标准化 `hal_*` 接口，支持统一的 GPIO MUX（复用）与 FCFG（功能）配置。
 - **Kconfig 模块化构建**：集成 Linux 内核风格的 Kconfig 工具。支持按需裁剪外设驱动（I2C, SPI, RTC 等）和系统组件（libc, libgcc, TimmoLog 等），自动生成配置宏。
-- **严格隔离的测试环境**：强制在独立的 `testdir/` 目录中进行工程初始化与编译，结合 `direnv` 实现环境变量的自动加载，杜绝污染 SDK 核心源码。
+- **严格分离的源码树**：提供 `ecos init_project` 工具，支持用户在**操作系统的任意位置**创建独立的项目目录进行开发，杜绝直接在 SDK `templates/` 内修改源码的污染行为。（SDK 开发者可利用专用的 `testdir/` 目录进行内部快速测试验证）
 - **XIP (Execute-In-Place) 支持**：支持代码在 Flash 中就地执行，配合 `ld` 链接脚本自动优化内存映射，极大节省 SRAM 空间。
 - **丰富的外部设备支持**：原生支持外接外设，如 ST7735 / ST7789 屏幕驱动、PCF8563 外部 RTC 时钟芯片、SGP30 气体传感器等。
 
@@ -39,7 +39,7 @@ ecos/embedded-sdk/
 ├── hal/            # 核心硬件抽象层 V2 接口定义 (hal_uart, hal_timer, hal_gpio 等)
 ├── scripts/        # Make 编译脚本及构建规则
 ├── templates/      # 官方提供的基础/外设裸机示例模板 (按外设划分，内部再区分具体板卡)
-├── testdir/        # 【核心工作区】所有用户代码的初始化、开发和编译测试目录
+├── testdir/        # (仅供 SDK 开发者使用) 内部专用的快速模板测试与验证环境
 └── tools/          # 构建辅助工具 (kconfig, fixdep, ecos 命令行脚手架)
 ```
 
@@ -65,12 +65,13 @@ ecos/embedded-sdk/
 ### 4. 标准开发与测试流程 (必读)
 
 > ⚠️ **警告 (CRITICAL RULES)**：
-> 绝对禁止在 `templates/` 目录本体内直接修改并执行 `make` 编译！所有的开发与测试必须在隔离的 `testdir/` 目录中进行，以保证 SDK 源码的干净。
+> 绝对禁止直接在 SDK 安装路径下的 `templates/` 目录内修改并执行 `make` 编译！所有的开发与测试必须在 SDK 外部新建的工程目录中进行，以保证原始模板代码不被污染。
 
-#### 步骤 1：进入测试目录并加载环境
+#### 步骤 1：创建你的独立工程目录
+得益于 `ecos` 命令和环境变量的配置，你可以在电脑的任意位置创建自己的项目。
 ```bash
-cd testdir
-# 如果安装了 direnv，会自动加载 .envrc，注入 ECOS_SDK_HOME 等环境变量
+# 假设你在自己的开发工作区
+cd ~/my_workspace/
 ```
 
 #### 步骤 2：初始化工程
@@ -80,6 +81,8 @@ cd testdir
 ecos init_project smoke_test -name my_smoke_test -target l3_1
 cd my_smoke_test
 ```
+
+*(注：如果你是参与开发本 SDK 的内核维护者，可直接在 `testdir/` 目录下利用 `direnv` 进行内部模板的快速调试。)*
 
 #### 步骤 3：配置系统 (Kconfig)
 在示例工程目录下，你可以选择图形化配置或者无头全默认配置：
