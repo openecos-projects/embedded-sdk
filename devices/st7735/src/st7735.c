@@ -2,12 +2,13 @@
 #include "stdio.h"
 #include "hal_gpio.h"
 #include "hal_qspi.h"
+#include "hal_timer.h"
 
 // Assuming hal_timer_delay_ms or similar is available, if not, a local delay or a known hal delay.
 // But earlier we saw L3_1 using a custom delay in templates. Let's use a weak or simple loop if hal doesn't provide.
 // Wait, we can declare a weak delay_ms, or just include hal_timer if it provides it.
 // Let's rely on user application to provide delay_ms as it was done previously.
-extern void delay_ms(uint32_t val);
+// extern void delay_ms(uint32_t val);
 
 void st7735_wr_data8(st7735_device_t* dev, uint8_t data){
   gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_HIGH);
@@ -59,9 +60,9 @@ void st7735_init(st7735_device_t* dev){
     gpio_hal_output_enable(dev->dc_gpio_port, dev->dc_gpio_pin);
     gpio_hal_set_level(dev->dc_gpio_port, dev->dc_gpio_pin, GPIO_LEVEL_LOW);
 
-    delay_ms(120);
+    hal_delay_ms(0, 120);
     st7735_wr_cmd(dev, 0x11); // 睡眠退出
-    delay_ms(120);
+    hal_delay_ms(0, 120);
     st7735_wr_cmd(dev, 0xB1);
     st7735_wr_data8(dev, 0x01);
     st7735_wr_data8(dev, 0x2C);

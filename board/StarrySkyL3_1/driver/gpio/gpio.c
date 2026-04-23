@@ -1,6 +1,7 @@
 #include "hal_gpio.h"
 #include "hal_gpio_type.h"
 #include "board.h"
+#include "stdio.h"
 #include <stdint.h>
 #include "generated/autoconf.h"
 
@@ -50,7 +51,6 @@ void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level){
                 REG_GPIO_0_PADOUT &= ~((uint32_t)0x01 << io_offset);
             }
             break;
-#ifdef GPIO_GROUP_1
         case 1:
             if (level == GPIO_LEVEL_HIGH){
                 REG_GPIO_1_PADOUT |= ((uint32_t)0x01 << io_offset);
@@ -59,7 +59,6 @@ void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level){
                 REG_GPIO_1_PADOUT &= ~((uint32_t)0x01 << io_offset);
             }
             break;
-#endif
         default:
             break;
     }
@@ -71,10 +70,8 @@ uint8_t gpio_hal_get_level(uint8_t gpio_id, uint8_t gpio_num){
     switch (io_group){
         case 0:
             return (REG_GPIO_0_PADIN & (1 << io_offset)) ? 1 : 0;
-#ifdef GPIO_GROUP_1
         case 1:
             return (REG_GPIO_1_PADIN & (1 << io_offset)) ? 1 : 0;
-#endif
         default:
             return 0;
     }
@@ -91,7 +88,6 @@ void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
                 REG_GPIO_0_IOFCFG = REG_GPIO_0_IOFCFG & ~(1 << io_offset);
             }
             break;
-#ifdef GPIO_GROUP_1
         case 1:
             if(val == 1){
                 REG_GPIO_1_IOFCFG = REG_GPIO_1_IOFCFG | (1 << io_offset);
@@ -99,7 +95,6 @@ void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
                 REG_GPIO_1_IOFCFG = REG_GPIO_1_IOFCFG & ~(1 << io_offset);
             }
             break;
-#endif
         default:
             break;
     }
