@@ -7,7 +7,7 @@
 #include "assert.h"
 
 
-static uint32_t ddr,dr; // 不可重入的变量
+static volatile uint32_t ddr,dr,rdr; // 不可重入的变量
 void gpio_hal_input_enable(uint8_t gpio_id, uint8_t gpio_num){
     
     ddr |= (1 << gpio_num);
@@ -32,15 +32,20 @@ void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level){
 }
 
 uint8_t gpio_hal_get_level(uint8_t gpio_id, uint8_t gpio_num){  
-    return (dr & (1 << gpio_num)) ? 1 :0;
+    return (dr & (1 << gpio_num)) ? 1 : 0;
 }
 
-void gpio_hal_update(){
+void gpio_hal_read_update(){
+    rdr = REG_GPIO_0_DR;
+    dr = dr | rdr; // 读取时，之前写的部分会左移到高16bit，现在读的部分在低16bit
+    gpio_hal_write_update();
+    hal_delay_ms(0,5);
+}
+
+void gpio_hal_write_update(){
     REG_GPIO_0_DDR = ddr;
     REG_GPIO_0_DR = dr;
     hal_delay_ms(0,5);
-    ddr = REG_GPIO_0_DDR;
-    dr = REG_GPIO_0_DR;
 }
 
 void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
