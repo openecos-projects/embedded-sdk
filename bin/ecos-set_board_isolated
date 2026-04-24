@@ -101,31 +101,31 @@ set_board() {
                 cp "$lds_source_path" "$lds_target_path"
                 log "Set Linker Script: $lds_target_path"
             else
-                warn "Linker script not found for C2: $lds_source_path"
+                warn "Linker Script not found for C2: $lds_source_path"
             fi
 
-            # Copy Startup code
+            # Copy Startup Code
             if [[ -f "$start_source_path" ]]; then
                 cp "$start_source_path" "$start_target_path"
-                log "Set startup code: $start_target_path"
+                log "Set Startup Code: $start_target_path"
             else
-                warn "Startup code not found for C2: $start_source_path"
+                warn "Startup Code not found for C2: $start_source_path"
             fi
 
             # Copy Drivers
             if [[ -d "$driver_source_path" ]]; then
                 find "$driver_source_path" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$driver_target_path" \;
-                log "Set drivers: $driver_target_path"
+                log "Set Drivers: $driver_target_path"
             else
                 warn "Drivers not found for C2: $driver_source_path"
             fi
 
-            # Copy Main files
+            # Copy Main Files
             if [[ -d "$main_source_path" ]]; then
                 find "$main_source_path" -type f -name "main.*" -exec cp {} "$main_target_path" \;
-                log "Set drivers: $main_target_path"
+                log "Set Main Files: $main_target_path"
             else
-                warn "Drivers not found for C2: $main_source_path"
+                warn "Main Files not found for C2: $main_source_path"
             fi
 
             # Update project config file if it exists
