@@ -3,25 +3,40 @@
 
 #include <stdint.h>
 #include "stdio.h"
-
-
-#define USE_TIMMOLOG 1
+#include "generated/autoconf.h"
 
 #ifndef CONFIG_BUILD_DEBUG
-    #define assert(expr, info) ((void)0)
+
+#define assert(expr, fmt, ...) ((void)0)
+
 #else
-    #define assert(expr, info) \
-        ({ \
-            typeof(expr) result = (expr); \
-            if (!(expr)) { \
-#ifdef USE_TIMMOLOG
-                printf("(%s:%d) %s", __FILE__, __LINE__,(info)); \
+
+#ifdef CONFIG_COMPONENT_TIMMOLOG
+
+#include "log.h"
+#define assert(expr, fmt, ...) \
+    ({ \
+        typeof(expr) _assert_result = (expr); \
+        if (!(_assert_result)) { \
+            log_warn(fmt, ##__VA_ARGS__); \
+        } \
+        _assert_result; \
+    })
+
 #else
-                log_warn("%s",(info)); \
+
+#define assert(expr, fmt, ...) \
+    ({ \
+        typeof(expr) _assert_result = (expr); \
+        if (!(_assert_result)) { \
+            printf("(%s:%d) " fmt "\n", __FILE__, __LINE__ ,##__VA_ARGS__); \
+        } \
+        _assert_result; \
+    })
+
 #endif
-            } \
-            result; \
-        })
+
+
 #endif
 
 #endif

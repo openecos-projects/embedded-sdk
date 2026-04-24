@@ -1,4 +1,4 @@
-#include "MySPI.h"
+#include "spi_software.h"
 
 static void MYSPI_W_SS(uint8_t BitValue){
     gpio_hal_set_level(SS_PORT,SS_PIN,BitValue);

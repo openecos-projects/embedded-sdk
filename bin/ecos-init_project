@@ -135,6 +135,8 @@ init_project_isolated() {
 
     find "$SDK_ROOT/components/libc" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$LibraryDir" \;
     find "$SDK_ROOT/components/libgcc" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$LibraryDir" \;
+    find "$SDK_ROOT/components/spi_software" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$SystemDir" \;
+    # find "$SDK_ROOT/components/TimmoLog" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$SystemDir" \;
     find "$SDK_ROOT/hal" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$LibraryDir" \;
 
     # due to diversity of the device drivers, copy its whole structure

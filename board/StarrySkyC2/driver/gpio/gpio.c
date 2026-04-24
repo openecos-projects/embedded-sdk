@@ -5,6 +5,7 @@
 #include "generated/autoconf.h"
 #include "hal_sys_uart.h"
 #include "assert.h"
+#include "hal_timer.h"
 
 
 static volatile uint32_t ddr,dr,rdr; // 不可重入的变量

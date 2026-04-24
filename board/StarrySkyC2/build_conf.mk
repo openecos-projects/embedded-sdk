@@ -59,6 +59,16 @@ SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
 endif
 
+ifdef CONFIG_COMPONENT_TIMMOLOG
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/TimmoLog -name "log.cpp")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/TimmoLog
+endif
+
+ifdef CONFIG_COMPONENT_SPI_SOFTWARE
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/spi_software/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/spi_software/include
+endif
+
 # 自动包含所有的 devices 组件的头文件（方便代码补全）
 CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/*/include -type d 2>/dev/null))
 
