@@ -1,12 +1,12 @@
-menu "Target Hardware Configuration"
+menu "System Read-Only Information"
     choice
         bool "Target SoC Platform"
         default STARRYSKY_C2
 
-    config STARRYSKY_C2
-        bool "StarrySky_C2 Platform"
-        help
-            StarrySky_C2 RISC-V based embedded platform
+        config STARRYSKY_C2
+            bool "StarrySky_C2 Platform"
+            help
+                StarrySky_C2 RISC-V based embedded platform
     endchoice
 
     choice
@@ -19,39 +19,6 @@ menu "Target Hardware Configuration"
                 Code executes from PSRAM.
     endchoice
 
-    # config BOARD_NAME
-    #     string
-    #     default "starrysky_c2"
-        
-    # config ARCH_RISCV32
-    #     bool
-    #     default y
-endmenu
-
-menu "System Configuration"
-    config CPU_FREQ_MHZ
-        int "CPU Frequency (MHz)"
-        default 72
-        range 1 200
-    config UART_BAUD_RATE
-        int "UART Baud Rate"
-        default 115200
-        range 1 1000000
-    config PSRAM_NUM
-        int "Number of PSRAM Chips"
-        default 1
-        range 1 4
-    # config PSRAM_SCLK_MIN_FREQ_MHZ
-    #     int "PSRAM SCLK Minimum Frequency (MHz)"
-    #     default 12
-    #     range 1 200
-    # config PSRAM_SCLK_MAX_FREQ_MHZ
-    #     int "PSRAM SCLK Maximum Frequency (MHz)"
-    #     default 133
-    #     range 1 200
-endmenu
-
-menu "Memory Configuration"
     config BOARD_RAM_TYPE_NAME
         string "RAM Type Name"
         default "PSRAM"
@@ -69,4 +36,19 @@ menu "Memory Configuration"
         default 16384
         help
             Total available FLASH size in Kilobytes
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 72
+        range 1 200
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+    config PSRAM_NUM
+        int "Number of PSRAM Chips"
+        default 1
+        range 1 4
 endmenu

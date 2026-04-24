@@ -22,6 +22,7 @@ endif
 # 根据配置文件添加详细输出选项
 ifdef CONFIG_BUILD_VERBOSE
 VERBOSE := 1
+LDFLAGS += --verbose
 endif
 
 # 固件名称 - 从配置文件读取，如果未定义则使用默认值
@@ -35,7 +36,6 @@ endif
 define driver_template
 ifdef CONFIG_DRIVER_$(1)
         SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC2/driver/$(2) -name "*.c")
-        SRC_PATH += $(shell find $(ECOS_SDK_HOME)/hal/$(2) -name "*.c")    # 新增
         CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
 endif
 endef
@@ -44,7 +44,7 @@ DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -t
 
 $(foreach subdir,$(DRIVER_SUBDIRS), \
     $(eval CONFIG_NAME := $(shell echo $(subdir) | tr '[:lower:]' '[:upper:]')) \
-	$(info Include drivers: $(CONFIG_NAME)) \
+	$(if $(VERBOSE),$(info Auto-load drivers: $(CONFIG_NAME))) \
     $(eval $(call driver_template,$(CONFIG_NAME),$(subdir))) \
 )
 
@@ -59,10 +59,31 @@ SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
 endif
 
-# 新加的修改
+ifdef CONFIG_COMPONENT_TIMMOLOG
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/TimmoLog -name "log.cpp")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/TimmoLog
+endif
 
-ifdef CONFIG_DRIVER_HP_UART
-    # 确保 HP_UART 的头文件路径被添加
-    CFLAGS += -I$(ECOS_SDK_HOME)/hal/hp_uart
-    $(info Manually added HP_UART HAL include: -I$(ECOS_SDK_HOME)/hal/hp_uart)
+ifdef CONFIG_COMPONENT_SPI_SOFTWARE
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/spi_software/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/spi_software/include
+endif
+
+# 自动包含所有的 devices 组件的头文件（方便代码补全）
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/*/include -type d 2>/dev/null))
+
+ifdef CONFIG_DEVICE_ST7735
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7735/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_ST7789
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7789/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_SGP30
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/gy_sgp30/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_PCF8563
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/pcf8563/src -name "*.c")
 endif

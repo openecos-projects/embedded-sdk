@@ -43,7 +43,7 @@ DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -t
 
 $(foreach subdir,$(DRIVER_SUBDIRS), \
     $(eval CONFIG_NAME := $(shell echo $(subdir) | tr '[:lower:]' '[:upper:]')) \
-	$(info Include drivers: $(CONFIG_NAME)) \
+	$(if $(VERBOSE),$(info Auto-load drivers: $(CONFIG_NAME))) \
     $(eval $(call driver_template,$(CONFIG_NAME),$(subdir))) \
 )
 

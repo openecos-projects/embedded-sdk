@@ -37,6 +37,18 @@ void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level);
 uint8_t gpio_hal_get_level(uint8_t gpio_id, uint8_t gpio_num);
 
 /**
+ * @brief GPIO端口写操作更新，需要在设置电平后调用
+ * 
+ */
+void gpio_hal_read_update();
+
+/**
+ * @brief  GPIO端口读操作更新，需要在获取电平前调用
+ * 
+ */
+void gpio_hal_write_update();
+
+/**
  * @brief 设置指定GPIO的FCFG (Function Configuration)
  * 
  * @param gpio_id GPIO IP组编号 (如0表示GPIO_0, 1表示GPIO_1等)

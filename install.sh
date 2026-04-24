@@ -66,35 +66,44 @@ install_sdk_core() {
     log "安装SDK核心文件..."
     
     # 拷贝组件库
+    rm "$PREFIX/components/" -rf
     ensure_dir "$PREFIX/components/"
     cp -r "$SCRIPT_DIR/components/." "$PREFIX/components/"
     
     # 拷贝HAL库
+    rm "$PREFIX/hal/" -rf
     ensure_dir "$PREFIX/hal/"
     cp -r "$SCRIPT_DIR/hal/." "$PREFIX/hal/"
     
     # 拷贝模板工程
+    rm "$PREFIX/templates/" -rf
     cp -r "$SCRIPT_DIR/templates" "$PREFIX/"
 
     # 拷贝板卡配置
+    rm "$PREFIX/board/" -rf
     cp -r "$SCRIPT_DIR/board" "$PREFIX/"
 
     # 拷贝工具脚本
+    rm "$PREFIX/bin/" -rf
     cp -r "$SCRIPT_DIR/bin" "$PREFIX/"
     
     # 拷贝工具
+    rm "$PREFIX/tools/" -rf
     ensure_dir "$PREFIX/tools/"
     cp -r "$SCRIPT_DIR/tools/fixdep" "$PREFIX/tools/"
     cp -r "$SCRIPT_DIR/tools/kconfig" "$PREFIX/tools/"
     cp -r "$SCRIPT_DIR/tools/scripts" "$PREFIX/tools/"
 
     # 拷贝示例工程
+    rm "$PREFIX/example/" -rf
     cp -r "$SCRIPT_DIR/example" "$PREFIX/"
 
     #拷贝文档
+    rm "$PREFIX/docs/" -rf
     cp -r "$SCRIPT_DIR/docs" "$PREFIX/"
 
     # 拷贝设备驱动
+    rm "$PREFIX/devices/" -rf
     cp -r "$SCRIPT_DIR/devices" "$PREFIX/"
 
 }

@@ -9,18 +9,25 @@ menu "Build Configuration"
             default y
             help
               Link built-in C standard library
-        
-        config COMPONENT_TIMMOLOG
-            bool "TimmoLog Support"
-            default y
-            help
-              Enable TimmoLog system
 
         config LINK_LIBGCC
             bool "link libgcc"
             default y
             help
               Link built-in GCC library
+
+        config COMPONENT_TIMMOLOG
+            bool "TimmoLog Support"
+            default y
+            help
+              Enable TimmoLog system
+
+        config COMPONENT_SPI_SOFTWARE
+            bool "Spi Software Support"
+            default y
+            help
+              Enable GPIO to simulate SPI behavior
+
     endmenu
 
     choice

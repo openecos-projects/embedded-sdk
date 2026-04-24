@@ -2,7 +2,7 @@
 #define __HAL_SYS_UART_H__
 
 #include <stdint.h>
-
+#include "stdio.h"
 /**
  * @brief 初始化系统串口
  * 
@@ -24,3 +24,4 @@ void hal_sys_putchar(char c);
 void hal_sys_putstr(char *str);
 
 #endif
+
