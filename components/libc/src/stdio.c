@@ -1,455 +1,455 @@
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <limits.h>
 #include "stdio.h"
 #include "string.h"
+#include "hal_sys_uart.h"
 
-// 辅助函数：输出字符串
-static int puts_helper(const char *str) {
-    int count = 0;
-    while (*str) {
-        hal_sys_putchar(*str++);
-        count++;
-    }
-    return count;
+int putchar(int c) {
+    char ch = c;
+    hal_sys_putchar(c);
+    return ch;
 }
 
-// 辅助函数：将整数转换为字符串（十进制）
-static int itoa_decimal(int value, char *buffer, int min_width, char pad_char) {
-    char temp[12]; // 足够存储 32 位整数
-    int i = 0;
-    int is_negative = 0;
-    
-    if (value < 0) {
-        is_negative = 1;
-        value = -value;
+int puts(const char *str) {
+    int cnt;
+    for (cnt=0; str[cnt]; ++cnt) {
+        hal_sys_putchar(str[cnt]);
     }
-    
-    if (value == 0) {
-        temp[i++] = '0';
-    } else {
-        while (value > 0) {
-            temp[i++] = '0' + (value % 10);
-            value /= 10;
-        }
-    }
-    
-    int len = 0;
-    if (is_negative && pad_char == '0') {
-        buffer[len++] = '-';
-    }
-
-    while (i + is_negative < min_width) {
-        buffer[len++] = pad_char;
-        min_width--;
-    }
-
-    if (is_negative && pad_char != '0') {
-        buffer[len++] = '-';
-    }
-    
-    // 反转数字
-    while (i > 0) {
-        buffer[len++] = temp[--i];
-    }
-    buffer[len] = '\0';
-    
-    return len;
+    hal_sys_putchar('\n');
+    return cnt;
 }
 
-// 辅助函数：将整数转换为十六进制字符串
-static int itoa_hex(unsigned long value, char *buffer, int uppercase, int min_width, char pad_char) {
-    char temp[17]; // 足够存储 64 位十六进制
-    int i = 0;
-    const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
-    
-    if (value == 0) {
-        temp[i++] = '0';
-    } else {
-        while (value > 0) {
-            temp[i++] = digits[value % 16];
-            value /= 16;
-        }
-    }
-    
-    int len = 0;
-    while (i < min_width) {
-        buffer[len++] = pad_char;
-        min_width--;
-    }
+typedef struct {
+    char *dest;             // if putch is NULL, write to this memory address
+    void (*putch)(char ch); // the function to write a character
+    size_t count;           // number of charactors written, SIZE_MAX indicates an error
+    size_t max_count;       // max number of characters to write
+} printf_state_t;
 
-    // 反转数字
-    while (i > 0) {
-        buffer[len++] = temp[--i];
-    }
-    buffer[len] = '\0';
-    
-    return len;
-}
+static void printf_backend(printf_state_t *state, const char *fmt, va_list ap);
 
-// vprintf 实现
-int vprintf(const char *fmt, va_list args) {
-    int count = 0;
-    char buffer[32];
-    
-    while (*fmt) {
-        if (*fmt == '%' && *(fmt + 1)) {
-            fmt++; // 跳过 '%'
-            
-            char pad_char = ' ';
-            int min_width = 0;
-            
-            // 解析前导零
-            if (*fmt == '0') {
-                pad_char = '0';
-                fmt++;
-            }
-            
-            // 解析宽度
-            while (*fmt >= '0' && *fmt <= '9') {
-                min_width = min_width * 10 + (*fmt - '0');
-                fmt++;
-            }
-            
-            switch (*fmt) {
-                case 'c': {
-                    // 字符
-                    char c = (char)va_arg(args, int);
-                    hal_sys_putchar(c);
-                    count++;
-                    break;
-                }
-                
-                case 's': {
-                    // 字符串
-                    const char *str = va_arg(args, const char*);
-                    if (str == NULL) {
-                        str = "(null)";
-                    }
-                    count += puts_helper(str);
-                    break;
-                }
-                
-                case 'd':
-                case 'i': {
-                    // 十进制整数
-                    int value = va_arg(args, int);
-                    int len = itoa_decimal(value, buffer, min_width, pad_char);
-                    count += puts_helper(buffer);
-                    break;
-                }
-                
-                case 'u': {
-                    // 无符号十进制整数
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_decimal((int)value, buffer, min_width, pad_char); // 简化处理
-                    count += puts_helper(buffer);
-                    break;
-                }
-                
-                case 'x': {
-                    // 小写十六进制
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 0, min_width, pad_char);
-                    count += puts_helper(buffer);
-                    break;
-                }
-                
-                case 'X': {
-                    // 大写十六进制
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 1, min_width, pad_char);
-                    count += puts_helper(buffer);
-                    break;
-                }
-                
-                case 'p': {
-                    // 指针（作为十六进制处理）
-                    void *ptr = va_arg(args, void*);
-                    hal_sys_putchar('0');
-                    hal_sys_putchar('x');
-                    count += 2;
-                    int len = itoa_hex((unsigned long)ptr, buffer, 0, min_width, pad_char);
-                    count += puts_helper(buffer);
-                    break;
-                }
-                
-                case '%': {
-                    // 字面量 '%'
-                    hal_sys_putchar('%');
-                    count++;
-                    break;
-                }
-
-                case 'l': {
-                    // 长整数处理 (简化)
-                    fmt++;
-                    if (*fmt == 'l') {
-                        fmt++;
-                    }
-                    if (*fmt == 'x' || *fmt == 'X') {
-                        unsigned long value = va_arg(args, unsigned long);
-                        int len = itoa_hex(value, buffer, *fmt == 'X', min_width, pad_char);
-                        count += puts_helper(buffer);
-                    } else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') {
-                        long value = va_arg(args, long);
-                        int len = itoa_decimal(value, buffer, min_width, pad_char);
-                        count += puts_helper(buffer);
-                    } else {
-                        hal_sys_putchar('%');
-                        hal_sys_putchar(*fmt);
-                        count += 2;
-                    }
-                    break;
-                }
-                
-                default: {
-                    // 不支持的格式，输出原样
-                    hal_sys_putchar('%');
-                    hal_sys_putchar(*fmt);
-                    count += 2;
-                    break;
-                }
-            }
-        } else {
-            // 普通字符
-            hal_sys_putchar(*fmt);
-            count++;
-        }
-        fmt++;
-    }
-    
-    return count;
-}
-
-
-
-// vsnprintf 实现
-int vsnprintf(char *str, size_t size, const char *fmt, va_list args) {
-    if (size == 0) {
-        return 0;
-    }
-
-    int count = 0;          // 应该写入的总字符数（不含结尾 '\0'）
-    char *dest = str;
-    char buffer[32];        // 用于临时存储整数/十六进制转换的缓冲区
-    size_t remaining = size - 1;  // 留一个位置给 '\0'
-
-    while (*fmt) {
-        if (*fmt == '%' && *(fmt + 1)) {
-            fmt++; // 跳过 '%'
-
-            char pad_char = ' ';
-            int min_width = 0;
-
-            // 解析前导零
-            if (*fmt == '0') {
-                pad_char = '0';
-                fmt++;
-            }
-
-            // 解析宽度
-            while (*fmt >= '0' && *fmt <= '9') {
-                min_width = min_width * 10 + (*fmt - '0');
-                fmt++;
-            }
-
-            switch (*fmt) {
-                case 'c': {
-                    char c = (char)va_arg(args, int);
-                    if (remaining > 0) {
-                        *dest++ = c;
-                        remaining--;
-                    }
-                    count++;
-                    break;
-                }
-
-                case 's': {
-                    const char *src = va_arg(args, const char*);
-                    if (src == NULL) {
-                        src = "(null)";
-                    }
-                    while (*src) {
-                        if (remaining > 0) {
-                            *dest++ = *src;
-                            remaining--;
-                        }
-                        count++;
-                        src++;
-                    }
-                    break;
-                }
-
-                case 'd':
-                case 'i': {
-                    int value = va_arg(args, int);
-                    int len = itoa_decimal(value, buffer, min_width, pad_char);
-                    for (int i = 0; i < len; i++) {
-                        if (remaining > 0) {
-                            *dest++ = buffer[i];
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                case 'u': {
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_decimal((int)value, buffer, min_width, pad_char);
-                    for (int i = 0; i < len; i++) {
-                        if (remaining > 0) {
-                            *dest++ = buffer[i];
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                case 'x': {
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 0, min_width, pad_char);
-                    for (int i = 0; i < len; i++) {
-                        if (remaining > 0) {
-                            *dest++ = buffer[i];
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                case 'X': {
-                    unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 1, min_width, pad_char);
-                    for (int i = 0; i < len; i++) {
-                        if (remaining > 0) {
-                            *dest++ = buffer[i];
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                case 'p': {
-                    void *ptr = va_arg(args, void*);
-                    // 处理 "0x" 前缀
-                    if (remaining > 0) {
-                        *dest++ = '0';
-                        remaining--;
-                    }
-                    count++;
-                    if (remaining > 0) {
-                        *dest++ = 'x';
-                        remaining--;
-                    }
-                    count++;
-                    int len = itoa_hex((unsigned long)ptr, buffer, 0, min_width, pad_char);
-                    for (int i = 0; i < len; i++) {
-                        if (remaining > 0) {
-                            *dest++ = buffer[i];
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                case '%': {
-                    if (remaining > 0) {
-                        *dest++ = '%';
-                        remaining--;
-                    }
-                    count++;
-                    break;
-                }
-
-                case 'l': {
-                    fmt++;
-                    if (*fmt == 'l') {
-                        fmt++;
-                    }
-                    if (*fmt == 'x' || *fmt == 'X') {
-                        unsigned long value = va_arg(args, unsigned long);
-                        int len = itoa_hex(value, buffer, (*fmt == 'X'), min_width, pad_char);
-                        for (int i = 0; i < len; i++) {
-                            if (remaining > 0) {
-                                *dest++ = buffer[i];
-                                remaining--;
-                            }
-                            count++;
-                        }
-                    } else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') {
-                        long value = va_arg(args, long);
-                        int len = itoa_decimal(value, buffer, min_width, pad_char);
-                        for (int i = 0; i < len; i++) {
-                            if (remaining > 0) {
-                                *dest++ = buffer[i];
-                                remaining--;
-                            }
-                            count++;
-                        }
-                    } else {
-                        if (remaining > 0) {
-                            *dest++ = '%';
-                            remaining--;
-                        }
-                        count++;
-                        if (remaining > 0) {
-                            *dest++ = *fmt;
-                            remaining--;
-                        }
-                        count++;
-                    }
-                    break;
-                }
-
-                default: {
-                    if (remaining > 0) {
-                        *dest++ = '%';
-                        remaining--;
-                    }
-                    count++;
-                    if (remaining > 0) {
-                        *dest++ = *fmt;
-                        remaining--;
-                    }
-                    count++;
-                    break;
-                }
-            }
-        } else {
-            if (remaining > 0) {
-                *dest++ = *fmt;
-                remaining--;
-            }
-            count++;
-        }
-        fmt++;
-    }
-
-    *dest = '\0';   // 添加字符串终止符
-    return count;
-}
-
-int snprintf(char *buffer, size_t size, const char *format, ...){
-    va_list args;
-    int result;
-    
-    va_start(args, format);
-    result = vsnprintf(buffer, size, format, args);
-    va_end(args);
-    
-    return result;
-}
-
-// printf 实现
 int printf(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int ret = vprintf(fmt, args);
-    va_end(args);
-    return ret;
+    va_list ap;
+    va_start(ap, fmt);
+    printf_state_t state = {
+        .dest = NULL,
+        .count = 0,
+        .max_count = SIZE_MAX,
+        .putch = hal_sys_putchar,
+    };
+    printf_backend(&state, fmt, ap);
+    va_end(ap);
+    return state.count;
 }
 
+int vsprintf(char *out, const char *fmt, va_list ap) { return vsnprintf(out, SIZE_MAX, fmt, ap); }
 
+int sprintf(char *out, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int count = vsnprintf(out, SIZE_MAX, fmt, ap);
+    va_end(ap);
+    return count;
+}
+
+int snprintf(char *out, size_t n, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int count = vsnprintf(out, n, fmt, ap);
+    va_end(ap);
+    return count;
+}
+
+int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
+    printf_state_t state = {
+        .dest = out,
+        .count = 0,
+        .max_count = SIZE_MAX,
+        .putch = NULL,
+    };
+    printf_backend(&state, fmt, ap);
+    return state.count;
+}
+
+static void printf_putch(printf_state_t *state, char ch) {
+    if (state->count < state->max_count) {
+        if (state->putch != NULL) {
+            state->putch(ch);
+        } else {
+            state->dest[state->count] = ch;
+        }
+    }
+    state->count += 1;
+}
+
+static void printf_pad(printf_state_t *state, char ch, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        printf_putch(state, ch);
+    }
+}
+
+static void printf_char(printf_state_t *state, char ch, size_t width, int left_justified) {
+    if (left_justified) {
+        printf_putch(state, ch);
+        if (width > 1) {
+            printf_pad(state, ' ', width - 1);
+        }
+    } else {
+        if (width > 1) {
+            printf_pad(state, ' ', width - 1);
+        }
+        printf_putch(state, ch);
+    }
+}
+
+static void printf_string(printf_state_t *state, const char *str, size_t width, int left_justified) {
+    size_t len = strlen(str);
+    if (width > len && !left_justified) {
+        printf_pad(state, ' ', width - len);
+    }
+    for (size_t i = 0; str[i]; ++i) {
+        printf_putch(state, str[i]);
+    }
+    if (width > len && left_justified) {
+        printf_pad(state, ' ', width - len);
+    }
+}
+
+static void printf_uint32(printf_state_t *state, unsigned int n, size_t width, int left_justified, char padding) {
+    unsigned int n_digits = 0;
+    char buffer[10] = {
+        '0',
+    };
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {
+        while (n > 0) {
+            buffer[n_digits] = n % 10 + '0';
+            n_digits += 1;
+            n /= 10;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_int32(printf_state_t *state, int n, size_t width, int left_justified, char padding, char sign) {
+    if (sign && n > 0) {
+        printf_putch(state, sign);
+        width -= 1;
+    } else if (n < 0) {
+        printf_putch(state, '-');
+        n = -n;
+        width -= 1;
+    }
+    printf_uint32(state, n, width, left_justified, padding);
+}
+
+static void printf_uint64(printf_state_t *state, unsigned long long int n, size_t width, int left_justified, char padding) {
+    unsigned int n_digits = 0;
+    char buffer[20] = {
+        '0',
+    };
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {
+        while (n > 0) {
+            buffer[n_digits] = n % 10 + '0';
+            n_digits += 1;
+            n /= 10;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_int64(printf_state_t *state, long long int n, size_t width, int left_justified, char padding, char sign) {
+    if (sign && n > 0) {
+        printf_putch(state, sign);
+        width -= 1;
+    } else if (n < 0) {
+        printf_putch(state, '-');
+        n = -n;
+        width -= 1;
+    }
+    printf_uint64(state, n, width, left_justified, padding);
+}
+
+static void printf_hex32(printf_state_t *state, unsigned int n, size_t width, int left_justified, char padding, int upper_case) {
+    char buffer[8] = {
+        '0',
+    };
+    unsigned int n_digits = 0;
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {
+        while (n > 0) {
+            unsigned int rem = n % 16;
+            buffer[n_digits++] = (rem < 10) ? (rem + '0') : (rem - 10 + (upper_case ? 'A' : 'a'));
+            n /= 16;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_hex64(printf_state_t *state, unsigned long long int n, size_t width, int left_justified, char padding, int upper_case) {
+    char buffer[16] = {
+        '0',
+    };
+    unsigned int n_digits = 0;
+
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {
+        while (n > 0) {
+            unsigned int rem = n % 16;
+            buffer[n_digits++] = (rem < 10) ? (rem + '0') : (rem - 10 + (upper_case ? 'A' : 'a'));
+            n /= 16;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_octal32(printf_state_t *state, unsigned int n, size_t width, int left_justified, char padding) {
+    char buffer[11] = {
+        '0',
+    };
+    unsigned int n_digits = 0;
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {        
+        while (n > 0) {
+            unsigned int rem = n % 8;
+            buffer[n_digits++] = rem + '0';
+            n /= 8;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_octal64(printf_state_t *state, unsigned long long int n, size_t width, int left_justified, char padding) {
+    char buffer[22] = {
+        '0',
+    };
+    unsigned int n_digits = 0;
+    if (n == 0) {
+        buffer[0] = '0';
+        n_digits = 1;
+    } else {        
+        while (n > 0) {
+            unsigned int rem = n % 8;
+            buffer[n_digits++] = rem + '0';
+            n /= 8;
+        }
+    }
+    if (!left_justified && width > n_digits) {
+        printf_pad(state, padding, width - n_digits);
+    }
+    for (int i = n_digits - 1; i >= 0; --i) {
+        printf_putch(state, buffer[i]);
+    }
+    if (left_justified && width > n_digits) {
+        printf_pad(state, ' ', width - n_digits);
+    }
+}
+
+static void printf_backend(printf_state_t *state, const char *fmt, va_list ap) {
+    const size_t n = strlen(fmt) + 1;
+    for (size_t i = 0; i < n; ++i) {
+        if (fmt[i] == '%') {
+            // parse the %specifier
+            // see https://en.cppreference.com/w/c/io/fprintf
+            ++i;
+            // parse the flags
+            int left_justified = 0;
+            char sign = '\0';
+            char padding = ' ';
+            while (1) {
+                char flag = fmt[i];
+                if (flag == '-') {
+                    left_justified = 1;
+                } else if (flag == '+') {
+                    sign = '+';
+                } else if (flag == ' ') {
+                    sign = ' ';
+                } else if (flag == '0') {
+                    padding = '0';
+                } else if (flag == '#') {
+                    // not implemented
+                } else {
+                    break;
+                }
+                ++i;
+            }
+            // parse the width
+            size_t width = 0;
+            while (fmt[i] >= '0' && fmt[i] <= '9') {
+                width *= 10;
+                width += fmt[i] - '0';
+                ++i;
+            }
+            // parse the precision
+            if (fmt[i] == '.') {
+                // not implemented, skip only
+                while (fmt[i] >= '0' && fmt[i] <= '9') {
+                    ++i;
+                }
+            }
+            // parse the length
+            int length_level = 0;
+            while (1) {
+                if (fmt[i] == 'l') {
+                    length_level += 1;
+                } else if (fmt[i] == 'h') {
+                    length_level -= 1;
+                } else {
+                    break;
+                }
+                ++i;
+            }
+            // parse the parameter type
+            switch (fmt[i]) {
+                case '%':
+                    printf_char(state, '%', width, left_justified);
+                    break;
+                case 'c': {
+                    char ch = (char)va_arg(ap, int);
+                    printf_char(state, ch, width, left_justified);
+                    break;
+                }
+                case 's': {
+                    char *str = (char *)va_arg(ap, void *);
+                    printf_string(state, str, width, left_justified);
+                    break;
+                }
+                case 'd':
+                case 'i':
+                    if (length_level <= 0) {
+                        // short and byte are padded into int when passed with `...`
+                        int n = va_arg(ap, int);
+                        printf_int32(state, n, width, left_justified, padding, sign);
+                    } else if (length_level == 1 && sizeof(long) * CHAR_BIT == 32) {
+                        long int n = va_arg(ap, long int);
+                        printf_int32(state, n, width, left_justified, padding, sign);
+                    } else if (length_level == 1 && sizeof(long) * CHAR_BIT == 64) {
+                        long int n = va_arg(ap, long int);
+                        printf_int64(state, n, width, left_justified, padding, sign);
+                    } else {
+                        long long int n = va_arg(ap, long long int);
+                        printf_int64(state, n, width, left_justified, padding, sign);
+                    }
+                    break;
+                case 'u':
+                    if (length_level <= 0) {
+                        // short and byte are padded into int when passed with `...`
+                        unsigned int n = va_arg(ap, unsigned int);
+                        printf_uint32(state, n, width, left_justified, padding);
+                    } else if (length_level == 1 && sizeof(long) * CHAR_BIT == 32) {
+                        unsigned long int n = va_arg(ap, unsigned long int);
+                        printf_uint32(state, n, width, left_justified, padding);
+                    } else if (length_level == 1 && sizeof(long) * CHAR_BIT == 64) {
+                        unsigned long int n = va_arg(ap, unsigned long int);
+                        printf_uint64(state, n, width, left_justified, padding);
+                    } else {
+                        unsigned long long int n = va_arg(ap, unsigned long long int);
+                        printf_uint64(state, n, width, left_justified, padding);
+                    }
+                    break;
+                case 'x':
+                case 'X':
+                case 'p': {
+                    int upper_case = (fmt[i] == 'X');
+                    if (length_level <= 0) {
+                        unsigned int n = va_arg(ap, unsigned int);
+                        printf_hex32(state, n, width, left_justified, padding, upper_case);
+                    } else if (length_level == 1) {
+                        unsigned long int n = va_arg(ap, unsigned long int);
+                        if (sizeof(unsigned long) * CHAR_BIT == 32) {
+                            printf_hex32(state, n, width, left_justified, padding, upper_case);
+                        } else {
+                            printf_hex64(state, n, width, left_justified, padding, upper_case);
+                        }
+                    } else {
+                        unsigned long long int n = va_arg(ap, unsigned long long int);
+                        printf_hex64(state, n, width, left_justified, padding, upper_case);
+                    }
+                    break;
+                }
+                case 'o':
+                    if (length_level <= 0) {
+                        unsigned int n = va_arg(ap, unsigned int);
+                        printf_octal32(state, n, width, left_justified, padding);
+                    } else if (length_level == 1) {
+                        unsigned long int n = va_arg(ap, unsigned long int);
+                        if (sizeof(unsigned long) * CHAR_BIT == 32) {
+                            printf_octal32(state, n, width, left_justified, padding);
+                        } else {
+                            printf_octal64(state, n, width, left_justified, padding);
+                        }
+                    } else {
+                        unsigned long long int n = va_arg(ap, unsigned long long int);
+                        printf_octal64(state, n, width, left_justified, padding);
+                    }
+                    break;
+                case 'f':
+                case 'F':
+                case 'e':
+                case 'E':
+                case 'g':
+                case 'G':
+                case 'a':
+                case 'A':
+                    // not implemented, skip only
+                    va_arg(ap, double);
+                    break;
+            }
+        } else {
+            printf_putch(state, fmt[i]);
+        }
+    }
+}
