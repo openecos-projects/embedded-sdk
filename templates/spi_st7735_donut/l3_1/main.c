@@ -262,5 +262,5 @@ void main(void)
     };
     st7735_init(&st7735);
 
-    render_donut(&st7735);
+    donut(&st7735);
 }
