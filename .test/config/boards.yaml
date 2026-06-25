@@ -1,0 +1,51 @@
+schema_version: 1
+default_suite: default-board-build
+boards:
+  - id: starrysky-c2
+    name: StarrySky C2
+    board_dir: board/StarrySkyC2
+    target: c2
+    status: active
+    default_template: hello
+    templates:
+      - name: asm_hello
+        type: asm
+      - name: coroutine_test
+        type: c
+      - name: filesystem_test
+        type: c
+      - name: gpio
+        type: c
+      - name: hello
+        type: c
+      - name: i2c_scan
+        type: c
+      - name: minesweeper
+        type: c
+      - name: shell_test
+        type: c
+      - name: spi_flash_test
+        type: c
+      - name: spi_st7735
+        type: c
+      - name: spi_st7735_donut
+        type: c
+      - name: st7789
+        type: c
+    makefile: board/StarrySkyC2/Makefile
+    expected_artifacts:
+      elf:
+        required: true
+        allow_extensionless_elf: true
+        patterns:
+          - build/*.elf
+          - build/retrosoc_fw
+      firmware:
+        required: true
+        any_patterns:
+          - build/*.bin
+          - build/*.hex
+    notes:
+      - Initial board automation scope is limited to C2.
+      - Templates are the C2-supported templates visible in the installed SDK.
+      - Other boards can be added after the C2 template build matrix is stable.

@@ -17,6 +17,23 @@
 !docs/
 !docs/**
 
+!.test/
+!.test/Makefile
+!.test/config/
+!.test/config/**
+!.test/doc/
+!.test/doc/**
+!.test/scripts/
+!.test/scripts/**
+!.test/work/
+!.test/work/README.md
+!.test/reports/
+!.test/reports/README.md
+.test/work/**
+!.test/work/README.md
+.test/reports/**
+!.test/reports/README.md
+
 !board
 !board/**
 
@@ -48,6 +65,3 @@
 !tools/kconfig/**
 !tools/scripts
 !tools/scripts/**
-
-
-

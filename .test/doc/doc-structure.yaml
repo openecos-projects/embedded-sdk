@@ -1,0 +1,162 @@
+schema_version: 1
+root: .test
+purpose: SDK automated testing workspace. All test documentation, configuration, scripts, work directories, and reports must stay under .test.
+language_policy:
+  machine_readable: English
+  directory_names: English kebab-case
+  document_body: Chinese or English
+  recommendation: Use English for IDs, paths, tags, status, and summaries. Use Chinese for detailed team-facing notes when needed.
+workspace_policy:
+  root: .test
+  allowed_top_level_paths:
+    - .test/doc
+    - .test/config
+    - .test/scripts
+    - .test/work
+    - .test/reports
+  rule: Do not place automated test scripts, temporary test projects, generated logs, reports, or test configuration outside .test.
+  sdk_root: Repository root remains the SDK source root and can be read by tests through ECOS_SDK_HOME.
+  generated_data_policy: Generated work directories and reports should remain untracked unless explicitly promoted.
+status_values:
+  - planned
+  - drafting
+  - active
+  - deprecated
+document_types:
+  - overview
+  - plan
+  - design
+  - checklist
+  - test-case
+  - report
+layout:
+  - id: workspace
+    phase: cross-phase
+    path: .
+    purpose: Top-level automated test workspace.
+    categories:
+      - id: docs
+        path: doc
+        type: overview
+        status: active
+        summary: Human and AI-readable test documentation.
+      - id: config
+        path: config
+        type: design
+        status: planned
+        summary: Test manifests, board matrix files, target metadata, and suite configuration.
+      - id: scripts
+        path: scripts
+        type: design
+        status: planned
+        summary: Test entrypoints, preflight checks, build runners, artifact checkers, and report generators.
+      - id: work
+        path: work
+        type: report
+        status: planned
+        summary: Generated isolated test projects and temporary execution directories.
+      - id: reports
+        path: reports
+        type: report
+        status: planned
+        summary: Test results, logs, summaries, and CI report artifacts.
+  - id: overview
+    phase: cross-phase
+    path: doc/00-overview
+    purpose: High-level strategy, scope, roadmap, and shared terminology.
+    categories:
+      - id: scope
+        path: doc/00-overview/automated-testing-scope.md
+        type: overview
+        status: active
+        summary: Overall SDK automated testing scope and phased priorities.
+  - id: phase-1-foundation
+    phase: phase-1
+    path: doc/01-foundation
+    purpose: Fast and stable tests suitable for early CI adoption.
+    categories:
+      - id: build-testing
+        path: doc/01-foundation/build-testing
+        type: checklist
+        status: planned
+        summary: Board, demo, component, debug, and release build validation.
+      - id: configuration-testing
+        path: doc/01-foundation/configuration-testing
+        type: checklist
+        status: planned
+        summary: Kconfig, defconfig, dependency, and mutually exclusive option validation.
+      - id: unit-testing
+        path: doc/01-foundation/unit-testing
+        type: design
+        status: planned
+        summary: Pure software unit tests for libc, utilities, data structures, HAL-independent logic, and parsers.
+      - id: static-analysis
+        path: doc/01-foundation/static-analysis
+        type: checklist
+        status: planned
+        summary: Warning policy, formatting, lint, unused config, duplicate macro, and include path checks.
+  - id: phase-2-sdk-core
+    phase: phase-2
+    path: doc/02-sdk-core
+    purpose: SDK-specific integration coverage after the foundation tests are stable.
+    categories:
+      - id: bsp-board-coverage
+        path: doc/02-sdk-core/bsp-board-coverage
+        type: checklist
+        status: planned
+        summary: Board defconfig, startup, linker script, vector table, memory map, and driver integration coverage.
+      - id: driver-interface-testing
+        path: doc/02-sdk-core/driver-interface-testing
+        type: design
+        status: planned
+        summary: GPIO, UART, SPI, I2C, timer, PWM, ADC, flash API and mock backend tests.
+      - id: artifact-checks
+        path: doc/02-sdk-core/artifact-checks
+        type: checklist
+        status: planned
+        summary: ELF, map, bin, hex, section layout, memory usage, entry symbol, vector table, and init section checks.
+      - id: example-regression
+        path: doc/02-sdk-core/example-regression
+        type: checklist
+        status: planned
+        summary: Hello world, GPIO blink, UART echo, timer, flash, shell, filesystem, and network example regression coverage.
+  - id: phase-3-advanced
+    phase: phase-3
+    path: doc/03-advanced
+    purpose: Slower or environment-dependent validation for simulation, hardware, and compatibility.
+    categories:
+      - id: simulation-testing
+        path: doc/03-advanced/simulation-testing
+        type: design
+        status: planned
+        summary: QEMU or simulator smoke tests, boot logs, exit codes, and serial output checks.
+      - id: hardware-in-loop
+        path: doc/03-advanced/hardware-in-loop
+        type: design
+        status: planned
+        summary: Firmware flashing, serial log capture, GPIO, LED, button, watchdog, reset, and bootloader validation.
+      - id: compatibility-regression
+        path: doc/03-advanced/compatibility-regression
+        type: checklist
+        status: planned
+        summary: Historical bug regression, legacy API compatibility, config migration, and ABI/API change checks.
+  - id: operations
+    phase: cross-phase
+    path: doc/90-operations
+    purpose: Execution workflows shared by all phases.
+    categories:
+      - id: ci-workflows
+        path: doc/90-operations/ci-workflows
+        type: design
+        status: planned
+        summary: CI entrypoints, matrix strategy, triggers, cache policy, and report publishing.
+      - id: test-reports
+        path: doc/90-operations/test-reports
+        type: report
+        status: planned
+        summary: Test run reports, failure analysis, trend tracking, and release qualification notes.
+next_document_targets:
+  - doc/01-foundation/build-testing/build-matrix.md
+  - doc/01-foundation/configuration-testing/kconfig-validation.md
+  - doc/01-foundation/unit-testing/unit-test-framework.md
+  - doc/90-operations/ci-workflows/ci-entrypoint.md
