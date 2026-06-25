@@ -29,11 +29,13 @@ DSTATUS disk_status (
     log_debug("[FATFS]EnterStatus, waiting...\r\n");
 	switch (pdrv) {
         case DEV_FLASH:
-            uint8_t flash_status_register = 0x00;
-            sfud_read_status(flash,&flash_status_register);
-            if((flash_status_register & 0x01) == 0x00) status = 0x00; // Not Busy
-		    else status = STA_NOINIT;
-            
+            if (flash != NULL && flash->init_ok) {
+                status = 0x00;
+            } else {
+                uint8_t flash_status_register = 0x00;
+                sfud_read_status(flash, &flash_status_register);
+                if ((flash_status_register & 0x01) == 0x00) status = 0x00;
+            }
             break;
 	}
     log_debug("[FATFS]ExitStatus, return:%x\r\n",status);
@@ -56,8 +58,13 @@ DSTATUS disk_initialize (
 	switch (pdrv) {
         case DEV_FLASH:
             flash = sfud_get_device_table() + 0;
-            if(sfud_init() == SFUD_SUCCESS) status = disk_status(DEV_FLASH);
-            else status = STA_NOINIT;
+            if (flash->init_ok) {
+                status = disk_status(DEV_FLASH);
+            } else if (sfud_init() == SFUD_SUCCESS) {
+                status = disk_status(DEV_FLASH);
+            } else {
+                status = STA_NOINIT;
+            }
 		    break;
 	}
     log_debug("[FATFS]ExitInit, return:%x\r\n",status);

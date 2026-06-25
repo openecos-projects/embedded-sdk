@@ -37,8 +37,8 @@ Menuconfig引用链为：Makefile -> build_conf.mk -> auto.conf(由script/config
 3. 由于build_conf.mk可以自动识别驱动并配置，因此无需修改
 
 ## 新组件的适配方式
-组件相关的源文件：board/components/src/*.c
-组件相关的头文件：board/components/include/*.h
+组件相关的源文件：components/src/*.c
+组件相关的头文件：components/include/*.h
 组件相关的kconfig：tools/kconfig/Kconfig
 关联组件并配置的文件：board/板卡型号/build_conf.mk
 1. 添加组件的源文件、头文件

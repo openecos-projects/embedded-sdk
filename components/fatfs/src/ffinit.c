@@ -21,7 +21,7 @@ bool load_filesystem(){
             log_fatal("Exceed the maximum number of retries, exit :(\r\n");
         }
 
-        printf("Mounting FileSystem...\r\n");
+        printf("Mounting FileSystem... (fs_Flash=%p)\r\n", (void*)&fs_Flash);
         res_Flash = f_mount(&fs_Flash,"0:",1);
         if(res_Flash == FR_NO_FILESYSTEM){
             log_error("Do not find a FileSystem...\n");

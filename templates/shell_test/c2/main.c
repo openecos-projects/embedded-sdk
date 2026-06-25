@@ -4,17 +4,18 @@ void easy_print(void* param){
     printf("I will print: %s\r\n", (char*)param);
 }
 
-// Tips: Letter-shell uses slow sys_uart leaving hp_uart available for high-demand situation.
-//       if there exists a communication loss, it'll be fine by setting uart boudrate to 9600.
+
+// Warn: 若使用fatfs启动shell，需要额外注意用户程序的栈分配：
+//       fatfs分配FIL file时容易导致栈溢出，进而导致FatFs结构体损坏，最终无法使用f_open()打开文件
+
 void main(){
     hal_sys_uart_init();
 
-    func_node func_node = {
+    // 为exec_func功能创建函数调用链
+    flist[0] = (func_node){
         .func = easy_print,
-        .param = "Hello, World",
-        .next = NULL,
+        .default_param = "Hello, World",
     };
-    set_fnode(&func_node);
 
     create_shell_env_varible();
 

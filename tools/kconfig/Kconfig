@@ -42,11 +42,27 @@ menu "Build Configuration"
             help
               Enable FileSystem with FAT16 in flash by using fatfs
 
-        config COMPONENT_SHELL
-            bool "Shell Support"
-            default n
-            help
-              Enable Shell(run slowly when using software-spi)
+        menu "Shell Support"
+            config COMPONENT_SHELL
+                bool "Shell Support"
+                default n
+                help
+                  Enable Shell
+
+            config COMPONENT_FILE_EDITOR
+                bool "File Editor Support"
+                depends on COMPONENT_SHELL && COMPONENT_FLASH_FS
+                default n
+                help
+                  Enable Shell File Editor
+
+            config COMPONENT_C_COMPILER
+                bool "C Compiler Support"
+                depends on COMPONENT_SHELL && COMPONENT_FLASH_FS
+                default n
+                help
+                  Enable Shell FINALx-C-Compiler
+        endmenu
 
         menu "LightCouroutine Support"
             config COMPONENT_COROUTINE

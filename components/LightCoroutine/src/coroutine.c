@@ -29,7 +29,7 @@ task_t create_task(int id, func_t func, void* args){
 
 void delete_task(task_t* task_handler){
     if(task_handler->func==NULL){
-        printf("error: task_handler is NULL\n");
+        printf("error: task_handler is NULL\r\n");
         return;
     }
     avail_tasks[task_handler->id].func = NULL;
@@ -64,10 +64,10 @@ static void idleHook(task_t* t){
     );
     TASK_BEGIN(t);
     while(1){
-        printf(">>>Enter Idle Task\n");
-        printf(">>>Suspend Task Num: %d\n", suspend_cnt);
-        printf(">>>Resume Task Num: %d\n", resume_cnt);
-        printf(">>>Exit Idle Task\n\n");
+        printf(">>>Enter Idle Task\r\n");
+        printf(">>>Suspend Task Num: %d\r\n", suspend_cnt);
+        printf(">>>Resume Task Num: %d\r\n", resume_cnt);
+        printf(">>>Exit Idle Task\r\n\r\n");
         TASK_YIELD(t);  
     }
     TASK_END(t);

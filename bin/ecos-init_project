@@ -146,7 +146,8 @@ init_project_isolated() {
     cp -r "$SDK_ROOT/components/fatfs" "$SystemDir"
     cp -r "$SDK_ROOT/components/letter-shell" "$SystemDir"
     cp -r "$SDK_ROOT/components/TimmoLog" "$SystemDir"
-    cp -r "$SDK_ROOT/components/LightCoroutine" "$SystemDir"
+    cp -r "$SDK_ROOT/components/fcc" "$SystemDir"
+    cp -r "$SDK_ROOT/components/text_editor" "$SystemDir"
 
     # due to diversity of the device drivers, copy its whole structure
     find "$SDK_ROOT/devices" -maxdepth 1 -mindepth 1 -type d -exec cp -r {} "$HardwareDir" \;

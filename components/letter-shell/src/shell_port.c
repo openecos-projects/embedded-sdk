@@ -1,28 +1,28 @@
 #include "shell_port.h"
+#include "assert.h"
 
 uint32_t envInt;
 uint16_t envShort;
 char envString[128];
 char envChar;
 uint32_t envFunc;
+func_node flist[16];
 
 
-func_node* fnode;
-void set_fnode(func_node* new_fnode){
-    fnode = new_fnode;
-}
-
-void __attribute__((optimize("O0"))) exec_func(uint32_t st, uint32_t ed, uint32_t loopTime){
-    while(loopTime--){
-        uint32_t cnt = 0;
-        for(func_node* it = fnode; it!=NULL; it=it->next){
-            if(cnt<st) continue;
-            if(cnt>st) break;
-
-            it->func(it->param);
-            cnt++;
-        }
+void __attribute__((optimize("O0"))) exec_func(uint8_t id, uint32_t param, uint8_t use_default_param){
+    if(!(id >= 0 && id <= 15)){
+        log_error("The fnode id must between 0 and 15.");
+        return;
     }
+
+    if(flist[id].func == NULL){
+        log_error("The function is NULL.");
+        return;
+    }
+    
+
+    if(use_default_param) flist[id].func(flist[id].default_param);
+    else flist[id].func((void*)param);
 }
 
 void create_shell_env_varible(){
@@ -67,7 +67,7 @@ size_t chdir(char * dir){
     log_info("full=%s\r\n",fullpath);
 
     FRESULT res = f_chdir(fullpath);
-    if (res != FR_OK) log_fatal("f_chdir failed: %d\r\n", res);
+    if (res != FR_OK) log_info("f_chdir failed: %d\r\n", res);
     return res;
 }
 

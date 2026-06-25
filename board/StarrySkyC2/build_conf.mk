@@ -89,6 +89,16 @@ SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/LightCoroutine/src -name "*
 CFLAGS += -I$(ECOS_SDK_HOME)/components/LightCoroutine/include
 endif
 
+ifdef CONFIG_COMPONENT_FILE_EDITOR
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/text_editor/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/text_editor/include
+endif
+
+ifdef CONFIG_COMPONENT_C_COMPILER
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/fcc/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/fcc/include
+endif
+
 # 自动包含所有的 devices 组件的头文件（方便代码补全）
 CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/*/include -type d 2>/dev/null))
 

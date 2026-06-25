@@ -24,10 +24,12 @@ ECOS_Isolated_Project/
 ## 创建一个新的分离式工程
 
 ```shell
+# 1. 创建项目
 ecos init_project <项目名称> -isolated -name <项目新名称> -target <板卡类型>
-make menuconfig
-make
-# 脱离SDK环境后
+# 2. 根据项目需求，将项目中不需要的组件裁剪掉
+# 3. 根据项目需求，将项目中需要的宏开关打开
+make menuconfig 
+# 4. 编译环境（可以脱离SDK环境）
 make
 ```
 
@@ -35,7 +37,7 @@ make
 2. 调整menuconfig中的Peripheral Drivers与External Devices是无效的
   - 在分离式项目中，调整它只会影响到对应宏的生成，不会影响到头文件包含
   - 在分离式项目中，它们均默认加入到CFLAGS的头文件搜索路径中
-  - 您可以使用宏，并借助configs/generated/autoconf.h、configs/config/auto.conf来手动调整头文件包含
+  - 对于不想使用的组件，您可以直接裁剪
 
 ## 新版卡的适配方式
 注意，板卡资源仅包含板卡相关的文件、文件夹（SDK/board下的资源）

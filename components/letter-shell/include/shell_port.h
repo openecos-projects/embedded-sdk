@@ -16,11 +16,10 @@ extern uint32_t envFunc;
 
 typedef struct func_node{
     void (*func)(void *);
-    void* param;
-    struct func_node *next;
+    void* default_param;
 } func_node;
 
-void set_fnode(func_node* new_fnode);
+extern func_node flist[16];
 
 void create_shell_env_varible();
 

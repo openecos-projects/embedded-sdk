@@ -462,7 +462,7 @@ typedef struct {	/* Open object identifier with status */
 #if FF_VOLUMES < 1 || FF_VOLUMES > 10
 #error Wrong FF_VOLUMES setting
 #endif
-static FATFS *FatFs[FF_VOLUMES];	/* Pointer to the filesystem objects (logical drives) */
+FATFS *FatFs[FF_VOLUMES];  /* DEBUG: non-static for diagnosis */	/* Pointer to the filesystem objects (logical drives) */
 static WORD Fsid;					/* Filesystem mount ID */
 
 #if FF_FS_RPATH

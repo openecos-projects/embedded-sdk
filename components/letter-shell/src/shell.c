@@ -2034,8 +2034,7 @@ int shellExecute(int argc, char *argv[])
         }
         int (*func)() = (int (*)())result;
         ShellCommand command = {
-            .attr.value = SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC)
-                          |SHELL_CMD_DISABLE_RETURN,
+            .attr.value = SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_FUNC),
             .data.cmd.function = func,
         };
         return shellExtRun(shell, &command, argc - 1, &argv[1]);
