@@ -10,6 +10,8 @@ if [ "${ECOS_SDK_HOME:-}" = "" ]; then
     export ECOS_SDK_HOME
 fi
 
+ECOS_CMD=${ECOS_CMD:-"$SDK_ROOT/bin/ecos"}
+
 FAILURES=0
 
 pass() {
@@ -40,6 +42,7 @@ check_file() {
 printf 'preflight.sdk_root=%s\n' "$SDK_ROOT"
 printf 'preflight.test_root=%s\n' "$TEST_ROOT"
 printf 'preflight.ecos_sdk_home=%s\n' "$ECOS_SDK_HOME"
+printf 'preflight.ecos_cmd=%s\n' "$ECOS_CMD"
 
 if [ -d "$ECOS_SDK_HOME" ]; then
     pass "ECOS_SDK_HOME"
@@ -53,10 +56,10 @@ check_cmd riscv64-unknown-elf-gcc
 check_cmd riscv64-unknown-elf-objcopy
 check_cmd riscv64-unknown-elf-objdump
 
-if command -v ecos >/dev/null 2>&1; then
-    pass "command:ecos"
+if [ -x "$ECOS_CMD" ]; then
+    pass "command:$ECOS_CMD"
 else
-    fail "command:ecos"
+    fail "command:$ECOS_CMD"
 fi
 
 check_file "$TEST_ROOT/config/boards.yaml"

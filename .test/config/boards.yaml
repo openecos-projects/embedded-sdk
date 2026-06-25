@@ -46,6 +46,70 @@ boards:
           - build/*.bin
           - build/*.hex
     notes:
-      - Initial board automation scope is limited to C2.
       - Templates are the C2-supported templates visible in the installed SDK.
-      - Other boards can be added after the C2 template build matrix is stable.
+  - id: starrysky-l3-1
+    name: StarrySky L3.1
+    board_dir: board/StarrySkyL3_1
+    target: l3_1
+    status: active
+    default_template: hello
+    templates:
+      - name: asm_hello
+        type: asm
+      - name: archinfo
+        type: c
+      - name: asm_gpio
+        type: asm
+      - name: crc
+        type: c
+      - name: gpio
+        type: c
+      - name: hello
+        type: c
+      - name: i2c_scan
+        type: c
+      - name: i2c_sgp30
+        type: c
+      - name: minesweeper
+        type: c
+      - name: ps2
+        type: c
+      - name: pwm
+        type: c
+      - name: qspi
+        type: c
+      - name: rcu
+        type: c
+      - name: rng
+        type: c
+      - name: rtc
+        type: c
+      - name: smoke_test
+        type: c
+      - name: spi_st7735
+        type: c
+      - name: spi_st7735_clock
+        type: c
+      - name: spi_st7735_donut
+        type: c
+      - name: st7789
+        type: c
+      - name: timer
+        type: c
+      - name: wdg
+        type: c
+    makefile: board/StarrySkyL3_1/Makefile
+    expected_artifacts:
+      elf:
+        required: true
+        allow_extensionless_elf: true
+        patterns:
+          - build/*.elf
+          - build/retrosoc_fw
+      firmware:
+        required: true
+        any_patterns:
+          - build/*.bin
+          - build/*.hex
+    notes:
+      - Templates are the L3.1-supported templates visible in the installed SDK.

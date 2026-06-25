@@ -5,8 +5,8 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 TEST_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 SDK_ROOT=$(CDPATH= cd -- "$TEST_ROOT/.." && pwd)
 
-BOARD_ID=starrysky-c2
-TARGET=c2
+BOARD_ID=${BOARD_ID:-starrysky-c2}
+TARGET=${TARGET:-c2}
 RUN_ID=${RUN_ID:-$(date +%Y%m%d-%H%M%S)}
 SUITE=default-board-build
 TEMPLATES=${TEMPLATES:-"asm_hello coroutine_test filesystem_test gpio hello i2c_scan minesweeper shell_test spi_flash_test spi_st7735 spi_st7735_donut st7789"}
@@ -16,6 +16,8 @@ if [ "${ECOS_SDK_HOME:-}" = "" ]; then
     ECOS_SDK_HOME=$SDK_ROOT
     export ECOS_SDK_HOME
 fi
+
+ECOS_CMD=${ECOS_CMD:-"$SDK_ROOT/bin/ecos"}
 
 WORK_RUN_DIR="$TEST_ROOT/work/$SUITE/$RUN_ID"
 REPORT_DIR="$TEST_ROOT/reports/$SUITE/$RUN_ID/$BOARD_ID"
@@ -28,6 +30,7 @@ printf '== %s ==\n' "$SUITE"
 printf 'board:    %s\n' "$BOARD_ID"
 printf 'target:   %s\n' "$TARGET"
 printf 'run_id:   %s\n' "$RUN_ID"
+printf 'ecos:     %s\n' "$ECOS_CMD"
 printf 'work:     %s\n' "$WORK_RUN_DIR"
 printf 'reports:  %s\n' "$REPORT_DIR"
 printf '\n'
@@ -60,7 +63,7 @@ for TEMPLATE in $TEMPLATES; do
 
     if ! (
         cd "$WORK_RUN_DIR"
-        ecos init_project "$TEMPLATE" -name "$PROJECT_NAME" -target "$TARGET"
+        "$ECOS_CMD" init_project "$TEMPLATE" -name "$PROJECT_NAME" -target "$TARGET"
     ) > "$TEMPLATE_REPORT_DIR/init_project.log" 2>&1; then
         printf '%-22s %-10s %s\n' "$TEMPLATE" "FAIL" "init_project"
         printf 'FAIL template=%s stage=init_project\n' "$TEMPLATE" > "$TEMPLATE_REPORT_DIR/result.txt"
