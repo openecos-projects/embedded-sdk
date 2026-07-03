@@ -22,7 +22,7 @@ _ecos_completions() {
 
     # Available commands and options
     cmds="init_project set_board flash monitor help"
-    boards="c1 c2 l3"
+    boards="c1 c2 l3 l3_1 l4"
     templates="asm_hello asm_gpio gpio hello i2c_scan i2c_sgp30 minesweeper pwm spi_st7735 spi_st7735_clock spi_st7735_donut spi_st7789 list"
 
     # Complete main commands

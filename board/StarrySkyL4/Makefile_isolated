@@ -1,0 +1,125 @@
+# retroSoC 固件构建脚本
+# 用于编译基于RISC-V架构的嵌入式固件
+
+# RISC-V 交叉编译工具链前缀
+CROSS=riscv64-unknown-elf-
+BUILD_DIR := build
+PROJECT_PATH := $(shell pwd)
+CATEGORY := StarrySkyL4
+
+# 包含配置文件
+-include configs/config/auto.conf
+
+CFLAGS := -mabi=ilp32 \
+	  -march=rv32im \
+	  -mcmodel=medany \
+	  -Wl,-Bstatic,--strip-debug \
+	  -ffreestanding \
+	  -nostdlib
+
+# 根据配置文件设置链接选项
+ifdef CONFIG_LINK_TARGET_XIP
+LDFLAGS += -DCONFIG_LINK_TARGET_XIP
+CFLAGS += -DCONFIG_LINK_TARGET_XIP
+endif
+
+ifdef CONFIG_LINK_TARGET_MEM
+LDFLAGS += -DCONFIG_LINK_TARGET_MEM
+CFLAGS += -DCONFIG_LINK_TARGET_MEM
+endif
+
+# 根据配置文件添加编译优化选项
+ifdef CONFIG_BUILD_OPT_FLAGS
+CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
+endif
+
+# 根据配置文件添加调试选项
+ifdef CONFIG_BUILD_DEBUG
+CFLAGS += -g -DDEBUG
+endif
+
+# 根据配置文件添加详细输出选项
+ifdef CONFIG_BUILD_VERBOSE
+VERBOSE := 1
+endif
+
+# 固件名称 - 从配置文件读取，如果未定义则使用默认值
+ifdef CONFIG_FIRMWARE_NAME
+FIRMWARE_NAME := $(subst ",,$(CONFIG_FIRMWARE_NAME))
+else
+FIRMWARE_NAME := main
+endif
+
+# find包含目录
+# 不能加入包含main.c的目录、不能加入包含loader目录的目录
+INCLUDE_DIRS := Library System Hardware
+
+# 源文件列表
+SDK_SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.S")
+SDK_SRC_PATH += $(shell find $(INCLUDE_DIRS) -type f -name "*.c")
+
+FIRMWARE_SRC_PATH := ./Startup/start.S ./User/main.c $(SDK_SRC_PATH)
+LOADER_SRC_PATH := ./Startup/loader/start.s ./Startup/loader/loader.c ./Startup/loader/payload.S $(SDK_SRC_PATH)
+
+CFLAGS += -I./configs
+CFLAGS += $(addprefix -I,$(shell find $(INCLUDE_DIRS) -type d))
+CFLAGS += $(addprefix -I,$(shell find User -type d))
+CFLAGS += $(addprefix -I,$(shell find Startup -type d))
+
+# 链接脚本路径
+FIRMWARE_LDS_PATH := $(shell find Startup -type f -name "sections.lds")
+LOADER_LDS_PATH := $(shell find Startup -type f -name "loader.lds")
+
+# 包含内存报告工具
+-include ./scripts/mem_report.mk
+
+# 主要构建目标：生成固件的所有格式文件
+$(FIRMWARE_NAME):
+	@echo $(FIRMWARE_LDS_PATH)
+	@echo "Building APP $(FIRMWARE_NAME)..."
+	@mkdir -p $(BUILD_DIR)
+
+	@echo "Preprocess APP linker script..."
+	@$(CROSS)cpp -P $(CFLAGS) -o $(BUILD_DIR)/app.lds $(FIRMWARE_LDS_PATH)
+	@echo "Compiling APP..."
+	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/app.lds -o $(BUILD_DIR)/app.elf $(FIRMWARE_SRC_PATH)
+	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/app.bin
+
+ifdef CONFIG_LINK_TARGET_XIP
+	@echo "Skipping Bootloader (Target is XIP)..."
+	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
+	@$(CROSS)objdump -d $(BUILD_DIR)/app.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
+	$(call show_mem_usage, $(BUILD_DIR)/app.elf)
+else
+	@echo "Building Bootloader..."
+	@$(CROSS)cpp -P -o $(BUILD_DIR)/loader.lds $(LOADER_LDS_PATH)
+	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/loader.lds -o $(BUILD_DIR)/loader.elf $(LOADER_SRC_PATH)
+
+	@echo "Final linking ..."
+	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+
+	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
+	@$(CROSS)objdump -d $(BUILD_DIR)/loader.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
+	$(call show_mem_usage, $(BUILD_DIR)/loader.elf)
+endif
+	@echo "Done."
+
+# 清理构建产物
+clean:
+	rm -rf $(BUILD_DIR)
+
+clean_config:
+	rm -rf configs/generated configs/config configs/.config configs/.config.old
+
+clean_all:
+	rm -rf $(BUILD_DIR)
+	rm -rf configs/generated configs/config configs/.config configs/.config.old
+	rm -rf $(PROJECT_PATH)/tools/fixdep/build
+	rm -rf $(PROJECT_PATH)/tools/kconfig/build
+
+-include scripts/config.mk
+# 声明伪目标
+.PHONY: $(FIRMWARE_NAME) clean

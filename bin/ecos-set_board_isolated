@@ -220,6 +220,92 @@ set_board() {
                 log "Updated project configuration file."
             fi
             ;;
+        "l4")
+            local board_file="board.h"
+            local make_file="Makefile_isolated"
+            local lds_file="sections.lds"
+            local start_file="start.S"
+
+            local board_source_path="$SDK_ROOT/board/StarrySkyL4/$board_file"
+            local make_source_path="$SDK_ROOT/board/StarrySkyL4/$make_file"
+            local lds_source_path="$SDK_ROOT/board/StarrySkyL4/$lds_file"
+            local start_source_path="$SDK_ROOT/board/StarrySkyL4/$start_file"
+            local driver_source_path="$SDK_ROOT/board/StarrySkyL4/driver"
+            local loader_source_path="$SDK_ROOT/board/StarrySkyL4/loader"
+            local main_source_path="$SDK_ROOT/templates/hello/l4"
+
+            local board_target_path="./Library/board.h"
+            local make_target_path="./Makefile"
+            local lds_target_path="./Startup/sections.lds"
+            local start_target_path="./Startup/start.S"
+            local driver_target_path="./Library"
+            local loader_target_path="./Startup"
+            local main_target_path="./User"
+
+            if [[ ! -f "$board_source_path" ]]; then
+                err "Board config file not found: $board_source_path"
+                exit 1
+            fi
+
+            # Copy Board config file
+            cp "$board_source_path" "$board_target_path"
+            log "Set board configuration to: starrysky_l4"
+            log "Config file: $board_target_path"
+
+            # Copy Makefile
+            cp "$make_source_path" "$make_target_path"
+            log "Set Makefile: $make_target_path"
+
+            # Copy Linker Script
+            if [[ -f "$lds_source_path" ]]; then
+                cp "$lds_source_path" "$lds_target_path"
+                log "Set Linker Script: $lds_target_path"
+            else
+                warn "Linker Script not found for L4: $lds_source_path"
+            fi
+
+            # Copy Startup Code
+            if [[ -f "$start_source_path" ]]; then
+                cp "$start_source_path" "$start_target_path"
+                log "Set Startup Code: $start_target_path"
+            else
+                warn "Startup Code not found for L4: $start_source_path"
+            fi
+
+            # Copy Drivers
+            if [[ -d "$driver_source_path" ]]; then
+                find "$driver_source_path" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$driver_target_path" \;
+                log "Set Drivers: $driver_target_path"
+            else
+                warn "Drivers not found for L4: $driver_source_path"
+            fi
+
+            # Copy Loaders
+            if [[ -d "$loader_source_path" ]]; then
+                cp -r "$loader_source_path" "$loader_target_path"
+                log "Set Loaders: $loader_target_path"
+            else
+                warn "Loaders not found for L4: $loader_source_path"
+            fi
+
+            # Copy Main Files
+            if [[ -d "$main_source_path" ]]; then
+                find "$main_source_path" -type f -name "main.*" -exec cp {} "$main_target_path" \;
+                log "Set Main Files: $main_target_path"
+            else
+                warn "Main Files not found for L4: $main_source_path"
+            fi
+
+            # Update project config file if it exists
+            if [[ -f ".ecos-project" ]]; then
+                if grep -q "BOARD=" ".ecos-project"; then
+                    sed -i "s/BOARD=.*/BOARD=$target_board_name/" ".ecos-project"
+                else
+                    echo "BOARD=$target_board_name" >> ".ecos-project"
+                fi
+                log "Updated project configuration file."
+            fi
+            ;;
         *)
             err "Unsupported board: $board_name"
             echo ""
@@ -227,6 +313,7 @@ set_board() {
             # echo "  c1    StarrySky C1 board"
             echo "  c2    StarrySky C2 board"
             echo "  l3_1    StarrySky L3_1 board"
+            echo "  l4      StarrySky L4 board"
             exit 1
             ;;
     esac
