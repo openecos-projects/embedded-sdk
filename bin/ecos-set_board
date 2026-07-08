@@ -6,6 +6,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+export ECOS_SDK_HOME="${ECOS_SDK_HOME:-$SDK_ROOT}"
+
+source "$SDK_ROOT/tools/scripts/ecos-board-package.sh"
 
 # Color output
 log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
@@ -38,11 +41,92 @@ rewrite_config() {
     echo "BOARD=$target_board_name" > ".ecos-project"
     echo "TYPE=$project_type" >> ".ecos-project"
 }
+
+copy_if_declared() {
+    local board_dir="$1"
+    local source_rel="$2"
+    local target_path="$3"
+    local required="${4:-true}"
+    local source_path
+
+    if [[ -z "$source_rel" ]]; then
+        if [[ "$required" == "true" ]]; then
+            err "Board package manifest missing required file entry for target: $target_path"
+            exit 1
+        fi
+        return 0
+    fi
+    source_path="$(ecos_board_abs_path "$board_dir" "$source_rel")"
+
+    if [[ ! -e "$source_path" ]]; then
+        if [[ "$required" == "true" ]]; then
+            err "Board package file not found: $source_path"
+            exit 1
+        fi
+        return 0
+    fi
+
+    if [[ -d "$source_path" ]]; then
+        rm -rf "$target_path"
+        cp -r "$source_path" "$target_path"
+    else
+        cp "$source_path" "$target_path"
+    fi
+    log "Set $(basename "$target_path"): $target_path"
+}
+
+set_board_from_package() {
+    local target_board_name="$1"
+    local manifest board_dir board_id board_category
+    local make_file board_file lds_file start_file loader_path
+
+    manifest="$(ecos_board_find_manifest "$target_board_name")" || return 1
+    board_dir="$(ecos_board_manifest_dir "$manifest")"
+    board_id="$(ecos_board_manifest_value "$manifest" id)"
+    board_category="$(ecos_board_manifest_value "$manifest" category)"
+
+    make_file="$(ecos_board_manifest_section_value "$manifest" files makefile)"
+    board_file="$(ecos_board_manifest_section_value "$manifest" files board_header)"
+    lds_file="$(ecos_board_manifest_section_value "$manifest" files linker_script)"
+    start_file="$(ecos_board_manifest_section_value "$manifest" files startup)"
+    loader_path="$(ecos_board_manifest_section_value "$manifest" paths loader)"
+
+    copy_if_declared "$board_dir" "$board_file" "./board.h" true
+    copy_if_declared "$board_dir" "$make_file" "./Makefile" true
+    copy_if_declared "$board_dir" "$lds_file" "./sections.lds" true
+    copy_if_declared "$board_dir" "$start_file" "./$(basename "$start_file")" false
+    copy_if_declared "$board_dir" "$loader_path" "./loader" false
+
+    mkdir -p configs
+    ecos_board_write_project_config "$manifest" "configs/board-package.mk"
+
+    {
+        echo "BOARD=$target_board_name"
+        echo "BOARD_ID=$board_id"
+        echo "BOARD_CATEGORY=$board_category"
+        echo "BOARD_PACKAGE=$board_dir"
+        echo "TYPE=$project_type"
+    } > ".ecos-project"
+
+    log "Board package: $board_id"
+    log "Board package path: $board_dir"
+    log "Generated board package config: configs/board-package.mk"
+    return 0
+}
 # Set board configuration
 set_board() {
     local target_board_name="$1"
 
     check_project_dir
+    if [[ -f ".ecos-project" ]]; then
+        source .ecos-project
+        project_type="${TYPE:-}"
+    fi
+
+    if [[ "$project_type" != "asm" ]] && set_board_from_package "$target_board_name"; then
+        return 0
+    fi
+
     rewrite_config
     get_config
 
@@ -327,7 +411,7 @@ set_board() {
             fi
             ;;
         *)
-            err "Unsupported board: $board_name"
+            err "Unsupported board: $target_board_name"
             echo ""
             echo "Supported boards:"
             echo "  c1    StarrySky C1 board"
@@ -335,6 +419,7 @@ set_board() {
             echo "  l3    StarrySky L3 board"
             echo "  l3_1  StarrySky L3_1 board"
             echo "  l4    StarrySky L4 board"
+            echo "  Use 'ecos board list' for package-discovered boards."
             exit 1
             ;;
     esac

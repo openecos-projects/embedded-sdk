@@ -1,0 +1,21 @@
+schema: 1
+id: starrysky-l3-1
+name: StarrySky L3_1
+aliases:
+  - l3_1
+category: StarrySkyL3_1
+arch: riscv
+
+files:
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.S
+  build_conf: build_conf.mk
+
+kconfig:
+  board: board.kconfig
+  drivers: driver.kconfig
+
+paths:
+  loader: loader

@@ -24,6 +24,8 @@ rm-distclean += configs/generated configs/config configs/.config configs/.config
 silent := -s
 CONFIG_TARGETS := menuconfig alldefconfig defconfig savedefconfig %defconfig clean_config clean_all distclean help
 
+-include configs/board-package.mk
+
 ifeq ($(wildcard configs/.config),)
 ifeq ($(filter $(CONFIG_TARGETS),$(MAKECMDGOALS)),)
 $(warning $(COLOR_RED)Warning: configs/.config does not exist!$(COLOR_END))
@@ -36,6 +38,10 @@ MCONF  := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 
 
+ifneq ($(wildcard $(BOARD_KCONFIG)),)
+export BoardExport := $(BOARD_KCONFIG)
+export DriverExport := $(DRIVER_KCONFIG)
+else
 CATEGORY_LIST := StarrySkyC2 StarrySkyL3 StarrySkyL3_1 StarrySkyL4
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
 export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
@@ -44,6 +50,7 @@ else
 $(warning $(COLOR_RED)Board category is not existed, default to StarrySkyC2.$(COLOR_END))
 export BoardExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/board.kconfig
 export DriverExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/driver.kconfig
+endif
 endif
 
 $(CONF):

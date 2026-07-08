@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+export ECOS_SDK_HOME="${ECOS_SDK_HOME:-$SDK_ROOT}"
+
+source "$SDK_ROOT/tools/scripts/ecos-board-package.sh"
+
+log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
+err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+
+usage() {
+    echo "Usage: ecos board <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  list                         List available board packages"
+    echo "  info <board>                 Show board package information"
+    echo "  add <path>                   Register a local board package"
+    echo "  remove <board>               Remove a registered board package"
+}
+
+board_info() {
+    local query="$1"
+    local manifest board_dir
+    manifest="$(ecos_board_find_manifest "$query")" || {
+        err "Board package not found: $query"
+        exit 1
+    }
+    board_dir="$(ecos_board_manifest_dir "$manifest")"
+
+    echo "id: $(ecos_board_manifest_value "$manifest" id)"
+    echo "name: $(ecos_board_manifest_value "$manifest" name)"
+    echo "aliases: $(ecos_board_manifest_aliases "$manifest" | paste -sd, -)"
+    echo "category: $(ecos_board_manifest_value "$manifest" category)"
+    echo "path: $board_dir"
+    echo "manifest: $manifest"
+}
+
+board_add() {
+    local path="$1"
+    local manifest id registry_dir target
+
+    if [[ -f "$path" ]]; then
+        manifest="$path"
+        path="$(dirname "$manifest")"
+    else
+        manifest="$path/ecos-board.yml"
+    fi
+
+    if [[ ! -f "$manifest" ]]; then
+        err "No ecos-board.yml found at: $path"
+        exit 1
+    fi
+
+    id="$(ecos_board_manifest_value "$manifest" id)"
+    if [[ -z "$id" ]]; then
+        err "Board manifest missing required field: id"
+        exit 1
+    fi
+
+    registry_dir="$(ecos_board_registry_dir)"
+    mkdir -p "$registry_dir"
+    target="$registry_dir/$id"
+    rm -f "$target"
+    ln -s "$path" "$target"
+    log "Registered board package: $id -> $path"
+}
+
+board_remove() {
+    local query="$1"
+    local manifest id registry_dir target
+
+    manifest="$(ecos_board_find_manifest "$query")" || {
+        err "Board package not found: $query"
+        exit 1
+    }
+    id="$(ecos_board_manifest_value "$manifest" id)"
+    registry_dir="$(ecos_board_registry_dir)"
+    target="$registry_dir/$id"
+
+    if [[ -L "$target" || -e "$target" ]]; then
+        rm -f "$target"
+        log "Removed registered board package: $id"
+    else
+        err "Board package is not registered in $registry_dir: $id"
+        exit 1
+    fi
+}
+
+if [[ $# -eq 0 ]]; then
+    usage
+    exit 1
+fi
+
+command="$1"
+shift
+
+case "$command" in
+    list)
+        ecos_board_print_list
+        ;;
+    info)
+        [[ $# -eq 1 ]] || { usage; exit 1; }
+        board_info "$1"
+        ;;
+    add)
+        [[ $# -eq 1 ]] || { usage; exit 1; }
+        board_add "$1"
+        ;;
+    remove|rm)
+        [[ $# -eq 1 ]] || { usage; exit 1; }
+        board_remove "$1"
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        err "Unknown board command: $command"
+        usage
+        exit 1
+        ;;
+esac

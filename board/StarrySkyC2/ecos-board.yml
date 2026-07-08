@@ -1,0 +1,18 @@
+schema: 1
+id: starrysky-c2
+name: StarrySky C2
+aliases:
+  - c2
+category: StarrySkyC2
+arch: riscv
+
+files:
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.S
+  build_conf: build_conf.mk
+
+kconfig:
+  board: board.kconfig
+  drivers: driver.kconfig

@@ -6,6 +6,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+export ECOS_SDK_HOME="${ECOS_SDK_HOME:-$SDK_ROOT}"
+
+source "$SDK_ROOT/tools/scripts/ecos-board-package.sh"
 
 # Color output
 log()  { echo -e "\033[1;32m[ECOS]\033[0m $*";  }
@@ -45,6 +48,28 @@ echo_available_templates() {
     echo "| coroutine_test   |    | √  |    |      |    |"
     echo "|------------------|----|----|----|------|----|"
     echo "  * means supported but code is in root dir instead of board specific dir"
+}
+
+resolve_template_dir() {
+    local template_name="$1"
+    local target_board="$2"
+
+    if [[ -d "$SDK_ROOT/templates/$template_name/$target_board" ]]; then
+        echo "$SDK_ROOT/templates/$template_name/$target_board"
+        return 0
+    fi
+
+    if [[ -d "$SDK_ROOT/templates/$template_name/common" ]]; then
+        echo "$SDK_ROOT/templates/$template_name/common"
+        return 0
+    fi
+
+    if ecos_board_find_manifest "$target_board" >/dev/null 2>&1 && [[ -d "$SDK_ROOT/templates/$template_name/c2" ]]; then
+        echo "$SDK_ROOT/templates/$template_name/c2"
+        return 0
+    fi
+
+    return 1
 }
 
 # The actual init_project logic
@@ -95,7 +120,13 @@ init_project() {
         log "Project '$new_project_name' created successfully in './$new_project_name'"
         exit 0
     else
-        cp -r "$SDK_ROOT/templates/$template_name/$target_board" "$new_project_name"
+        local template_dir
+        template_dir="$(resolve_template_dir "$template_name" "$target_board")" || {
+            err "Target project is not supported for board: $target_board"
+            echo_available_templates
+            exit 1
+        }
+        cp -r "$template_dir" "$new_project_name"
     fi
     cd "$new_project_name"
 
