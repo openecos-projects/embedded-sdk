@@ -1,13 +1,15 @@
 CROSS=riscv64-unknown-elf-
 BUILD_DIR := build
 PROJECT_PATH := $(shell pwd)
+CATEGORY := StarrySkyL3
 
--include configs/.config
+-include configs/config/auto.conf
 
 CFLAGS := -mabi=lp64 \
 	  -march=rv64ifd_zifencei \
 	  -mcmodel=medany \
 	  -Wl,-Bstatic,--strip-debug \
+	  -Wl,--build-id=none \
 	  -ffreestanding \
 	  -nostdlib
 
@@ -34,7 +36,7 @@ FIRMWARE_NAME := main
 endif
 
 # 源文件列表
-SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/sys_uart -name "*.c")
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyL3/driver/sys_uart -name "*.c")
 SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc -name "*.c")
 SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc -name "*.S")
 SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc -name "*.c")
@@ -49,7 +51,11 @@ LOADER_SRC_PATH := loader/start.s loader/loader.c loader/payload.S $(SDK_SRC_PAT
 
 CFLAGS += -I./configs 
 CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/sys_uart -type d))
 # CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
+
+# The L3 linker script uses these symbols for the application entry address.
+CFLAGS += -Wl,--defsym,_pmem_start=$(CONFIG_LINK_ADDRESS),--defsym,_entry_offset=0
 		
 # 链接脚本路径
 FIRMWARE_LDS_PATH := ./sections.lds

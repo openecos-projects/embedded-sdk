@@ -13,7 +13,7 @@ menu "System Read-Only Information"
         string "MEM Type Name"
         default "PSRAM"
         help
-            The type of memory used on the board as MEM (e.g. SRAM, PSRAM, SDRAM, MEM)
+            The type of memory used on the L4 board as MEM. L4 uses PSRAM.
 
     config BOARD_RAM_SIZE_KB
         int "MEM Size (in KB)"
@@ -35,7 +35,7 @@ menu "System Configuration"
         range 1 200
     config TIMER_FREQ_MHZ
         int "Timer Frequency (MHz)"
-        default 100
+        default 25
         range 1 200
         help
             The clock frequency driving the timer peripheral.
@@ -46,19 +46,19 @@ menu "System Configuration"
 
     choice
         bool "Memory Region Selection"
-        default LINK_TARGET_XIP
+        default LINK_TARGET_MEM
 
         config LINK_TARGET_XIP
             bool "XIP Mode (ROM for Code, MEM for Data)"
             help
-                Execute In Place. Code and read-only data are stored and executed
-                directly from ROM (Flash). Writable data (.data, .bss) and Stack
-                are placed in MEM (RAM).
+                Legacy option kept for menu compatibility. Non-assembly L4
+                projects are forced to execute from PSRAM by the board
+                bootloader.
 
         config LINK_TARGET_MEM
             bool "MEM Mode (All in MEM)"
             help
-                Code and data are entirely loaded into MEM (RAM) by the Bootloader
-                before execution. Provides maximum performance.
+                Code and data are loaded into PSRAM by the board bootloader
+                before execution.
     endchoice
 endmenu

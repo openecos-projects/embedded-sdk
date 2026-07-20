@@ -12,7 +12,6 @@
 #include "hal_gpio.h"
 #include "hal_pwm.h"
 #include "hal_sys_uart.h"
-#include "hal_i2c.h"
 
 // Device headers
 #include "st7789.h"

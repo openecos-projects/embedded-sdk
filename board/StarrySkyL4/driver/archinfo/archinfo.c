@@ -3,7 +3,10 @@
 #include <stdio.h>
 
 void hal_archinfo_info(void) {
-    printf("SYS: %x IDL: %x IDH: %x\n", REG_ARCHINFO_0_SYS, REG_ARCHINFO_0_IDL, REG_ARCHINFO_0_IDH);
+    printf("SYS: %x IDL: %x IDH: %x\n",
+           (unsigned int)REG_ARCHINFO_0_SYS,
+           (unsigned int)REG_ARCHINFO_0_IDL,
+           (unsigned int)REG_ARCHINFO_0_IDH);
 }
 
 void hal_archinfo_set_sys(uint32_t val) {

@@ -1,13 +1,6 @@
-# 根据配置文件设置链接选项
-ifdef CONFIG_LINK_TARGET_XIP
-LDFLAGS += -DCONFIG_LINK_TARGET_XIP
-CFLAGS += -DCONFIG_LINK_TARGET_XIP
-endif
-
-ifdef CONFIG_LINK_TARGET_MEM
+# L4 non-assembly firmware always executes from PSRAM via the board bootloader.
 LDFLAGS += -DCONFIG_LINK_TARGET_MEM
 CFLAGS += -DCONFIG_LINK_TARGET_MEM
-endif
 
 # 根据配置文件添加编译优化选项
 ifdef CONFIG_BUILD_OPT_FLAGS
@@ -92,16 +85,4 @@ endif
 
 ifdef CONFIG_DEVICE_ST7789
 SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7789/src -name "*.c")
-endif
-
-ifdef CONFIG_DEVICE_SGP30
-SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/gy_sgp30/src -name "*.c")
-endif
-
-ifdef CONFIG_DEVICE_PCF8563
-SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/pcf8563/src -name "*.c")
-endif
-
-ifdef CONFIG_DEVICE_ES01S_AT
-SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/esp01s_at/src -name "*.c")
 endif

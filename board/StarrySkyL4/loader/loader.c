@@ -1,60 +1,106 @@
 #include <stdint.h>
-#include "string.h"
-#include "stdio.h"
-#include "generated/autoconf.h"
 
-extern uint32_t app_start;
-extern uint32_t app_end;
+extern char _ssbl_start;
+extern char _ssbl_op;
+extern char _ssbl_ed;
 
-#ifdef CONFIG_LINK_TARGET_MEM
-#define APP_ENTRY 0xc0000000
-#else
-#define APP_ENTRY 0x30000000
-#endif
+extern char _text_start;
+extern char _text_op;
+extern char _text_ed;
 
-void main() {
-    hal_sys_uart_init();
+extern char _rodata_start;
+extern char _rodata_op;
+extern char _rodata_ed;
 
-    uint32_t *src = (uint32_t *)&app_start;
-    uint32_t *dest = (uint32_t *)APP_ENTRY;
-    uint32_t *end = (uint32_t *)&app_end;
-    // 计算总字节数
-    uint32_t total = (uint32_t)((uintptr_t)&app_end - (uintptr_t)&app_start);
-    uint32_t copied = 0;
-    uint32_t percent = 0;
-    uint32_t last_percent = 0;
-    uint32_t *pre = src;
+extern char _data_start;
+extern char _data_op;
+extern char _data_ed;
 
-    // 打印起始进度
-    // sys_putstr("Loading:");
-    hal_sys_putchar('L');
-    hal_sys_putchar('O');
-    hal_sys_putchar('A');
-    hal_sys_putchar('D');
-    hal_sys_putchar('I');
-    hal_sys_putchar('N');
-    hal_sys_putchar('G');
-    hal_sys_putchar(':');
-    hal_sys_putchar(' ');
+extern char _bss_op;
+extern char _bss_ed;
 
-    uint32_t step = (uint32_t)(&app_end - &app_start) / 128;
-    // Copy payload to RAM
-    while (src < end) {
-        *dest++ = *src++;
-        copied += sizeof(uint32_t);
-        if ((uint32_t)(src - pre) >= step){
-            hal_sys_putchar('#');
-            pre = src;
-        }
-    }
-    hal_sys_putchar('\r');
-    hal_sys_putchar('\n');
+typedef void (*voidfunc)();
 
 
-    // Flush instruction cache (using fence.i instruction)
-    asm volatile("fence.i");
+__attribute__((section("entry.boot"))) void _first_bootloader()
+{
+    uint8_t *dst = (uint8_t*)&_ssbl_op;
+    const uint8_t *src = (uint8_t*)&_ssbl_start;
+    uint32_t len = (uintptr_t)&_ssbl_ed - (uintptr_t)&_ssbl_op;
 
-    // Jump to app
-    void (*app_entry)() = (void (*)())APP_ENTRY;
-    app_entry();
+    uint32_t *d = (uint32_t *)dst;
+    const uint32_t *s = (uint32_t *)src;
+    uintptr_t cnt32 = len / 4;
+
+    while (cnt32--) *d++ = *s++;
+
+    dst = (uint8_t *)d;
+    src = (const uint8_t *)s;
+    uintptr_t rem = len % 4;
+
+    while (rem--) *dst++ = *src++;
+
+    voidfunc ssbl = (voidfunc)(&_ssbl_op);
+    ssbl();
+}
+
+
+__attribute__((section("ssbl"))) void loader(uint8_t* dst, const uint8_t* src, uintptr_t len)
+{
+    uint32_t *d = (uint32_t *)dst;
+    const uint32_t *s = (uint32_t *)src;
+    uintptr_t cnt32 = len / 4;
+
+    while (cnt32--) *d++ = *s++;
+
+    dst = (uint8_t *)d;
+    src = (const uint8_t *)s;
+    uintptr_t rem = len % 4;
+
+    while (rem--) *dst++ = *src++;
+}
+
+
+__attribute__((section("ssbl"))) void zero(uint8_t *dst, uintptr_t len)
+{
+    uint32_t *d = (uint32_t *)dst;
+    uintptr_t cnt32 = len / 4;
+
+    while (cnt32--) *d++ = 0u;
+
+    dst = (uint8_t *)d;
+    uintptr_t rem = len % 4;
+
+    while (rem--) *dst++ = 0u;
+}
+
+
+__attribute__((section("ssbl.boot"))) void _second_bootloader()
+{
+    // 代码加载
+    uint8_t *d = (uint8_t*)&_text_op;
+    const uint8_t *s = (uint8_t*)&_text_start;
+    uint32_t n = (uintptr_t)&_text_ed - (uintptr_t)&_text_op;
+    loader(d, s, n);
+
+    // 只读全局变量加载
+    d = (uint8_t*)&_rodata_op;
+    s = (uint8_t*)&_rodata_start;
+    n = (uintptr_t)&_rodata_ed - (uintptr_t)&_rodata_op;
+    loader(d, s, n);
+
+    // 全局变量加载
+    d = (uint8_t*)&_data_op;
+    s = (uint8_t*)&_data_start;
+    n = (uintptr_t)&_data_ed - (uintptr_t)&_data_op;
+    loader(d, s, n);
+
+    // 未初始化全局变量清零
+    d = (uint8_t*)&_bss_op;
+    n = (uintptr_t)&_bss_ed - (uintptr_t)&_bss_op;
+    zero(d, n);
+
+    voidfunc start = (voidfunc)(&_text_op);
+
+    start();
 }

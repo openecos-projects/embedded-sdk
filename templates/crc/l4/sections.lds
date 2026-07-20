@@ -1,63 +1,74 @@
 ENTRY(_start)
 
 MEMORY {
-  ROM (rx)  : ORIGIN = 0x30000000, LENGTH = 16M
-  SRAM (rwx) : ORIGIN = 0x02020000, LENGTH = 64K
-  MEM (rwx) : ORIGIN = 0xc0000000, LENGTH = 8M
+    flash : ORIGIN = 0x30000000, LENGTH = 16M,
+    psram : ORIGIN = 0xC0000000, LENGTH = 8M
 }
 
-#ifdef CONFIG_LINK_TARGET_XIP
-  #define REGION_TEXT ROM
-  #define REGION_RODATA ROM
-  #define REGION_DATA MEM
-  #define REGION_BSS MEM
-  #define REGION_STACK SRAM
-#else
-  #define REGION_TEXT MEM
-  #define REGION_RODATA MEM
-  #define REGION_DATA MEM
-  #define REGION_BSS MEM
-  #define REGION_STACK MEM
-#endif
-
 SECTIONS {
-  .text : {
-    . = ALIGN(4);
-    *(entry)
-    *(.text .text.*)
-  } > REGION_TEXT
+    . = ORIGIN(flash);
 
-  .rodata : {
-    . = ALIGN(4);
-    *(.rodata .rodata.*)
-  } > REGION_RODATA
+    .fsbl : ALIGN(4) {
+        KEEP(*(entry))
+        KEEP(*(entry.boot))
+    } > flash
 
-  .data : {
-    . = ALIGN(4);
-    _sdata = .;
-    *(.data .data.*)
-    *(.sdata .sdata.*)
-    . = ALIGN(4);
-    _edata = .;
-  } > REGION_DATA AT > REGION_RODATA
+    /* LOADADDR 获取加载地址 */
+    _ssbl_start = LOADADDR(.ssbl);
+    .ssbl : ALIGN(4) {
+        _ssbl_op = .;
+        KEEP(*(ssbl.boot))
+        KEEP(*(ssbl*))
+        . = ALIGN(4);
+        _ssbl_ed = .;
+    } > psram AT> flash
 
-  _sidata = LOADADDR(.data);
+    _text_start = LOADADDR(.text);
+    .text : ALIGN(4) {
+        _text_op = .;
+        KEEP(*(.text.startup.main))
+        KEEP(*(.text.main))
+        *(.text .text.*)
+        . = ALIGN(4);
+        _text_ed = .;
+    } > psram AT> flash
+    ASSERT(_text_op == main, "PSRAM entry must point to main")
 
-  .bss (NOLOAD) : {
-    . = ALIGN(4);
-    _sbss = .;
-    *(.bss .bss.*)
-    *(.sbss .sbss.*)
-    *(COMMON)
-    . = ALIGN(4);
-    _ebss = .;
-  } > REGION_BSS
+    _rodata_start = LOADADDR(.rodata);
+    .rodata : ALIGN(4) {
+        _rodata_op = .;
+        *(.rodata .rodata.*)
+        *(.srodata .srodata.*)
+        *(.eh_frame*)
+        . = ALIGN(4);
+        _rodata_ed = .;
+    } > psram AT> flash
 
-  _heap_start = ALIGN(0x1000);
+    _data_start = LOADADDR(.data);
+    .data : ALIGN(4) {
+        _data_op = .;
+        _sdata = .;
+        *(.data .data.*)
+        *(.sdata .sdata.*)
+        . = ALIGN(4);
+        _edata = .;
+        _data_ed = .;
+    } > psram AT> flash
+    _sidata = _data_start;
 
-  .stack (NOLOAD) : {
-    . = ALIGN(16);
-    . += 0x10000; /* 64KB stack */
+    .bss (NOLOAD) : ALIGN(4) {
+        _bss_op = .;
+        _sbss = .;
+        *(.bss .bss.*)
+        *(.sbss .sbss.*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+        _bss_ed = .;
+    } > psram
+
+    _stack_top = ALIGN(0x1000);
+    . = _stack_top + 0x100000;
     _stack_pointer = .;
-  } > REGION_STACK
+    _heap_start = ALIGN(0x1000);
 }

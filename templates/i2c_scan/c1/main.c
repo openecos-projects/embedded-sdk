@@ -1,5 +1,6 @@
 #include "main.h"
 #include "board.h"
+#include <stdbool.h>
 
 static bool i2c_probe_device_quiet(uint8_t addr) {
     // 保存原来的stdout，临时重定向以抑制错误输出
@@ -127,7 +128,7 @@ void i2c_print_scan_result(uint8_t start_addr, uint8_t end_addr) {
 
 void main(void){
     
-    sys_uart_init();
+    hal_sys_uart_init();
     printf("Hello, World!\n");
 
     // 初始化I2C

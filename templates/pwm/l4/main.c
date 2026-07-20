@@ -9,13 +9,9 @@ void main(void){
     hal_sys_uart_init();
     printf("PWM test\n");
 
-    // Configure GPIO 2 for PWM
-    gpio_hal_set_fcfg(0, 2, 1);
-    gpio_hal_set_mux(0, 2, 0);
-
     pwm_config_t pwm_config = {
-        .pscr = 72 - 1,
-        .cmp = 1000 - 1,
+        .pscr = 100,
+        .cmp = 1000,
     };
     pwm_hal_init(NULL, 0, &pwm_config);
     pwm_hal_enable(NULL, 0);

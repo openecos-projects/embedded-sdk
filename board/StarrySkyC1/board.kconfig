@@ -1,0 +1,58 @@
+menu "System Read-Only Information"
+    choice
+        bool "Target SoC Platform"
+        default STARRYSKY_C1
+
+    config STARRYSKY_C1
+        bool "StarrySky_C1 Platform"
+    endchoice
+
+    config GPIO_IP_ID
+        int
+        default 0
+
+    config SYS_UART_IP_ID
+        int
+        default 0
+
+    config TIMER_IP_ID
+        int
+        default 0
+
+    config PWM_IP_ID
+        int
+        default 0
+
+    config BOARD_RAM_TYPE_NAME
+        string
+        default "PSRAM"
+
+    config BOARD_RAM_SIZE_KB
+        int
+        default 8192
+
+    config BOARD_FLASH_SIZE_KB
+        int
+        default 16384
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 72
+        range 1 200
+
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+
+    config PSRAM_NUM
+        int "Number of PSRAM Chips"
+        default 1
+        range 1 4
+
+    config LINK_RAM_REGION_PSRAM
+        bool
+        default y
+endmenu

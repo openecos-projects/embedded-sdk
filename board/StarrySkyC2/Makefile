@@ -18,6 +18,7 @@ CATEGORY := StarrySkyC2
 CFLAGS := -mabi=ilp32 \
 	  -march=rv32im \
 	  -Wl,-Bstatic,-T,$(BUILD_DIR)/retrosoc_sections.lds,--strip-debug \
+	  -Wl,--build-id=none \
 	  -Wl,-Map=$(BUILD_DIR)/$(FIRMWARE_NAME).map,--cref \
 	  -ffreestanding \
 	  -nostdlib

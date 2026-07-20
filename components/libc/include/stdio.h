@@ -18,6 +18,13 @@ extern "C" {
 int printf(const char *fmt, ...);
 
 /**
+ * @brief Write a string followed by a newline to stdout
+ * @param str Null-terminated string to write
+ * @return Number of characters written
+ */
+int puts(const char *str);
+
+/**
  * @brief Formatted output with va_list
  * @param fmt Format string
  * @param args Variable argument list

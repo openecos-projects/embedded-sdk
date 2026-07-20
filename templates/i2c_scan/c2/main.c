@@ -1,5 +1,6 @@
 #include "main.h"
 #include "board.h"
+#include <stdbool.h>
 
 // I2C状态寄存器位定义
 #define I2C_STATUS_RXACK     ((uint8_t)0x80) // (1 << 7)

@@ -18,6 +18,61 @@ err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 board_name=""
 project_type=""
 
+replace_board_drivers() {
+    local source_path="$1"
+    local library_path="$2"
+    local managed_path="$library_path/BoardDrivers"
+    local legacy_driver_names=(
+        archinfo crc gpio hp_uart i2c ps2 pwm qspi rcu rng rtc sys_uart timer wdg
+    )
+
+    # Older isolated projects flattened board drivers into Library/. Remove only
+    # those SDK-owned legacy files, then keep future board files in one tree.
+    local driver_name
+    for driver_name in "${legacy_driver_names[@]}"; do
+        rm -f "$library_path/$driver_name.c"
+    done
+
+    rm -rf "$managed_path"
+    mkdir -p "$managed_path"
+    cp -r "$source_path/." "$managed_path/"
+}
+
+replace_loader() {
+    local source_path="$1"
+    local startup_path="$2"
+
+    rm -rf "$startup_path/loader"
+    if [[ -n "$source_path" && -d "$source_path" ]]; then
+        cp -r "$source_path" "$startup_path/"
+    fi
+}
+
+install_default_main() {
+    local source_path="$1"
+    local user_path="$2"
+
+    if compgen -G "$user_path/main.*" > /dev/null; then
+        log "Preserved existing User/main.* files."
+        return
+    fi
+
+    find "$source_path" -type f -name "main.*" -exec cp {} "$user_path" \;
+    log "Set default Main Files: $user_path"
+}
+
+refresh_project_support() {
+    rm -rf ./scripts
+    cp -r "$SDK_ROOT/tools/scripts" ./scripts
+
+    mkdir -p ./configs
+    rm -rf ./configs/generated ./configs/config \
+        ./configs/.config ./configs/.config.old
+
+    log "Refreshed SDK build scripts: ./scripts"
+    warn "Board-dependent configuration was cleared; run make alldefconfig or make defconfig."
+}
+
 # Check if inside a project directory
 check_project_dir() {
     if [[ ! -f "Makefile" ]] && [[ ! -f ".ecos-project" ]]; then
@@ -38,8 +93,15 @@ get_config() {
 }
 
 rewrite_config() {
+    if [[ -f ".ecos-project" ]]; then
+        source .ecos-project
+        project_type="${TYPE:-$project_type}"
+    fi
+
     echo "BOARD=$target_board_name" > ".ecos-project"
-    echo "TYPE=$project_type" >> ".ecos-project"
+    if [[ -n "$project_type" ]]; then
+        echo "TYPE=$project_type" >> ".ecos-project"
+    fi
 }
 # Set board configuration
 set_board() {
@@ -50,10 +112,25 @@ set_board() {
     get_config
 
     if [[ "$project_type" == "asm" ]]; then
+        local board_sdk_dir=""
+        case "$target_board_name" in
+            "c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyC2" ;;
+            "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
+            "l4") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4" ;;
+            *)
+                err "Unsupported board: $target_board_name"
+                exit 1
+                ;;
+        esac
+
         rm -f Makefile
         log "Removed Makefile for assembly project."
         log "Board configuration set to: $target_board_name"
-        cp "$SDK_ROOT/board/${target_board_name}/Makefile_asm" "./Makefile"
+        cp "$board_sdk_dir/Makefile_asm" "./Makefile"
+        if [[ -f "$board_sdk_dir/flash.ld" ]]; then
+            cp "$board_sdk_dir/flash.ld" "./flash.ld"
+            log "Set flash-only linker script: ./flash.ld"
+        fi
         exit 0
     fi
 
@@ -110,16 +187,18 @@ set_board() {
 
             # Copy Drivers
             if [[ -d "$driver_source_path" ]]; then
-                find "$driver_source_path" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$driver_target_path" \;
+                replace_board_drivers "$driver_source_path" "$driver_target_path"
                 log "Set Drivers: $driver_target_path"
             else
                 warn "Drivers not found for C2: $driver_source_path"
             fi
 
+            # C2 has no separate loader. Remove one left by a previous board.
+            replace_loader "" "./Startup"
+
             # Copy Main Files
             if [[ -d "$main_source_path" ]]; then
-                find "$main_source_path" -type f -name "main.*" -exec cp {} "$main_target_path" \;
-                log "Set Main Files: $main_target_path"
+                install_default_main "$main_source_path" "$main_target_path"
             else
                 warn "Main Files not found for C2: $main_source_path"
             fi
@@ -188,7 +267,7 @@ set_board() {
 
             # Copy Drivers
             if [[ -d "$driver_source_path" ]]; then
-                find "$driver_source_path" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$driver_target_path" \;
+                replace_board_drivers "$driver_source_path" "$driver_target_path"
                 log "Set Drivers: $driver_target_path"
             else
                 warn "Drivers not found for L3_1: $driver_source_path"
@@ -196,7 +275,7 @@ set_board() {
 
             # Copy Loaders
             if [[ -d "$loader_source_path" ]]; then
-                cp -r "$loader_source_path" "$loader_target_path"
+                replace_loader "$loader_source_path" "$loader_target_path"
                 log "Set Loaders: $loader_target_path"
             else
                 warn "Loaders not found for L3_1: $loader_source_path"
@@ -204,8 +283,7 @@ set_board() {
 
             # Copy Main Files
             if [[ -d "$main_source_path" ]]; then
-                find "$main_source_path" -type f -name "main.*" -exec cp {} "$main_target_path" \;
-                log "Set Main Files: $main_target_path"
+                install_default_main "$main_source_path" "$main_target_path"
             else
                 warn "Main Files not found for L3_1: $main_source_path"
             fi
@@ -274,7 +352,7 @@ set_board() {
 
             # Copy Drivers
             if [[ -d "$driver_source_path" ]]; then
-                find "$driver_source_path" -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$' -exec cp {} "$driver_target_path" \;
+                replace_board_drivers "$driver_source_path" "$driver_target_path"
                 log "Set Drivers: $driver_target_path"
             else
                 warn "Drivers not found for L4: $driver_source_path"
@@ -282,7 +360,7 @@ set_board() {
 
             # Copy Loaders
             if [[ -d "$loader_source_path" ]]; then
-                cp -r "$loader_source_path" "$loader_target_path"
+                replace_loader "$loader_source_path" "$loader_target_path"
                 log "Set Loaders: $loader_target_path"
             else
                 warn "Loaders not found for L4: $loader_source_path"
@@ -290,8 +368,7 @@ set_board() {
 
             # Copy Main Files
             if [[ -d "$main_source_path" ]]; then
-                find "$main_source_path" -type f -name "main.*" -exec cp {} "$main_target_path" \;
-                log "Set Main Files: $main_target_path"
+                install_default_main "$main_source_path" "$main_target_path"
             else
                 warn "Main Files not found for L4: $main_source_path"
             fi
@@ -317,6 +394,8 @@ set_board() {
             exit 1
             ;;
     esac
+
+    refresh_project_support
 }
 
 # Main entry point for the subcommand

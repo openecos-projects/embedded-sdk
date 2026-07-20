@@ -41,6 +41,7 @@
 /* ========================== SYS_UART 寄存器组 ================================ */
 #define REG_UART_0_RB                   (*((volatile uint8_t *)0x10000000))
 #define REG_UART_0_TH                   (*((volatile uint8_t *)0x10000000))
+#define REG_UART_0_DATA                 (*((volatile uint8_t *)0x10000000))
 #define REG_UART_0_IE                   (*((volatile uint8_t *)0x10000001))
 #define REG_UART_0_II                   (*((volatile uint8_t *)0x10000002))
 #define REG_UART_0_FC                   (*((volatile uint8_t *)0x10000002))

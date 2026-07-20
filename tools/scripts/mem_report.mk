@@ -2,6 +2,8 @@
 # Usage: $(call show_mem_usage, <elf_file_path>)
 
 # Use Kconfig variables if they exist, otherwise fallback to defaults
+MEM_REPORT_OBJDUMP ?= $(if $(OBJDUMP_M),$(OBJDUMP_M),$(CROSS)objdump)
+
 ifdef CONFIG_BOARD_RAM_TYPE_NAME
 MEM_REPORT_RAM_TYPE := $(subst ",,$(CONFIG_BOARD_RAM_TYPE_NAME))
 else
@@ -23,21 +25,27 @@ endif
 define show_mem_usage
 	@echo "------------------------------------------------------------------------------"
 	@echo "Memory Usage:"
-	@$(CROSS)objdump -h $(1) > $(dir $(1))sections.info
+	@$(MEM_REPORT_OBJDUMP) -h $(1) > $(dir $(1))sections.info
 	@echo "--------------------------------------------------------------------------"
 	@printf "%-15s %-15s %-15s %-10s %-15s\n" "Memory Region" "Used Size" "Total Size" "Usage %" "Free"
 	@echo "--------------------------------------------------------------------------"
-	@text_size=$$(grep " .text " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
+	@fsbl_size=$$(grep " .fsbl " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
+	ssbl_size=$$(grep " .ssbl " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
+	text_size=$$(grep " .text " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
+	rodata_size=$$(grep " .rodata " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
 	data_size=$$(grep " .data " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
 	bss_size=$$(grep " .bss " $(dir $(1))sections.info | awk '{print strtonum("0x"$$3)}'); \
 	data_vma=$$(grep " .data " $(dir $(1))sections.info | awk '{print strtonum("0x"$$4)}'); \
+	if [ -z "$$fsbl_size" ]; then fsbl_size=0; fi; \
+	if [ -z "$$ssbl_size" ]; then ssbl_size=0; fi; \
 	if [ -z "$$text_size" ]; then text_size=0; fi; \
+	if [ -z "$$rodata_size" ]; then rodata_size=0; fi; \
 	if [ -z "$$data_size" ]; then data_size=0; fi; \
 	if [ -z "$$bss_size" ]; then bss_size=0; fi; \
 	if [ -z "$$data_vma" ]; then data_vma=$$(grep " .bss " $(dir $(1))sections.info | awk '{print strtonum("0x"$$4)}'); fi; \
 	if [ -z "$$data_vma" ]; then data_vma=0; fi; \
 	flash_total=$(MEM_REPORT_FLASH_SIZE); \
-	flash_used=$$((text_size + data_size)); \
+	flash_used=$$((fsbl_size + ssbl_size + text_size + rodata_size + data_size)); \
 	flash_free=$$((flash_total - flash_used)); \
 	flash_pct=$$(awk "BEGIN {printf \"%.2f\", ($$flash_used / $$flash_total) * 100}"); \
 	flash_used_kb=$$(awk "BEGIN {if ($$flash_used < 1024) printf \"%d B\", $$flash_used; else if ($$flash_used < 1048576) printf \"%.2f KB\", $$flash_used/1024; else printf \"%.2f MB\", $$flash_used/1048576}"); \
@@ -46,7 +54,11 @@ define show_mem_usage
 	printf "%-15s %-15s %-15s %-10s %-15s\n" "FLASH" "$$flash_used_kb" "$$flash_total_mb" "$$flash_pct%" "$$flash_free_mb"; \
 	ram_type=$(MEM_REPORT_RAM_TYPE); \
 	ram_total=$(MEM_REPORT_RAM_SIZE); \
-	ram_used=$$((data_size + bss_size)); \
+	if [ "$(MEM_REPORT_CODE_IN_RAM)" = "1" ]; then \
+		ram_used=$$((ssbl_size + text_size + rodata_size + data_size + bss_size)); \
+	else \
+		ram_used=$$((data_size + bss_size)); \
+	fi; \
 	ram_free=$$((ram_total - ram_used)); \
 	if [ "$$ram_type" != "Unknown" ]; then \
 		ram_pct=$$(awk "BEGIN {printf \"%.2f\", ($$ram_used / $$ram_total) * 100}"); \
@@ -56,6 +68,12 @@ define show_mem_usage
 		printf "%-15s %-15s %-15s %-10s %-15s\n" "$$ram_type" "$$ram_used_kb" "$$ram_total_kb" "$$ram_pct%" "$$ram_free_kb"; \
 		echo "--------------------------------------------------------------------------"; \
 		echo "RAM Details:"; \
+		if [ "$(MEM_REPORT_CODE_IN_RAM)" = "1" ]; then \
+			ssbl_kb=$$(awk "BEGIN {if ($$ssbl_size < 1024) printf \"%d B\", $$ssbl_size; else printf \"%.2f KB\", $$ssbl_size/1024}"); \
+			text_kb=$$(awk "BEGIN {if ($$text_size < 1024) printf \"%d B\", $$text_size; else printf \"%.2f KB\", $$text_size/1024}"); \
+			rodata_kb=$$(awk "BEGIN {if ($$rodata_size < 1024) printf \"%d B\", $$rodata_size; else printf \"%.2f KB\", $$rodata_size/1024}"); \
+			printf "  .ssbl:   %s\n  .text:   %s\n  .rodata: %s\n" "$$ssbl_kb" "$$text_kb" "$$rodata_kb"; \
+		fi; \
 		data_kb=$$(awk "BEGIN {if ($$data_size < 1024) printf \"%d B\", $$data_size; else printf \"%.2f KB\", $$data_size/1024}"); \
 		bss_kb=$$(awk "BEGIN {if ($$bss_size < 1024) printf \"%d B\", $$bss_size; else printf \"%.2f KB\", $$bss_size/1024}"); \
 		echo "  .data: $$data_kb"; \

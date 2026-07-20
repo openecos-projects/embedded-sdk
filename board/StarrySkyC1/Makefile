@@ -5,8 +5,9 @@
 CROSS=riscv64-unknown-elf-
 BUILD_DIR := build
 PROJECT_PATH := $(shell pwd)
+CATEGORY := StarrySkyC1
 # 包含配置文件
--include configs/.config
+-include configs/config/auto.conf
 
 # 编译器标志配置
 # -mabi=ilp32: 使用ILP32 ABI
@@ -16,6 +17,7 @@ PROJECT_PATH := $(shell pwd)
 CFLAGS := -mabi=ilp32 \
 	  -march=rv32im \
 	  -Wl,-Bstatic,-T,$(BUILD_DIR)/retrosoc_sections.lds,--strip-debug \
+	  -Wl,--build-id=none \
 	  -Wl,-Map=$(BUILD_DIR)/$(FIRMWARE_NAME).map,--cref \
 	  -ffreestanding \
 	  -nostdlib
@@ -55,12 +57,19 @@ endif
 
 # 源文件列表
 SRC_PATH := ./start.s ./main.c 
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components -name "*.c")
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyC1/driver -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc -name "*.[cS]")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/gpio -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/i2c -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/qspi -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/timer -name "*.c")
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7735/src -name "*.c")
 
 CFLAGS += -I./configs 
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
-CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components/libgcc $(ECOS_SDK_HOME)/components/libc $(ECOS_SDK_HOME)/components/gpio $(ECOS_SDK_HOME)/components/i2c $(ECOS_SDK_HOME)/components/qspi $(ECOS_SDK_HOME)/components/timer -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/st7735/include -type d))
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/sys_uart $(ECOS_SDK_HOME)/hal/gpio $(ECOS_SDK_HOME)/hal/qspi $(ECOS_SDK_HOME)/hal/timer -type d))
 		
 # 链接脚本路径
 LDS_PATH := ./sections.lds

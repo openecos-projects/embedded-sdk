@@ -1,0 +1,62 @@
+menu "System Read-Only Information"
+    choice
+        bool "Target SoC Platform"
+        default STARRYSKY_L3
+
+    config STARRYSKY_L3
+        bool "StarrySky_L3 Platform"
+    endchoice
+
+    config GPIO_IP_ID
+        int
+        default 1
+
+    config SYS_UART_IP_ID
+        int
+        default 1
+
+    config BOARD_RAM_TYPE_NAME
+        string
+        default "MEM"
+
+    config BOARD_RAM_SIZE_KB
+        int
+        default 131072
+
+    config BOARD_FLASH_SIZE_KB
+        int
+        default 16384
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 72
+        range 1 200
+
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1 1000000
+
+    config PSRAM_NUM
+        int "Number of PSRAM Chips"
+        default 1
+        range 1 4
+
+    choice
+        bool "Memory Region Selection"
+        default LINK_TARGET_FLASH
+
+    config LINK_TARGET_FLASH
+        bool "FLASH (Execute in Place)"
+
+    config LINK_TARGET_MEM
+        bool "MEM (Loaded by Bootloader)"
+    endchoice
+
+    config LINK_ADDRESS
+        hex "Link address"
+        default 0x30000000 if LINK_TARGET_FLASH
+        default 0x80000000 if LINK_TARGET_MEM
+endmenu

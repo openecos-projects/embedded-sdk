@@ -220,16 +220,19 @@ void donut(st7735_device_t *st7735) {
 }
 
 void main(void){
-    sys_uart_init();
+    hal_sys_uart_init();
     printf("donut test!\n");
 
-    qspi_config_t qspi_config = {
+    hal_qspi_config_t qspi_config = {
         .clkdiv = 0,
     };
-    qspi_init(&qspi_config);
+    hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
 
     st7735_device_t st7735 = {
-        .dc_pin = GPIO_NUM_2,
+        .dc_gpio_port = 0,
+        .dc_gpio_pin = GPIO_NUM_2,
+        .qspi_port = HAL_QSPI_PORT_0,
+        .qspi_cs = HAL_QSPI_CS_0,
         .screen_width = 128,
         .screen_height = 128,
         .rotation = 0,

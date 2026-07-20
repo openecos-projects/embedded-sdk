@@ -11,6 +11,12 @@ static int puts_helper(const char *str) {
     return count;
 }
 
+int puts(const char *str) {
+    int count = puts_helper(str);
+    hal_sys_putchar('\n');
+    return count + 1;
+}
+
 // 辅助函数：将整数转换为字符串（十进制）
 static int itoa_decimal(int value, char *buffer, int min_width, char pad_char) {
     char temp[12]; // 足够存储 32 位整数
@@ -131,7 +137,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'i': {
                     // 十进制整数
                     int value = va_arg(args, int);
-                    int len = itoa_decimal(value, buffer, min_width, pad_char);
+                    itoa_decimal(value, buffer, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -139,7 +145,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'u': {
                     // 无符号十进制整数
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_decimal((int)value, buffer, min_width, pad_char); // 简化处理
+                    itoa_decimal((int)value, buffer, min_width, pad_char); // 简化处理
                     count += puts_helper(buffer);
                     break;
                 }
@@ -147,7 +153,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'x': {
                     // 小写十六进制
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 0, min_width, pad_char);
+                    itoa_hex(value, buffer, 0, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -155,7 +161,7 @@ int vprintf(const char *fmt, va_list args) {
                 case 'X': {
                     // 大写十六进制
                     unsigned int value = va_arg(args, unsigned int);
-                    int len = itoa_hex(value, buffer, 1, min_width, pad_char);
+                    itoa_hex(value, buffer, 1, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -166,7 +172,7 @@ int vprintf(const char *fmt, va_list args) {
                     hal_sys_putchar('0');
                     hal_sys_putchar('x');
                     count += 2;
-                    int len = itoa_hex((unsigned long)ptr, buffer, 0, min_width, pad_char);
+                    itoa_hex((unsigned long)ptr, buffer, 0, min_width, pad_char);
                     count += puts_helper(buffer);
                     break;
                 }
@@ -186,11 +192,11 @@ int vprintf(const char *fmt, va_list args) {
                     }
                     if (*fmt == 'x' || *fmt == 'X') {
                         unsigned long value = va_arg(args, unsigned long);
-                        int len = itoa_hex(value, buffer, *fmt == 'X', min_width, pad_char);
+                        itoa_hex(value, buffer, *fmt == 'X', min_width, pad_char);
                         count += puts_helper(buffer);
                     } else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') {
                         long value = va_arg(args, long);
-                        int len = itoa_decimal(value, buffer, min_width, pad_char);
+                        itoa_decimal(value, buffer, min_width, pad_char);
                         count += puts_helper(buffer);
                     } else {
                         hal_sys_putchar('%');
@@ -451,5 +457,3 @@ int printf(const char *fmt, ...) {
     va_end(args);
     return ret;
 }
-
-

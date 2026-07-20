@@ -9,7 +9,7 @@ extern uint32_t app_end;
 #define APP_ENTRY CONFIG_LINK_ADDRESS
 
 void main() {
-    sys_uart_init();
+    hal_sys_uart_init();
 
     uint32_t *src = (uint32_t *)&app_start;
     uint32_t *dest = (uint32_t *)APP_ENTRY;
@@ -23,15 +23,15 @@ void main() {
     
     // 打印起始进度
     // sys_putstr("Loading:");
-    sys_putchar('L');
-    sys_putchar('O');
-    sys_putchar('A');
-    sys_putchar('D');
-    sys_putchar('I');
-    sys_putchar('N');
-    sys_putchar('G');
-    sys_putchar(':');
-    sys_putchar(' ');
+    hal_sys_putchar('L');
+    hal_sys_putchar('O');
+    hal_sys_putchar('A');
+    hal_sys_putchar('D');
+    hal_sys_putchar('I');
+    hal_sys_putchar('N');
+    hal_sys_putchar('G');
+    hal_sys_putchar(':');
+    hal_sys_putchar(' ');
 
     uint32_t step = (uint32_t)(&app_end - &app_start) / 128;
     // Copy payload to RAM
@@ -39,12 +39,12 @@ void main() {
         *dest++ = *src++;
         copied += sizeof(uint32_t);
         if ((uint32_t)(src - pre) >= step){
-            sys_putchar('#');
+            hal_sys_putchar('#');
             pre = src;
         }
     }
-    sys_putchar('\r');
-    sys_putchar('\n');
+    hal_sys_putchar('\r');
+    hal_sys_putchar('\n');
     
 
     // Flush instruction cache (using fence.i instruction)

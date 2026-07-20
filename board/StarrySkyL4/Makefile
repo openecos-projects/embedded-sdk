@@ -1,89 +1,99 @@
-# retroSoC 固件构建脚本
-# 用于编译基于RISC-V架构的嵌入式固件
+# StarrySkyL4 firmware build script.
+# Keep the L4 C-project build behavior aligned with verif/:
+#   1. compile every .c/.S source into an object file;
+#   2. link objects with riscv-none-elf-ld and the PSRAM linker script;
+#   3. generate objdump and stripped binary with objcopy -S -O binary.
 
-CROSS=riscv64-unknown-elf-
+TOOL_PATH ?= /home/dallous/share/project/darch/tools/builder/target/bin
+GCC_M ?= $(TOOL_PATH)/riscv-none-elf-gcc
+LD_M ?= $(TOOL_PATH)/riscv-none-elf-ld
+OBJDUMP_M ?= $(TOOL_PATH)/riscv-none-elf-objdump
+OBJCOPY_M ?= $(TOOL_PATH)/riscv-none-elf-objcopy
+
 BUILD_DIR := build
+OBJ_DIR := $(BUILD_DIR)/obj
 PROJECT_PATH := $(shell pwd)
 CATEGORY := StarrySkyL4
 
-# 包含配置文件
+# Include generated Kconfig values.
 -include configs/config/auto.conf
 
-CFLAGS := -mabi=ilp32 \
+VERIF_CFLAGS := -Wall \
+	  -std=gnu11 \
 	  -march=rv32im \
-	  -mcmodel=medany \
-	  -Wl,-Bstatic,--strip-debug \
-	  -ffreestanding \
-	  -nostdlib
+	  -mabi=ilp32 \
+	  -nostdlib \
+	  -fdata-sections \
+	  -ffunction-sections
+CFLAGS := $(VERIF_CFLAGS)
 
-# 包含可选的设置 (从 Kconfig 生成并包含驱动)
+# Add board drivers/components selected by Kconfig.
 SDK_SRC_PATH :=
 include $(ECOS_SDK_HOME)/board/StarrySkyL4/build_conf.mk
 
-# 默认兼容，如果没选驱动或组件
-# CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/components -type d))
+ifndef FIRMWARE_NAME
+FIRMWARE_NAME := main
+endif
+.DEFAULT_GOAL := $(FIRMWARE_NAME)
 
-# Firmware Sources
-FIRMWARE_SRC_PATH := ./start.S ./main.c $(SDK_SRC_PATH)
+STARTUP_SRC := ./start.S
+BOOTLOADER_SRC := ./loader/loader.c
+APP_SRC := ./main.c $(SDK_SRC_PATH)
+STARTUP_OBJ := $(OBJ_DIR)/$(STARTUP_SRC:.S=.o)
+BOOTLOADER_OBJ := $(OBJ_DIR)/$(BOOTLOADER_SRC:.c=.o)
+APP_OBJS := $(addprefix $(OBJ_DIR)/,$(patsubst %.S,%.o,$(patsubst %.c,%.o,$(APP_SRC))))
+FIRMWARE_OBJS := $(STARTUP_OBJ) $(BOOTLOADER_OBJ) $(APP_OBJS)
 
-# loader Sources
-LOADER_SRC_PATH := loader/start.s loader/loader.c loader/payload.S $(SDK_SRC_PATH)
+CFLAGS += -I./ -I./configs
 
-CFLAGS += -I./configs
+# The verified L4 QSPI polling sequence is timing-sensitive at -Os/-O2.
+QSPI_SRCS := $(filter %/qspi.c,$(APP_SRC))
+QSPI_OBJS := $(addprefix $(OBJ_DIR)/,$(QSPI_SRCS:.c=.o))
+$(QSPI_OBJS): CFLAGS := $(filter-out -O%,$(CFLAGS)) -O0
 
-# 链接脚本路径
 FIRMWARE_LDS_PATH := ./sections.lds
-LOADER_LDS_PATH := ./loader/loader.lds
+LDFLAGS := -e _start -melf32lriscv -z noexecstack -T $(FIRMWARE_LDS_PATH) --gc-sections
 
-# 包含内存报告工具
+# Keep SDK memory report output after the verif-style link flow.
+MEM_REPORT_CODE_IN_RAM := 1
 -include $(ECOS_SDK_HOME)/tools/scripts/mem_report.mk
 
-# 主要构建目标：生成固件的所有格式文件
-$(FIRMWARE_NAME):
-	@echo "Building APP $(FIRMWARE_NAME)..."
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(CFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/%.o: %.S
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(CFLAGS) -c -o $@ $<
+
+# The FSBL runs before PSRAM contains .text. Compile it exactly like verif so
+# GCC cannot turn its copy loops into calls to memcpy in the unloaded .text.
+$(BOOTLOADER_OBJ): $(BOOTLOADER_SRC) $(STARTUP_OBJ)
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(VERIF_CFLAGS) -c -o $@ $<
+
+$(APP_OBJS): | $(BOOTLOADER_OBJ)
+
+$(FIRMWARE_NAME): $(FIRMWARE_OBJS)
 	@mkdir -p $(BUILD_DIR)
+	@$(LD_M) $(LDFLAGS) -o $(BUILD_DIR)/$(FIRMWARE_NAME).elf --start-group $(FIRMWARE_OBJS) --end-group
+	@$(OBJDUMP_M) -d $(BUILD_DIR)/$(FIRMWARE_NAME).elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
+	@$(OBJCOPY_M) -S -O binary $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
+	@$(OBJCOPY_M) --change-addresses -0x30000000 -O verilog $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+	$(call show_mem_usage, $(BUILD_DIR)/$(FIRMWARE_NAME).elf)
 
-	@echo "Preprocess APP linker script..."
-	@$(CROSS)cpp -P $(CFLAGS) -o $(BUILD_DIR)/app.lds $(FIRMWARE_LDS_PATH)
-	@echo "Compiling APP..."
-	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/app.lds -o $(BUILD_DIR)/app.elf $(FIRMWARE_SRC_PATH)
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/app.bin
-
-ifdef CONFIG_LINK_TARGET_XIP
-	@echo "Skipping Bootloader (Target is XIP)..."
-	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
-	@$(CROSS)objdump -d $(BUILD_DIR)/app.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
-	$(call show_mem_usage, $(BUILD_DIR)/app.elf)
-else
-	@echo "Building Bootloader..."
-	@$(CROSS)cpp -P -o $(BUILD_DIR)/loader.lds $(LOADER_LDS_PATH)
-	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/loader.lds -o $(BUILD_DIR)/loader.elf $(LOADER_SRC_PATH)
-
-	@echo "Final linking ..."
-	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
-	@$(CROSS)objdump -d $(BUILD_DIR)/loader.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
-	$(call show_mem_usage, $(BUILD_DIR)/loader.elf)
-endif
-	@echo "Done."
-
-# 清理构建产物
 clean:
-	rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)
 
 clean_config:
-	rm -rf configs/generated configs/config configs/.config configs/.config.old
+	@rm -rf configs/generated configs/config configs/.config configs/.config.old
 
 clean_all:
-	rm -rf $(BUILD_DIR)
-	rm -rf configs/generated configs/config configs/.config configs/.config.old
-	rm -rf $(PROJECT_PATH)/tools/fixdep/build
-	rm -rf $(PROJECT_PATH)/tools/kconfig/build
+	@rm -rf $(BUILD_DIR)
+	@rm -rf configs/generated configs/config configs/.config configs/.config.old
+	@rm -rf $(PROJECT_PATH)/tools/fixdep/build
+	@rm -rf $(PROJECT_PATH)/tools/kconfig/build
 
 -include scripts/config.mk
-# 声明伪目标
-.PHONY: $(FIRMWARE_NAME) clean
+
+.PHONY: $(FIRMWARE_NAME) clean clean_config clean_all

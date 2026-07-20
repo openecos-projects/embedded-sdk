@@ -1,0 +1,13 @@
+menu "Peripheral Drivers"
+    config DRIVER_SYS_UART
+        bool "SYS_UART Driver Support"
+        default y
+
+    config DRIVER_GPIO
+        bool "GPIO Driver Support"
+        default y
+
+    config DRIVER_I2C
+        bool "I2C Driver Support"
+        default y
+endmenu

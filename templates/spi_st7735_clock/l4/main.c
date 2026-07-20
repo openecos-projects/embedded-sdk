@@ -340,20 +340,9 @@ void main(void)
     hal_sys_uart_init();
     printf("ST7735 LCD CLOCK TEST!\n");
 
-    // Initialize GPIO for QSPI and DC pin
-    gpio_hal_set_fcfg(1, 0, 1);
-    gpio_hal_set_fcfg(1, 1, 1);
-    gpio_hal_set_fcfg(1, 2, 1);
-    gpio_hal_set_fcfg(1, 3, 1);
-    gpio_hal_set_fcfg(1, 4, 1);
-    gpio_hal_set_fcfg(1, 5, 1);
-
-    gpio_hal_set_mux(1, 0, 0);
-    gpio_hal_set_mux(1, 1, 0);
-    gpio_hal_set_mux(1, 2, 0);
-    gpio_hal_set_mux(1, 3, 0);
-    gpio_hal_set_mux(1, 4, 0);
-    gpio_hal_set_mux(1, 5, 0);
+    // QSPI pins are configured by hal_qspi_init(); configure DC as GPIO0[31].
+    gpio_hal_set_fcfg(0, 31, 0);
+    gpio_hal_set_mux(0, 31, 0);
 
     hal_qspi_config_t qspi_config = {
         .clkdiv = 4,
@@ -361,8 +350,8 @@ void main(void)
     hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
 
     st7735_device_t st7735 = {
-        .dc_gpio_port = 1,
-        .dc_gpio_pin = 6,
+        .dc_gpio_port = 0,
+        .dc_gpio_pin = 31,
         .qspi_port = HAL_QSPI_PORT_0,
         .qspi_cs = HAL_QSPI_CS_0,
         .screen_width = 128,

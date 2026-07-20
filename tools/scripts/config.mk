@@ -37,12 +37,11 @@ CONF   := $(KCONFIG_PATH)/build/conf
 MCONF  := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 
-
 ifneq ($(wildcard $(BOARD_KCONFIG)),)
 export BoardExport := $(BOARD_KCONFIG)
 export DriverExport := $(DRIVER_KCONFIG)
 else
-CATEGORY_LIST := StarrySkyC2 StarrySkyL3 StarrySkyL3_1 StarrySkyL4
+CATEGORY_LIST := StarrySkyC1 StarrySkyC2 StarrySkyL3 StarrySkyL3_1 StarrySkyL4
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
 export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
 export DriverExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/driver.kconfig
@@ -64,9 +63,11 @@ $(FIXDEP):
 
 define sync_kconfig_output
 	@mkdir -p configs
+	@rm -rf configs/generated configs/config
 	@cp -r include/generated configs/
 	@cp -r include/config configs/
-	@rm -rf $(PROJECT_PATH)/include
+	@rm -rf include/generated include/config
+	@rmdir include 2>/dev/null || true
 endef
 
 menuconfig: $(MCONF) $(CONF) $(FIXDEP)

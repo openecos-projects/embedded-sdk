@@ -2,6 +2,7 @@
 #include "board.h"
 #include "hal_i2c.h"
 #include "hal_sys_uart.h"
+#include <stdbool.h>
 
 // I2C状态寄存器位定义
 #define I2C_STATUS_RXACK     ((uint8_t)0x80) // (1 << 7)

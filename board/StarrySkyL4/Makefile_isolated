@@ -1,125 +1,113 @@
-# retroSoC 固件构建脚本
-# 用于编译基于RISC-V架构的嵌入式固件
+# StarrySkyL4 isolated firmware build script.
+# This mirrors verif/ build behavior: compile to objects first, then link with ld.
 
-# RISC-V 交叉编译工具链前缀
-CROSS=riscv64-unknown-elf-
+TOOL_PATH ?= /home/dallous/share/project/darch/tools/builder/target/bin
+GCC_M ?= $(TOOL_PATH)/riscv-none-elf-gcc
+LD_M ?= $(TOOL_PATH)/riscv-none-elf-ld
+OBJDUMP_M ?= $(TOOL_PATH)/riscv-none-elf-objdump
+OBJCOPY_M ?= $(TOOL_PATH)/riscv-none-elf-objcopy
+
 BUILD_DIR := build
+OBJ_DIR := $(BUILD_DIR)/obj
 PROJECT_PATH := $(shell pwd)
 CATEGORY := StarrySkyL4
 
-# 包含配置文件
 -include configs/config/auto.conf
 
-CFLAGS := -mabi=ilp32 \
+VERIF_CFLAGS := -Wall \
+	  -std=gnu11 \
 	  -march=rv32im \
-	  -mcmodel=medany \
-	  -Wl,-Bstatic,--strip-debug \
-	  -ffreestanding \
-	  -nostdlib
+	  -mabi=ilp32 \
+	  -nostdlib \
+	  -fdata-sections \
+	  -ffunction-sections
+CFLAGS := $(VERIF_CFLAGS)
 
-# 根据配置文件设置链接选项
-ifdef CONFIG_LINK_TARGET_XIP
-LDFLAGS += -DCONFIG_LINK_TARGET_XIP
-CFLAGS += -DCONFIG_LINK_TARGET_XIP
-endif
-
-ifdef CONFIG_LINK_TARGET_MEM
-LDFLAGS += -DCONFIG_LINK_TARGET_MEM
 CFLAGS += -DCONFIG_LINK_TARGET_MEM
-endif
 
-# 根据配置文件添加编译优化选项
 ifdef CONFIG_BUILD_OPT_FLAGS
 CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
 endif
 
-# 根据配置文件添加调试选项
 ifdef CONFIG_BUILD_DEBUG
 CFLAGS += -g -DDEBUG
 endif
 
-# 根据配置文件添加详细输出选项
 ifdef CONFIG_BUILD_VERBOSE
 VERBOSE := 1
 endif
 
-# 固件名称 - 从配置文件读取，如果未定义则使用默认值
 ifdef CONFIG_FIRMWARE_NAME
 FIRMWARE_NAME := $(subst ",,$(CONFIG_FIRMWARE_NAME))
 else
 FIRMWARE_NAME := main
 endif
+.DEFAULT_GOAL := $(FIRMWARE_NAME)
 
-# find包含目录
-# 不能加入包含main.c的目录、不能加入包含loader目录的目录
 INCLUDE_DIRS := Library System Hardware
 
-# 源文件列表
 SDK_SRC_PATH := $(shell find $(INCLUDE_DIRS) -type f -name "*.S")
 SDK_SRC_PATH += $(shell find $(INCLUDE_DIRS) -type f -name "*.c")
 
-FIRMWARE_SRC_PATH := ./Startup/start.S ./User/main.c $(SDK_SRC_PATH)
-LOADER_SRC_PATH := ./Startup/loader/start.s ./Startup/loader/loader.c ./Startup/loader/payload.S $(SDK_SRC_PATH)
+STARTUP_SRC := ./Startup/start.S
+BOOTLOADER_SRC := ./Startup/loader/loader.c
+APP_SRC := ./User/main.c $(SDK_SRC_PATH)
+STARTUP_OBJ := $(OBJ_DIR)/$(STARTUP_SRC:.S=.o)
+BOOTLOADER_OBJ := $(OBJ_DIR)/$(BOOTLOADER_SRC:.c=.o)
+APP_OBJS := $(addprefix $(OBJ_DIR)/,$(patsubst %.S,%.o,$(patsubst %.c,%.o,$(APP_SRC))))
+FIRMWARE_OBJS := $(STARTUP_OBJ) $(BOOTLOADER_OBJ) $(APP_OBJS)
 
-CFLAGS += -I./configs
+CFLAGS += -I./ -I./configs
 CFLAGS += $(addprefix -I,$(shell find $(INCLUDE_DIRS) -type d))
 CFLAGS += $(addprefix -I,$(shell find User -type d))
 CFLAGS += $(addprefix -I,$(shell find Startup -type d))
 
-# 链接脚本路径
-FIRMWARE_LDS_PATH := $(shell find Startup -type f -name "sections.lds")
-LOADER_LDS_PATH := $(shell find Startup -type f -name "loader.lds")
+# Keep the verified L4 QSPI polling sequence independent of app optimization.
+QSPI_SRCS := $(filter %/qspi.c,$(APP_SRC))
+QSPI_OBJS := $(addprefix $(OBJ_DIR)/,$(QSPI_SRCS:.c=.o))
+$(QSPI_OBJS): CFLAGS := $(filter-out -O%,$(CFLAGS)) -O0
 
-# 包含内存报告工具
+FIRMWARE_LDS_PATH := $(shell find Startup -type f -name "sections.lds")
+LDFLAGS := -e _start -melf32lriscv -z noexecstack -T $(FIRMWARE_LDS_PATH) --gc-sections
+
+MEM_REPORT_CODE_IN_RAM := 1
 -include ./scripts/mem_report.mk
 
-# 主要构建目标：生成固件的所有格式文件
-$(FIRMWARE_NAME):
-	@echo $(FIRMWARE_LDS_PATH)
-	@echo "Building APP $(FIRMWARE_NAME)..."
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(CFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/%.o: %.S
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(CFLAGS) -c -o $@ $<
+
+# Keep the pre-PSRAM boot path self-contained, matching verif's flags.
+$(BOOTLOADER_OBJ): $(BOOTLOADER_SRC) $(STARTUP_OBJ)
+	@mkdir -p $(dir $@)
+	@$(GCC_M) $(VERIF_CFLAGS) -c -o $@ $<
+
+$(APP_OBJS): | $(BOOTLOADER_OBJ)
+
+$(FIRMWARE_NAME): $(FIRMWARE_OBJS)
 	@mkdir -p $(BUILD_DIR)
+	@$(LD_M) $(LDFLAGS) -o $(BUILD_DIR)/$(FIRMWARE_NAME).elf --start-group $(FIRMWARE_OBJS) --end-group
+	@$(OBJDUMP_M) -d $(BUILD_DIR)/$(FIRMWARE_NAME).elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
+	@$(OBJCOPY_M) -S -O binary $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
+	@$(OBJCOPY_M) --change-addresses -0x30000000 -O verilog $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
+	$(call show_mem_usage, $(BUILD_DIR)/$(FIRMWARE_NAME).elf)
 
-	@echo "Preprocess APP linker script..."
-	@$(CROSS)cpp -P $(CFLAGS) -o $(BUILD_DIR)/app.lds $(FIRMWARE_LDS_PATH)
-	@echo "Compiling APP..."
-	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/app.lds -o $(BUILD_DIR)/app.elf $(FIRMWARE_SRC_PATH)
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/app.bin
-
-ifdef CONFIG_LINK_TARGET_XIP
-	@echo "Skipping Bootloader (Target is XIP)..."
-	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/app.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
-	@$(CROSS)objdump -d $(BUILD_DIR)/app.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
-	$(call show_mem_usage, $(BUILD_DIR)/app.elf)
-else
-	@echo "Building Bootloader..."
-	@$(CROSS)cpp -P -o $(BUILD_DIR)/loader.lds $(LOADER_LDS_PATH)
-	@$(CROSS)gcc $(CFLAGS) -I./ -T $(BUILD_DIR)/loader.lds -o $(BUILD_DIR)/loader.elf $(LOADER_SRC_PATH)
-
-	@echo "Final linking ..."
-	@$(CROSS)objcopy -O verilog $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-	@sed -i 's/@30000000/@00000000/g' $(BUILD_DIR)/$(FIRMWARE_NAME).hex
-
-	@$(CROSS)objcopy -O binary  $(BUILD_DIR)/loader.elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
-	@$(CROSS)objdump -d $(BUILD_DIR)/loader.elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt
-	$(call show_mem_usage, $(BUILD_DIR)/loader.elf)
-endif
-	@echo "Done."
-
-# 清理构建产物
 clean:
-	rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)
 
 clean_config:
-	rm -rf configs/generated configs/config configs/.config configs/.config.old
+	@rm -rf configs/generated configs/config configs/.config configs/.config.old
 
 clean_all:
-	rm -rf $(BUILD_DIR)
-	rm -rf configs/generated configs/config configs/.config configs/.config.old
-	rm -rf $(PROJECT_PATH)/tools/fixdep/build
-	rm -rf $(PROJECT_PATH)/tools/kconfig/build
+	@rm -rf $(BUILD_DIR)
+	@rm -rf configs/generated configs/config configs/.config configs/.config.old
+	@rm -rf $(PROJECT_PATH)/tools/fixdep/build
+	@rm -rf $(PROJECT_PATH)/tools/kconfig/build
 
 -include scripts/config.mk
-# 声明伪目标
-.PHONY: $(FIRMWARE_NAME) clean
+
+.PHONY: $(FIRMWARE_NAME) clean clean_config clean_all

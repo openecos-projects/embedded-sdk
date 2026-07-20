@@ -28,6 +28,8 @@ int hal_qspi_deinit(hal_qspi_port_t port);
 int hal_qspi_write_8(hal_qspi_port_t port, uint8_t data);
 int hal_qspi_write_16(hal_qspi_port_t port, uint16_t data);
 int hal_qspi_write_32(hal_qspi_port_t port, uint32_t data);
+int hal_qspi_write_32_repeat(hal_qspi_port_t port, uint32_t data,
+                             uint32_t words);
 int hal_qspi_write_32x2(hal_qspi_port_t port, uint32_t data1, uint32_t data2);
 int hal_qspi_write_32x8(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8);
 int hal_qspi_write_32x16(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,

@@ -2,6 +2,15 @@
 #include "board.h"
 #include <stdio.h>
 
+#define GPIO_BIT(pin)             ((uint32_t)1u << (pin))
+#define QSPI_GPIO0_MASK           (GPIO_BIT(12) | GPIO_BIT(13) | \
+                                   GPIO_BIT(14) | GPIO_BIT(15) | \
+                                   GPIO_BIT(16) | GPIO_BIT(24))
+#define QSPI_DONE_STATUS          1u
+#define QSPI_WRITE_START          2u
+#define QSPI_TIMEOUT              100000u
+#define QSPI_FIFO_WORDS           32u
+
 static inline uint32_t get_hw_cs(hal_qspi_cs_t cs) {
     if (cs == HAL_QSPI_CS_0) return 1 << 8;
     if (cs == HAL_QSPI_CS_1) return 2 << 8;
@@ -10,8 +19,36 @@ static inline uint32_t get_hw_cs(hal_qspi_cs_t cs) {
     return 1 << 8;
 }
 
+static void qspi_gpio_init(void)
+{
+    /*
+     * L4 QSPI actual pin mux:
+     *   GPIO0[24] -> QSPI.SCK
+     *   GPIO0[12] -> QSPI.SI00/MOSI
+     *   GPIO0[13:15] -> QSPI.SI01..SI03
+     *   GPIO0[16] -> QSPI.NSS0
+     * Alternate function channel 0.
+     */
+    REG_GPIO_0_IOFCFG |= QSPI_GPIO0_MASK;
+    REG_GPIO_0_PINMUX &= ~QSPI_GPIO0_MASK;
+}
+
+static int qspi_wait_done(void)
+{
+    uint32_t timeout = QSPI_TIMEOUT;
+
+    while ((REG_QSPI_0_STATUS & 0xFFFFFFFFu) != QSPI_DONE_STATUS) {
+        if (timeout-- == 0u) {
+            return -2;
+        }
+    }
+
+    return 0;
+}
+
 int hal_qspi_init(hal_qspi_port_t port, const hal_qspi_config_t *config){
     if (port != HAL_QSPI_PORT_0 || !config) return -1;
+    qspi_gpio_init();
     REG_QSPI_0_STATUS = (uint32_t)0b10000;
     REG_QSPI_0_STATUS = (uint32_t)0b00000;
     REG_QSPI_0_INTCFG = (uint32_t)0b00000;
@@ -31,92 +68,89 @@ int hal_qspi_deinit(hal_qspi_port_t port) {
 int hal_qspi_write_8(hal_qspi_port_t port, uint8_t data){
     if (port != HAL_QSPI_PORT_0) return -1;
     uint32_t wdat = ((uint32_t)data) << 24;
-    REG_QSPI_0_LEN = 0x80000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x80000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_8_cs(hal_qspi_port_t port, uint8_t data, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
     uint32_t wdat = ((uint32_t)data) << 24;
-    REG_QSPI_0_LEN = 0x80000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x80000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_16(hal_qspi_port_t port, uint16_t data){
     if (port != HAL_QSPI_PORT_0) return -1;
     uint32_t wdat = ((uint32_t)data) << 16;
-    REG_QSPI_0_LEN = 0x100000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x100000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_16_cs(hal_qspi_port_t port, uint16_t data, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
     uint32_t wdat = ((uint32_t)data) << 16;
-    REG_QSPI_0_LEN = 0x100000;
     REG_QSPI_0_TXFIFO = wdat;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x100000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32(hal_qspi_port_t port, uint32_t data){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x200000;
     REG_QSPI_0_TXFIFO = data;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x200000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
+}
+
+int hal_qspi_write_32_repeat(hal_qspi_port_t port, uint32_t data,
+                             uint32_t words)
+{
+    if (port != HAL_QSPI_PORT_0 || words == 0u || words > QSPI_FIFO_WORDS)
+        return -1;
+
+    for (uint32_t i = 0u; i < words; i++)
+        REG_QSPI_0_TXFIFO = data;
+
+    REG_QSPI_0_LEN = (words * 32u) << 16;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32_cs(hal_qspi_port_t port, uint32_t data, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x200000;
     REG_QSPI_0_TXFIFO = data;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x200000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x2(hal_qspi_port_t port, uint32_t data1, uint32_t data2){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x400000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x400000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x2_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x400000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x400000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x8(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x1000000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
     REG_QSPI_0_TXFIFO = data3;
@@ -125,15 +159,13 @@ int hal_qspi_write_32x8(hal_qspi_port_t port, uint32_t data1, uint32_t data2, ui
     REG_QSPI_0_TXFIFO = data6;
     REG_QSPI_0_TXFIFO = data7;
     REG_QSPI_0_TXFIFO = data8;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x1000000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x8_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x1000000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
     REG_QSPI_0_TXFIFO = data3;
@@ -142,16 +174,14 @@ int hal_qspi_write_32x8_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2,
     REG_QSPI_0_TXFIFO = data6;
     REG_QSPI_0_TXFIFO = data7;
     REG_QSPI_0_TXFIFO = data8;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x1000000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x16(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
      uint32_t data9, uint32_t data10, uint32_t data11, uint32_t data12, uint32_t data13, uint32_t data14, uint32_t data15, uint32_t data16){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x2000000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
     REG_QSPI_0_TXFIFO = data3;
@@ -168,16 +198,14 @@ int hal_qspi_write_32x16(hal_qspi_port_t port, uint32_t data1, uint32_t data2, u
     REG_QSPI_0_TXFIFO = data14;
     REG_QSPI_0_TXFIFO = data15;
     REG_QSPI_0_TXFIFO = data16;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x2000000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x16_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
      uint32_t data9, uint32_t data10, uint32_t data11, uint32_t data12, uint32_t data13, uint32_t data14, uint32_t data15, uint32_t data16, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x2000000;
     REG_QSPI_0_TXFIFO = data1;
     REG_QSPI_0_TXFIFO = data2;
     REG_QSPI_0_TXFIFO = data3;
@@ -194,10 +222,9 @@ int hal_qspi_write_32x16_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
     REG_QSPI_0_TXFIFO = data14;
     REG_QSPI_0_TXFIFO = data15;
     REG_QSPI_0_TXFIFO = data16;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x2000000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x32(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
@@ -205,7 +232,6 @@ int hal_qspi_write_32x32(hal_qspi_port_t port, uint32_t data1, uint32_t data2, u
      uint32_t data17, uint32_t data18, uint32_t data19, uint32_t data20, uint32_t data21, uint32_t data22, uint32_t data23, uint32_t data24,
      uint32_t data25, uint32_t data26, uint32_t data27, uint32_t data28, uint32_t data29, uint32_t data30, uint32_t data31, uint32_t data32){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x4000000;
     REG_QSPI_0_TXFIFO = data1; REG_QSPI_0_TXFIFO = data2; REG_QSPI_0_TXFIFO = data3; REG_QSPI_0_TXFIFO = data4;
     REG_QSPI_0_TXFIFO = data5; REG_QSPI_0_TXFIFO = data6; REG_QSPI_0_TXFIFO = data7; REG_QSPI_0_TXFIFO = data8;
     REG_QSPI_0_TXFIFO = data9; REG_QSPI_0_TXFIFO = data10; REG_QSPI_0_TXFIFO = data11; REG_QSPI_0_TXFIFO = data12;
@@ -214,10 +240,9 @@ int hal_qspi_write_32x32(hal_qspi_port_t port, uint32_t data1, uint32_t data2, u
     REG_QSPI_0_TXFIFO = data21; REG_QSPI_0_TXFIFO = data22; REG_QSPI_0_TXFIFO = data23; REG_QSPI_0_TXFIFO = data24;
     REG_QSPI_0_TXFIFO = data25; REG_QSPI_0_TXFIFO = data26; REG_QSPI_0_TXFIFO = data27; REG_QSPI_0_TXFIFO = data28;
     REG_QSPI_0_TXFIFO = data29; REG_QSPI_0_TXFIFO = data30; REG_QSPI_0_TXFIFO = data31; REG_QSPI_0_TXFIFO = data32;
-    REG_QSPI_0_STATUS = 258;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x4000000;
+    REG_QSPI_0_STATUS = get_hw_cs(HAL_QSPI_CS_0) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 int hal_qspi_write_32x32_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2, uint32_t data3, uint32_t data4, uint32_t data5, uint32_t data6, uint32_t data7, uint32_t data8,
@@ -225,7 +250,6 @@ int hal_qspi_write_32x32_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
      uint32_t data17, uint32_t data18, uint32_t data19, uint32_t data20, uint32_t data21, uint32_t data22, uint32_t data23, uint32_t data24,
      uint32_t data25, uint32_t data26, uint32_t data27, uint32_t data28, uint32_t data29, uint32_t data30, uint32_t data31, uint32_t data32, hal_qspi_cs_t cs){
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_LEN = 0x4000000;
     REG_QSPI_0_TXFIFO = data1; REG_QSPI_0_TXFIFO = data2; REG_QSPI_0_TXFIFO = data3; REG_QSPI_0_TXFIFO = data4;
     REG_QSPI_0_TXFIFO = data5; REG_QSPI_0_TXFIFO = data6; REG_QSPI_0_TXFIFO = data7; REG_QSPI_0_TXFIFO = data8;
     REG_QSPI_0_TXFIFO = data9; REG_QSPI_0_TXFIFO = data10; REG_QSPI_0_TXFIFO = data11; REG_QSPI_0_TXFIFO = data12;
@@ -234,10 +258,9 @@ int hal_qspi_write_32x32_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
     REG_QSPI_0_TXFIFO = data21; REG_QSPI_0_TXFIFO = data22; REG_QSPI_0_TXFIFO = data23; REG_QSPI_0_TXFIFO = data24;
     REG_QSPI_0_TXFIFO = data25; REG_QSPI_0_TXFIFO = data26; REG_QSPI_0_TXFIFO = data27; REG_QSPI_0_TXFIFO = data28;
     REG_QSPI_0_TXFIFO = data29; REG_QSPI_0_TXFIFO = data30; REG_QSPI_0_TXFIFO = data31; REG_QSPI_0_TXFIFO = data32;
-    REG_QSPI_0_STATUS = get_hw_cs(cs) | 2;
-    while ((REG_QSPI_0_STATUS & 0xFFFFFFFF) != 1)
-        ;
-    return 0;
+    REG_QSPI_0_LEN = 0x4000000;
+    REG_QSPI_0_STATUS = get_hw_cs(cs) | QSPI_WRITE_START;
+    return qspi_wait_done();
 }
 
 
@@ -354,7 +377,6 @@ int hal_qspi_write(hal_qspi_port_t port,
         /* 无数据 → 退化为 send_cmd */
         return hal_qspi_send_cmd(port, cmd, cmd_len, addr, addr_len);
     }
-
     uint16_t bytes_remaining = tx_len;
     const uint8_t *p = tx_buf;
 

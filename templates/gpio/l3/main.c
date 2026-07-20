@@ -2,7 +2,7 @@
 
 void main(void){
     
-    sys_uart_init();
+    hal_sys_uart_init();
     printf("GPIO test\n");
 
     gpio_config_t gpio_config_out = {

@@ -26,22 +26,22 @@ echo_available_templates() {
     echo "| crc              |    |    |    | √    | √  |"
     echo "| gpio             | √  | √  | √  | √    | √  |"
     echo "| hello            | √  | √  | √  | √    | √  |"
-    echo "| i2c_scan         | √  | √  | √  | √    | √  |"
-    echo "| i2c_sgp30        | √* |    |    | √    | √  |"
+    echo "| i2c_scan         | √  | √  | √  | √    |    |"
+    echo "| i2c_sgp30        | √* |    |    | √    |    |"
     echo "| minesweeper      | √  | √  |    | √    | √  |"
-    echo "| ps2              |    |    |    | √    | √  |"
+    echo "| ps2              |    |    |    | √    |    |"
     echo "| pwm              | √* |    |    | √    | √  |"
     echo "| qspi             |    |    |    | √    | √  |"
-    echo "| rcu              |    |    |    | √    | √  |"
+    echo "| rcu              |    |    |    | √    |    |"
     echo "| rng              |    |    |    | √    | √  |"
-    echo "| rtc              |    |    |    | √    | √  |"
+    echo "| rtc              |    |    |    | √    |    |"
     echo "| smoke_test       |    |    |    | √    | √  |"
     echo "| spi_st7735       | √* | √  |    | √    | √  |"
     echo "| spi_st7735_clock | √* |    |    | √    | √  |"
     echo "| spi_st7735_donut | √  | √  |    | √    | √  |"
     echo "| st7789           |    | √  |    | √    | √  |"
     echo "| timer            |    |    |    | √    | √  |"
-    echo "| wdg              |    |    |    | √    | √  |"
+    echo "| wdg              |    |    |    | √    |    |"
     echo "| spi_flash_test   |    | √  |    |      |    |"
     echo "| filesystem_test  |    | √  |    |      |    |"
     echo "| shell_test       |    | √  |    |      |    |"
@@ -117,6 +117,7 @@ init_project() {
         log "BOARD=$target_board"
         log "Initialized project: $new_project_name"
         log "Config file: .ecos-project"
+        "$SCRIPT_DIR/ecos-set_board" "$target_board"
         log "Project '$new_project_name' created successfully in './$new_project_name'"
         exit 0
     else
@@ -137,7 +138,7 @@ init_project() {
     log "Config file: .ecos-project"
 
     # Set default board
-    ecos set_board "${board_to_set}"
+    "$SCRIPT_DIR/ecos-set_board" "${board_to_set}"
 
     # Create configs directory and copy scripts
     mkdir -p configs
@@ -192,7 +193,7 @@ init_project_isolated() {
     log "Config file: .ecos-project"
 
     # Set default board
-    ecos set_board_isolated "${board_to_set}"
+    "$SCRIPT_DIR/ecos-set_board_isolated" "${board_to_set}"
 
     # Create configs directory and copy scripts
     mkdir -p configs
