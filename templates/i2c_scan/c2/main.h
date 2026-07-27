@@ -9,10 +9,11 @@
 // Components headers
 // #include "timer.h"
 // #include "qspi.h"
-#include "gpio.h"
+//#include "gpio.h"
 // #include "pwm.h"
 // #include "hp_uart.h"
-#include "i2c.h"
+#include "hal_i2c.h"
+#include "hal_sys_uart.h"
 
 // Device headers
 // #include "st7735.h"

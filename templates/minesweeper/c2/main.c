@@ -243,7 +243,7 @@ typedef enum state_t {NEW_GAME, IN_GAME, GAME_OVER} state_t;
 #define MAX_BLOCKS 128u
 
 int main(void) {
-    sys_uart_init();
+    hal_sys_uart_init();
     state_t state = GAME_OVER;
     state_t next_state;
     // user input

@@ -1,17 +1,22 @@
 #include "main.h"
 
 void main(void){   
-    sys_uart_init();
+    hal_sys_uart_init();
     printf("ST7789 LCD TEST!\n");
 
-    qspi_config_t qspi_config = {
+
+    hal_qspi_config_t qspi_config = {
         .clkdiv = 1,
     };
-    qspi_init(&qspi_config);
+    hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
 
     st7789_device_t st7789 = {
-        .dc_pin = GPIO_NUM_0,
-        .rst_pin = GPIO_NUM_1,
+        .dc_gpio_port = 0,
+        .dc_gpio_pin = GPIO_NUM_0,
+        .rst_gpio_port = 0,
+        .rst_gpio_pin = GPIO_NUM_1,
+        .qspi_port = HAL_QSPI_PORT_0,
+        .qspi_cs = HAL_QSPI_CS_0,
         .screen_width = 240,
         .screen_height = 240,
         .rotation = 2,
