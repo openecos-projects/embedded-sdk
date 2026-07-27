@@ -1,6 +1,14 @@
 #include "main.h"
 #include "board.h"
 
+
+// I2C状态寄存器位定义
+#define I2C_STATUS_RXACK     ((uint8_t)0x80) // (1 << 7)
+#define I2C_STATUS_BUSY      ((uint8_t)0x40) // (1 << 6)
+#define I2C_STATUS_TIP       ((uint8_t)0x02) // (1 << 1)
+#define I2C_START_WRITE      ((uint8_t)0x90)
+#define I2C_STOP             ((uint8_t)0x40)
+
 static bool i2c_probe_device_quiet(uint8_t addr) {
     // 保存原来的stdout，临时重定向以抑制错误输出
     // 由于这是嵌入式环境，我们直接通过寄存器操作来检测ACK
@@ -127,14 +135,14 @@ void i2c_print_scan_result(uint8_t start_addr, uint8_t end_addr) {
 
 void main(void){
     
-    sys_uart_init();
+    hal_sys_uart_init();
     printf("Hello, World!\n");
 
     // 初始化I2C
-    i2c_config_t i2c_config = {
+    hal_i2c_config_t i2c_config = {
         .pscr = 99,
     };
-    i2c_init(&i2c_config);
+    hal_i2c_init(HAL_I2C_PORT_0,&i2c_config);
 
     // 执行I2C设备扫描
     printf("\n=== I2C Device Scanner ===\n");
