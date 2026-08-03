@@ -17,6 +17,7 @@ err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 board_name=""
 project_type=""
+requested_profile=""
 
 # Check if inside a project directory
 check_project_dir() {
@@ -63,7 +64,7 @@ copy_if_declared() {
         fi
         return 0
     fi
-    source_path="$(ecos_board_abs_path "$board_dir" "$source_rel")"
+    source_path="$board_dir/$source_rel"
 
     if [[ ! -e "$source_path" ]]; then
         if [[ "$required" == "true" ]]; then
@@ -84,38 +85,51 @@ copy_if_declared() {
 
 set_board_from_package() {
     local target_board_name="$1"
+    local profile_request="${2:-}"
     local manifest board_dir board_id board_category
-    local make_file board_file lds_file start_file loader_path
+    local make_file board_file lds_file start_file loader_path profile
 
     manifest="$(ecos_board_find_manifest "$target_board_name")" || return 1
+    ecos_board_validate_manifest "$manifest" || {
+        err "Board package manifest is invalid: $manifest"
+        exit 1
+    }
     board_dir="$(ecos_board_manifest_dir "$manifest")"
     board_id="$(ecos_board_manifest_value "$manifest" id)"
     board_category="$(ecos_board_manifest_value "$manifest" category)"
+    profile="$(ecos_board_resolve_profile "$manifest" "$profile_request")" || exit 1
 
     make_file="$(ecos_board_manifest_section_value "$manifest" files makefile)"
     board_file="$(ecos_board_manifest_section_value "$manifest" files board_header)"
-    lds_file="$(ecos_board_manifest_section_value "$manifest" files linker_script)"
-    start_file="$(ecos_board_manifest_section_value "$manifest" files startup)"
+    lds_file="$(ecos_board_profile_file "$manifest" "$profile" linker_script)"
+    start_file="$(ecos_board_profile_file "$manifest" "$profile" startup)"
     loader_path="$(ecos_board_manifest_section_value "$manifest" paths loader)"
+
+    rm -f ./start.S ./start.s
+    rm -rf ./loader
 
     copy_if_declared "$board_dir" "$board_file" "./board.h" true
     copy_if_declared "$board_dir" "$make_file" "./Makefile" true
     copy_if_declared "$board_dir" "$lds_file" "./sections.lds" true
-    copy_if_declared "$board_dir" "$start_file" "./$(basename "$start_file")" false
+    copy_if_declared "$board_dir" "$start_file" "./start.S" true
     copy_if_declared "$board_dir" "$loader_path" "./loader" false
 
     mkdir -p configs
-    ecos_board_write_project_config "$manifest" "configs/board-package.mk"
+    ecos_board_write_project_config "$manifest" "configs/board-package.mk" "$profile"
+    ecos_board_write_sdk_path_config "configs/sdk-path.mk"
+    ecos_board_ensure_sdk_include "./Makefile"
 
     {
-        echo "BOARD=$target_board_name"
+        echo "BOARD=$board_id"
         echo "BOARD_ID=$board_id"
         echo "BOARD_CATEGORY=$board_category"
-        echo "BOARD_PACKAGE=$board_dir"
+        echo "BOARD_PACKAGE=$(realpath -m "$board_dir")"
+        [[ -z "$profile" ]] || echo "PROFILE=$profile"
         echo "TYPE=$project_type"
     } > ".ecos-project"
 
     log "Board package: $board_id"
+    [[ -z "$profile" ]] || log "Build profile: $profile"
     log "Board package path: $board_dir"
     log "Generated board package config: configs/board-package.mk"
     return 0
@@ -123,6 +137,7 @@ set_board_from_package() {
 # Set board configuration
 set_board() {
     local target_board_name="$1"
+    local profile_request="${2:-}"
 
     check_project_dir
     if [[ -f ".ecos-project" ]]; then
@@ -130,8 +145,12 @@ set_board() {
         project_type="${TYPE:-}"
     fi
 
-    if [[ "$project_type" != "asm" ]] && set_board_from_package "$target_board_name"; then
+    if [[ "$project_type" != "asm" ]] && set_board_from_package "$target_board_name" "$profile_request"; then
         return 0
+    fi
+    if [[ -n "$profile_request" ]]; then
+        err "--profile 只能用于清单中定义了 profiles 的 BSP: $target_board_name"
+        exit 1
     fi
 
     rewrite_config
@@ -448,15 +467,28 @@ set_board() {
             exit 1
             ;;
     esac
+
+    mkdir -p configs
+    ecos_board_write_sdk_path_config "configs/sdk-path.mk"
+    ecos_board_ensure_sdk_include "./Makefile"
 }
 
 # Main entry point for the subcommand
 if [[ $# -eq 0 ]]; then
     err "Missing board name argument."
     echo ""
-    echo "Usage: ecos set_board <board_name>"
+    echo "Usage: ecos set_board <board_name> [--profile <name>]"
     echo "Example: ecos set_board c1"
     exit 1
 fi
 
-set_board "$1"
+target_board_name="$1"
+shift
+if [[ $# -gt 0 ]]; then
+    [[ $# -eq 2 && "$1" == "--profile" ]] || {
+        err "Usage: ecos set_board <board_name> [--profile <name>]"
+        exit 1
+    }
+    requested_profile="$2"
+fi
+set_board "$target_board_name" "$requested_profile"

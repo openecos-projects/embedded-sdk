@@ -17,9 +17,27 @@ COLOR_RED := $(shell echo "\033[1;31m")
 COLOR_END := $(shell echo "\033[0m")
 
 Q            := @
+LOCAL_KCONFIG_PATH := $(CURDIR)/tools/kconfig
+LOCAL_FIXDEP_PATH  := $(CURDIR)/tools/fixdep
+
+ifneq ($(wildcard $(LOCAL_KCONFIG_PATH)/Kconfig),)
+ECOS_ISOLATED_BUILD := 1
+KCONFIG_PATH := $(LOCAL_KCONFIG_PATH)
+FIXDEP_PATH  := $(LOCAL_FIXDEP_PATH)
+Kconfig      := $(LOCAL_KCONFIG_PATH)/Kconfig
+else
+-include configs/sdk-path.mk
+ifeq ($(strip $(ECOS_SDK_HOME)),)
+$(error ECOS_SDK_HOME 未设置。请先执行 eval "$$(ecos env)"，或设置正确的 ECOS_SDK_HOME)
+endif
+ifeq ($(wildcard $(ECOS_SDK_HOME)/tools/kconfig/Kconfig),)
+$(error ECOS_SDK_HOME 无效：$(ECOS_SDK_HOME)。请执行 eval "$$(ecos env)"，或修改 configs/sdk-path.mk)
+endif
 KCONFIG_PATH := $(ECOS_SDK_HOME)/tools/kconfig
 FIXDEP_PATH  := $(ECOS_SDK_HOME)/tools/fixdep
 Kconfig      := $(ECOS_SDK_HOME)/tools/kconfig/Kconfig
+endif
+
 rm-distclean += configs/generated configs/config configs/.config configs/.config.old
 silent := -s
 CONFIG_TARGETS := menuconfig alldefconfig defconfig savedefconfig %defconfig clean_config clean_all distclean help
@@ -41,6 +59,9 @@ ifneq ($(wildcard $(BOARD_KCONFIG)),)
 export BoardExport := $(BOARD_KCONFIG)
 export DriverExport := $(DRIVER_KCONFIG)
 else
+ifeq ($(ECOS_ISOLATED_BUILD),1)
+$(error 分离式工程缺少本地板卡 Kconfig，请重新执行 ecos set_board_isolated)
+else
 CATEGORY_LIST := StarrySkyC1 StarrySkyC2 StarrySkyL3 StarrySkyL3_1 StarrySkyL4
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
 export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
@@ -49,6 +70,7 @@ else
 $(warning $(COLOR_RED)Board category is not existed, default to StarrySkyC2.$(COLOR_END))
 export BoardExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/board.kconfig
 export DriverExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/driver.kconfig
+endif
 endif
 endif
 

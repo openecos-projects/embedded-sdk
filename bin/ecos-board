@@ -8,16 +8,360 @@ export ECOS_SDK_HOME="${ECOS_SDK_HOME:-$SDK_ROOT}"
 source "$SDK_ROOT/tools/scripts/ecos-board-package.sh"
 
 log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 usage() {
     echo "Usage: ecos board <command> [args]"
     echo ""
     echo "Commands:"
-    echo "  list                         List available board packages"
-    echo "  info <board>                 Show board package information"
-    echo "  add <path>                   Register a local board package"
-    echo "  remove <board>               Remove a registered board package"
+    echo "  create <id> [options]        Create an external BSP skeleton"
+    echo "  check <path> [--update <id>] Check a new or updated external BSP"
+    echo "  import <path> [--replace]    Copy a BSP into board/UserBSP"
+    echo "  add <path>                   Link a BSP for local development"
+    echo "  list                         List available BSP packages"
+    echo "  info <board>                 Show BSP package information"
+    echo "  remove <board>               Remove an imported/linked BSP"
+    echo ""
+    echo "Create options:"
+    echo "  -name <name>                 Board display name"
+    echo "  -output <path>               Output directory (default: ./<id>-bsp)"
+    echo "  --with-isolated              Add isolated-project Makefile"
+    echo "  --with-loader                Add loader/loader.c"
+}
+
+resolve_manifest_argument() {
+    local path="$1"
+    if [[ -f "$path" ]]; then
+        echo "$(realpath "$path")"
+    elif [[ -f "$path/ecos-board.yml" ]]; then
+        echo "$(realpath "$path/ecos-board.yml")"
+    else
+        return 1
+    fi
+}
+
+check_name_conflicts() {
+    local manifest="$1"
+    local allow_manifest="${2:-}"
+    local name existing existing_real allow_real=""
+
+    [[ -z "$allow_manifest" ]] || allow_real="$(realpath -m "$allow_manifest")"
+    while IFS= read -r name; do
+        [[ -n "$name" ]] || continue
+        existing="$(ecos_board_find_manifest "$name" || true)"
+        [[ -n "$existing" ]] || continue
+        existing_real="$(realpath -m "$existing")"
+        if [[ "$existing_real" != "$(realpath -m "$manifest")" && "$existing_real" != "$allow_real" ]]; then
+            err "BSP id 或别名已被其他 BSP 使用: $name"
+            err "冲突清单: $existing"
+            return 1
+        fi
+    done < <({ ecos_board_manifest_value "$manifest" id; ecos_board_manifest_aliases "$manifest"; })
+}
+
+find_imported_manifest() {
+    local query="$1"
+    local registry_dir manifest
+    registry_dir="$(ecos_board_registry_dir)"
+    [[ -d "$registry_dir" ]] || return 1
+
+    while IFS= read -r manifest; do
+        if ecos_board_matches "$manifest" "$query"; then
+            echo "$manifest"
+            return 0
+        fi
+    done < <(find -L "$registry_dir" -mindepth 2 -maxdepth 2 -name ecos-board.yml -type f 2>/dev/null)
+    return 1
+}
+
+print_update_diff() {
+    local source_dir="$1"
+    local installed_dir="$2"
+    local changes count
+
+    changes="$(diff -qr \
+        --exclude=.git \
+        --exclude=build \
+        --exclude='*.o' \
+        "$installed_dir" "$source_dir" 2>/dev/null || true)"
+    if [[ -z "$changes" ]]; then
+        log "差异摘要: 源 BSP 与已导入副本一致。"
+        return 0
+    fi
+
+    count="$(wc -l <<< "$changes" | tr -d ' ')"
+    log "差异摘要: 共 $count 项（已导入副本 -> 当前源 BSP）"
+    sed -n '1,40p' <<< "$changes"
+    if [[ "$count" -gt 40 ]]; then
+        warn "差异较多，仅显示前 40 项。"
+    fi
+}
+
+board_check() {
+    local path="$1"
+    local update_id="${2:-}"
+    local manifest board_dir source_id target_id todos failed=0
+    local allow_manifest=""
+
+    manifest="$(resolve_manifest_argument "$path")" || {
+        err "No ecos-board.yml found at: $path"
+        return 1
+    }
+    board_dir="$(ecos_board_manifest_dir "$manifest")"
+    source_id="$(ecos_board_manifest_value "$manifest" id)"
+
+    if [[ -n "$update_id" ]]; then
+        allow_manifest="$(find_imported_manifest "$update_id" || true)"
+        if [[ -z "$allow_manifest" ]]; then
+            err "找不到已导入的 BSP，无法按更新包检查: $update_id"
+            return 1
+        fi
+        target_id="$(ecos_board_manifest_value "$allow_manifest" id)"
+        if [[ "$source_id" != "$target_id" ]]; then
+            err "更新包 id 不一致: 源 BSP 为 $source_id，已导入 BSP 为 $target_id"
+            return 1
+        fi
+        log "按已导入 BSP 的更新版本检查: $target_id"
+    else
+        allow_manifest="$(find_imported_manifest "$source_id" || true)"
+        if [[ -n "$allow_manifest" && "$(realpath -m "$allow_manifest")" != "$(realpath -m "$manifest")" ]]; then
+            log "检测到同 id 的已导入 BSP，将当前目录作为更新版本检查: $source_id"
+        else
+            allow_manifest=""
+        fi
+    fi
+
+    if ! ecos_board_validate_manifest "$manifest"; then
+        failed=1
+    fi
+    if ! check_name_conflicts "$manifest" "$allow_manifest"; then
+        failed=1
+    fi
+    todos="$(ecos_board_find_required_todos "$board_dir")"
+    if [[ -n "$todos" ]]; then
+        err "Required BSP items are not finished:"
+        echo "$todos"
+        failed=1
+    fi
+
+    if [[ "$failed" -ne 0 ]]; then
+        err "BSP check failed: $board_dir"
+        return 1
+    fi
+    log "BSP check passed: $board_dir"
+    if [[ -n "$allow_manifest" ]]; then
+        print_update_diff "$board_dir" "$(ecos_board_manifest_dir "$allow_manifest")"
+    fi
+}
+
+category_from_id() {
+    local id="$1"
+    awk -F- '{ for (i = 1; i <= NF; i++) printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2) }' <<< "$id"
+}
+
+replace_scaffold_placeholders() {
+    local output="$1"
+    local id="$2"
+    local name="$3"
+    local alias="$4"
+    local category="$5"
+    local symbol="$6"
+    local isolated_line="$7"
+    local loader_line="$8"
+    local file failed=0
+
+    while IFS= read -r file; do
+        sed -i \
+            -e "s|@BSP_ID@|$id|g" \
+            -e "s|@BSP_NAME@|$name|g" \
+            -e "s|@BSP_ALIAS@|$alias|g" \
+            -e "s|@BSP_CATEGORY@|$category|g" \
+            -e "s|@BSP_SYMBOL@|$symbol|g" \
+            -e "s|@MAKEFILE_ISOLATED_LINE@|$isolated_line|g" \
+            -e "s|@LOADER_LINE@|$loader_line|g" \
+            "$file" || failed=1
+    done < <(find "$output" -type f)
+    return "$failed"
+}
+
+board_create() {
+    local id="$1"
+    shift
+    local name=""
+    local output=""
+    local with_isolated=false
+    local with_loader=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -name)
+                [[ $# -ge 2 ]] || { err "-name requires a value"; return 1; }
+                name="$2"
+                shift 2
+                ;;
+            -output)
+                [[ $# -ge 2 ]] || { err "-output requires a value"; return 1; }
+                output="$2"
+                shift 2
+                ;;
+            --with-isolated)
+                with_isolated=true
+                shift
+                ;;
+            --with-loader)
+                with_loader=true
+                shift
+                ;;
+            *)
+                err "Unknown create option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    [[ "$id" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]] || {
+        err "BSP id must start with a lowercase letter and use lowercase letters, numbers and hyphens: $id"
+        return 1
+    }
+    [[ -n "$name" ]] || name="$id"
+    if [[ "$name" == *$'\n'* || "$name" == *['@/\\&']* ]]; then
+        err "Board name contains unsupported characters: @ / \\ &"
+        return 1
+    fi
+    [[ -n "$output" ]] || output="./$id-bsp"
+    [[ ! -e "$output" ]] || { err "Output path already exists: $output"; return 1; }
+    [[ -d "$SCRIPT_DIR/bsp-template/base" ]] || {
+        err "BSP scaffold template is missing: $SCRIPT_DIR/bsp-template/base"
+        return 1
+    }
+    if [[ "$with_isolated" == true && ! -f "$SCRIPT_DIR/bsp-template/optional/Makefile_isolated" ]]; then
+        err "Optional isolated Makefile template is missing"
+        return 1
+    fi
+    if [[ "$with_loader" == true && ! -f "$SCRIPT_DIR/bsp-template/optional/loader.c" ]]; then
+        err "Optional loader template is missing"
+        return 1
+    fi
+
+    local parent temp alias category symbol isolated_line="" loader_line=""
+    parent="$(dirname "$output")"
+    mkdir -p "$parent"
+    temp="$(mktemp -d "$parent/.ecos-bsp-create.XXXXXX")"
+    alias="${id//-/_}"
+    category="$(category_from_id "$id")"
+    symbol="$(tr '[:lower:]-' '[:upper:]_' <<< "$id")"
+
+    if ! cp -R "$SCRIPT_DIR/bsp-template/base/." "$temp/"; then
+        rm -rf "$temp"
+        err "Failed to copy BSP scaffold"
+        return 1
+    fi
+    if [[ "$with_isolated" == true ]]; then
+        if ! cp "$SCRIPT_DIR/bsp-template/optional/Makefile_isolated" "$temp/Makefile_isolated"; then
+            rm -rf "$temp"
+            err "Failed to copy isolated Makefile template"
+            return 1
+        fi
+        isolated_line="  makefile_isolated: Makefile_isolated"
+    fi
+    if [[ "$with_loader" == true ]]; then
+        mkdir -p "$temp/loader"
+        if ! cp "$SCRIPT_DIR/bsp-template/optional/loader.c" "$temp/loader/loader.c"; then
+            rm -rf "$temp"
+            err "Failed to copy loader template"
+            return 1
+        fi
+        loader_line="  loader: loader"
+    fi
+
+    if ! replace_scaffold_placeholders "$temp" "$id" "$name" "$alias" "$category" "$symbol" "$isolated_line" "$loader_line"; then
+        rm -rf "$temp"
+        err "Failed to fill BSP scaffold placeholders"
+        return 1
+    fi
+    if grep -RIl '@BSP_\|@MAKEFILE_\|@LOADER_' "$temp" >/dev/null 2>&1; then
+        rm -rf "$temp"
+        err "BSP scaffold contains unresolved generator placeholders"
+        return 1
+    fi
+    if ! mv "$temp" "$output"; then
+        rm -rf "$temp"
+        err "Failed to create BSP directory: $output"
+        return 1
+    fi
+    log "Created external BSP skeleton: $output"
+    log "Read first: $output/README.md"
+    warn "The skeleton contains TODO_BSP_REQUIRED items; finish them before import."
+}
+
+board_import() {
+    local path="$1"
+    local replace="${2:-false}"
+    local manifest id registry_dir target temp backup=""
+
+    manifest="$(resolve_manifest_argument "$path")" || {
+        err "No ecos-board.yml found at: $path"
+        return 1
+    }
+    id="$(ecos_board_manifest_value "$manifest" id)"
+    registry_dir="$(ecos_board_registry_dir)"
+    target="$registry_dir/$id"
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        if [[ "$replace" != true ]]; then
+            err "BSP already exists: $target"
+            err "Use --replace to replace it."
+            return 1
+        fi
+        board_check "$(ecos_board_manifest_dir "$manifest")" "$id"
+    else
+        board_check "$(ecos_board_manifest_dir "$manifest")"
+    fi
+
+    mkdir -p "$registry_dir"
+    temp="$(mktemp -d "$registry_dir/.ecos-bsp-import.XXXXXX")"
+    if ! cp -R "$(ecos_board_manifest_dir "$manifest")/." "$temp/"; then
+        rm -rf "$temp"
+        err "Failed to copy BSP"
+        return 1
+    fi
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        backup="$registry_dir/.ecos-bsp-backup.$id.$$"
+        mv "$target" "$backup"
+    fi
+    if ! mv "$temp" "$target"; then
+        [[ -z "$backup" ]] || mv "$backup" "$target"
+        rm -rf "$temp"
+        err "Failed to install BSP: $target"
+        return 1
+    fi
+    [[ -z "$backup" ]] || rm -rf "$backup"
+    log "Imported BSP: $id"
+    log "Installed at: $target"
+}
+
+board_add() {
+    local path="$1"
+    local manifest id registry_dir target source_dir
+
+    manifest="$(resolve_manifest_argument "$path")" || {
+        err "No ecos-board.yml found at: $path"
+        return 1
+    }
+    board_check "$(ecos_board_manifest_dir "$manifest")"
+    id="$(ecos_board_manifest_value "$manifest" id)"
+    source_dir="$(realpath "$(ecos_board_manifest_dir "$manifest")")"
+    registry_dir="$(ecos_board_registry_dir)"
+    target="$registry_dir/$id"
+    [[ ! -e "$target" && ! -L "$target" ]] || {
+        err "BSP already exists: $target"
+        return 1
+    }
+    mkdir -p "$registry_dir"
+    ln -s "$source_dir" "$target"
+    log "Linked BSP for development: $id -> $source_dir"
 }
 
 board_info() {
@@ -25,88 +369,87 @@ board_info() {
     local manifest board_dir
     manifest="$(ecos_board_find_manifest "$query")" || {
         err "Board package not found: $query"
-        exit 1
+        return 1
     }
     board_dir="$(ecos_board_manifest_dir "$manifest")"
-
     echo "id: $(ecos_board_manifest_value "$manifest" id)"
     echo "name: $(ecos_board_manifest_value "$manifest" name)"
     echo "aliases: $(ecos_board_manifest_aliases "$manifest" | paste -sd, -)"
     echo "category: $(ecos_board_manifest_value "$manifest" category)"
+    echo "arch: $(ecos_board_manifest_value "$manifest" arch)"
+    if [[ -n "$(ecos_board_manifest_profiles "$manifest")" ]]; then
+        echo "profiles: $(ecos_board_manifest_profiles "$manifest" | paste -sd, -)"
+        echo "default_profile: $(ecos_board_resolve_profile "$manifest")"
+    fi
     echo "path: $board_dir"
     echo "manifest: $manifest"
-}
-
-board_add() {
-    local path="$1"
-    local manifest id registry_dir target
-
-    if [[ -f "$path" ]]; then
-        manifest="$path"
-        path="$(dirname "$manifest")"
-    else
-        manifest="$path/ecos-board.yml"
-    fi
-
-    if [[ ! -f "$manifest" ]]; then
-        err "No ecos-board.yml found at: $path"
-        exit 1
-    fi
-
-    id="$(ecos_board_manifest_value "$manifest" id)"
-    if [[ -z "$id" ]]; then
-        err "Board manifest missing required field: id"
-        exit 1
-    fi
-
-    registry_dir="$(ecos_board_registry_dir)"
-    mkdir -p "$registry_dir"
-    target="$registry_dir/$id"
-    rm -f "$target"
-    ln -s "$path" "$target"
-    log "Registered board package: $id -> $path"
 }
 
 board_remove() {
     local query="$1"
     local manifest id registry_dir target
-
     manifest="$(ecos_board_find_manifest "$query")" || {
         err "Board package not found: $query"
-        exit 1
+        return 1
     }
     id="$(ecos_board_manifest_value "$manifest" id)"
-    registry_dir="$(ecos_board_registry_dir)"
+    registry_dir="$(realpath -m "$(ecos_board_registry_dir)")"
     target="$registry_dir/$id"
 
-    if [[ -L "$target" || -e "$target" ]]; then
-        rm -f "$target"
-        log "Removed registered board package: $id"
-    else
-        err "Board package is not registered in $registry_dir: $id"
-        exit 1
+    if [[ "$(realpath -m "$(ecos_board_manifest_dir "$manifest")")" != "$(realpath -m "$target")" ]]; then
+        err "Built-in BSP cannot be removed: $id"
+        return 1
     fi
+    if [[ -L "$target" ]]; then
+        rm -f "$target"
+    elif [[ -d "$target" ]]; then
+        rm -rf "$target"
+    else
+        err "BSP is not installed in $registry_dir: $id"
+        return 1
+    fi
+    log "Removed BSP: $id"
 }
 
-if [[ $# -eq 0 ]]; then
-    usage
-    exit 1
-fi
-
+[[ $# -gt 0 ]] || { usage; exit 1; }
 command="$1"
 shift
 
 case "$command" in
+    create)
+        [[ $# -ge 1 ]] || { usage; exit 1; }
+        id="$1"
+        shift
+        board_create "$id" "$@"
+        ;;
+    check)
+        [[ $# -ge 1 && $# -le 3 ]] || { usage; exit 1; }
+        check_path="$1"
+        shift
+        update_id=""
+        if [[ $# -gt 0 ]]; then
+            [[ $# -eq 2 && "$1" == "--update" ]] || { usage; exit 1; }
+            update_id="$2"
+        fi
+        board_check "$check_path" "$update_id"
+        ;;
+    import)
+        [[ $# -ge 1 && $# -le 2 ]] || { usage; exit 1; }
+        replace=false
+        [[ $# -eq 1 ]] || { [[ "$2" == "--replace" ]] || { usage; exit 1; }; replace=true; }
+        board_import "$1" "$replace"
+        ;;
+    add)
+        [[ $# -eq 1 ]] || { usage; exit 1; }
+        board_add "$1"
+        ;;
     list)
+        [[ $# -eq 0 ]] || { usage; exit 1; }
         ecos_board_print_list
         ;;
     info)
         [[ $# -eq 1 ]] || { usage; exit 1; }
         board_info "$1"
-        ;;
-    add)
-        [[ $# -eq 1 ]] || { usage; exit 1; }
-        board_add "$1"
         ;;
     remove|rm)
         [[ $# -eq 1 ]] || { usage; exit 1; }

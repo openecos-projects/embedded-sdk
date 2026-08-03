@@ -26,10 +26,12 @@ if [[ $# -gt 0 && "$1" == "--help" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/tools/scripts/ecos-paths.sh"
+
 PREFIX="$HOME/.local/ecos-sdk"
 TOOLS_DIR="$PREFIX/toolchain"
-RISCV_DIR="$TOOLS_DIR/riscv"
-RISCV_BIN="$RISCV_DIR/bin"
+RISCV_BIN="$PREFIX/$ECOS_TOOLCHAIN_RELATIVE_BIN"
+RISCV_DIR="$(dirname "$RISCV_BIN")"
 TOOLCHAIN_SOURCE="zip"
 
 # 颜色输出
@@ -80,8 +82,17 @@ install_sdk_core() {
     cp -r "$SCRIPT_DIR/templates" "$PREFIX/"
 
     # 拷贝板卡配置
+    # 保留用户通过 ecos board import/add 放入 UserBSP 的内容，避免更新 SDK 时丢失。
+    local user_bsp_backup
+    user_bsp_backup="$(mktemp -d)"
+    if [[ -d "$PREFIX/board/UserBSP" ]]; then
+        cp -a "$PREFIX/board/UserBSP/." "$user_bsp_backup/"
+    fi
     rm "$PREFIX/board/" -rf
     cp -r "$SCRIPT_DIR/board" "$PREFIX/"
+    ensure_dir "$PREFIX/board/UserBSP"
+    cp -a "$user_bsp_backup/." "$PREFIX/board/UserBSP/"
+    rm -rf "$user_bsp_backup"
 
     # 拷贝工具脚本
     rm "$PREFIX/bin/" -rf
@@ -244,7 +255,7 @@ add_env() {
     for rc_file in "${unique_rc_files[@]}"; do
         log "正在配置 $rc_file ..."
         update_rc_file "$rc_file" "ecos PATH" "export PATH=$PREFIX/bin:\$PATH"
-        update_rc_file "$rc_file" "工具链 PATH" "export PATH=$PREFIX/toolchain/riscv_unknown/bin:\$PATH"
+        update_rc_file "$rc_file" "工具链 PATH" "export PATH=$PREFIX/$ECOS_TOOLCHAIN_RELATIVE_BIN:\$PATH"
         update_rc_file "$rc_file" "ECOS_SDK_HOME" "export ECOS_SDK_HOME=$PREFIX"
         log "环境变量配置完成: $rc_file"
     done

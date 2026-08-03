@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 输出可由 shell 直接加载的 SDK 环境变量。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SDK_ROOT/tools/scripts/ecos-paths.sh"
+
+shell_quote() {
+    printf "'%s'" "${1//\'/\'\\\'\'}"
+}
+
+if [[ $# -gt 0 && "$1" != "--help" && "$1" != "-h" ]]; then
+    echo "Usage: ecos env" >&2
+    exit 1
+fi
+if [[ $# -gt 0 ]]; then
+    echo 'Usage: eval "$(ecos env)"'
+    echo "Outputs ECOS_SDK_HOME and SDK/toolchain PATH exports."
+    exit 0
+fi
+
+sdk_q="$(shell_quote "$SDK_ROOT")"
+bin_q="$(shell_quote "$SDK_ROOT/bin")"
+toolchain_q="$(shell_quote "$SDK_ROOT/$ECOS_TOOLCHAIN_RELATIVE_BIN")"
+echo "export ECOS_SDK_HOME=$sdk_q"
+echo "export PATH=$bin_q:$toolchain_q:\$PATH"

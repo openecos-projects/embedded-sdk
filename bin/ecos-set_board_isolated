@@ -9,6 +9,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="$(dirname "$SCRIPT_DIR")"
+export ECOS_SDK_HOME="${ECOS_SDK_HOME:-$SDK_ROOT}"
+
+source "$SDK_ROOT/tools/scripts/ecos-board-package.sh"
 
 # Color output
 log() { echo -e "\033[1;32m[ECOS]\033[0m $*"; }
@@ -17,6 +20,8 @@ err() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 board_name=""
 project_type=""
+template_name="hello"
+requested_profile=""
 
 replace_board_drivers() {
     local source_path="$1"
@@ -65,12 +70,108 @@ refresh_project_support() {
     rm -rf ./scripts
     cp -r "$SDK_ROOT/tools/scripts" ./scripts
 
+    mkdir -p ./tools
+    rm -rf ./tools/kconfig ./tools/fixdep
+    cp -r "$SDK_ROOT/tools/kconfig" ./tools/
+    cp -r "$SDK_ROOT/tools/fixdep" ./tools/
+    # Host binaries and dependency files are not portable across machines.
+    rm -rf ./tools/kconfig/build ./tools/fixdep/build
+
     mkdir -p ./configs
     rm -rf ./configs/generated ./configs/config \
         ./configs/.config ./configs/.config.old
+    rm -f ./configs/sdk-path.mk
+    if [[ -f ./Makefile ]]; then
+        sed -i '\|^-include configs/sdk-path.mk$|d' ./Makefile
+    fi
 
-    log "Refreshed SDK build scripts: ./scripts"
+    log "Refreshed local build support: ./scripts and ./tools (source only)"
     warn "Board-dependent configuration was cleared; run make alldefconfig or make defconfig."
+}
+
+set_board_from_package() {
+    local target_board_name="$1"
+    local profile_request="${2:-}"
+    local manifest board_dir board_id board_category
+    local board_file make_file lds_file start_file drivers_path loader_path
+    local board_kconfig driver_kconfig template_dir profile
+
+    manifest="$(ecos_board_find_manifest "$target_board_name")" || return 1
+    ecos_board_validate_manifest "$manifest" || {
+        err "Board package manifest is invalid: $manifest"
+        exit 1
+    }
+
+    board_dir="$(ecos_board_manifest_dir "$manifest")"
+    board_id="$(ecos_board_manifest_value "$manifest" id)"
+    board_category="$(ecos_board_manifest_value "$manifest" category)"
+    profile="$(ecos_board_resolve_profile "$manifest" "$profile_request")" || exit 1
+    board_file="$(ecos_board_manifest_section_value "$manifest" files board_header)"
+    make_file="$(ecos_board_manifest_section_value "$manifest" files makefile_isolated)"
+    lds_file="$(ecos_board_profile_file "$manifest" "$profile" linker_script)"
+    start_file="$(ecos_board_profile_file "$manifest" "$profile" startup)"
+    drivers_path="$(ecos_board_manifest_section_value "$manifest" paths drivers)"
+    loader_path="$(ecos_board_manifest_section_value "$manifest" paths loader)"
+    board_kconfig="$(ecos_board_manifest_section_value "$manifest" kconfig board)"
+    driver_kconfig="$(ecos_board_manifest_section_value "$manifest" kconfig drivers)"
+    [[ -n "$drivers_path" ]] || drivers_path=driver
+    if [[ -z "$make_file" && -f "$board_dir/Makefile_isolated" ]]; then
+        make_file=Makefile_isolated
+    fi
+    if [[ -z "$make_file" || ! -f "$board_dir/$make_file" ]]; then
+        err "Board package does not provide an isolated Makefile: $board_id"
+        exit 1
+    fi
+
+    template_dir="$(ecos_board_resolve_template "$manifest" "$template_name" "$target_board_name" || true)"
+    if [[ -z "$template_dir" ]]; then
+        err "Board package does not support template '$template_name': $board_id"
+        exit 1
+    fi
+
+    mkdir -p Library Startup User configs Library/BoardConfig
+    cp "$board_dir/$board_file" ./Library/board.h
+    cp "$board_dir/$make_file" ./Makefile
+    cp "$board_dir/$lds_file" ./Startup/sections.lds
+    cp "$board_dir/$start_file" "./Startup/start.S"
+    replace_board_drivers "$board_dir/$drivers_path" ./Library
+    if [[ -n "$loader_path" ]]; then
+        replace_loader "$board_dir/$loader_path" ./Startup
+    else
+        replace_loader "" ./Startup
+    fi
+    cp "$board_dir/$board_kconfig" ./Library/BoardConfig/board.kconfig
+    cp "$board_dir/$driver_kconfig" ./Library/BoardConfig/driver.kconfig
+    install_default_main "$template_dir" ./User
+    if [[ -f "$template_dir/configs/defconfig" ]]; then
+        cp "$template_dir/configs/defconfig" ./configs/defconfig
+    fi
+
+    {
+        echo "# 由 ecos set_board_isolated 生成，请勿手工修改。"
+        echo 'BOARD_PACKAGE := $(CURDIR)/Library'
+        echo "BOARD_ID := $board_id"
+        echo "BOARD_CATEGORY := $board_category"
+        [[ -z "$profile" ]] || echo "BOARD_PROFILE := $profile"
+        echo "CATEGORY := $board_category"
+        echo 'BOARD_KCONFIG := $(CURDIR)/Library/BoardConfig/board.kconfig'
+        echo 'DRIVER_KCONFIG := $(CURDIR)/Library/BoardConfig/driver.kconfig'
+        echo 'BOARD_DRIVER_DIR := $(CURDIR)/Library/BoardDrivers'
+    } > ./configs/board-package.mk
+
+    {
+        echo "BOARD=$board_id"
+        echo "BOARD_ID=$board_id"
+        echo "BOARD_CATEGORY=$board_category"
+        [[ -z "$profile" ]] || echo "PROFILE=$profile"
+        echo "TYPE=isolated"
+        echo "TEMPLATE=$template_name"
+    } > ./.ecos-project
+
+    log "Set isolated BSP: $board_id"
+    [[ -z "$profile" ]] || log "Build profile: $profile"
+    log "Copied BSP resources into Library/ and Startup/."
+    return 0
 }
 
 # Check if inside a project directory
@@ -106,8 +207,24 @@ rewrite_config() {
 # Set board configuration
 set_board() {
     local target_board_name="$1"
+    local profile_request="${2:-}"
 
     check_project_dir
+    if [[ -f .ecos-project ]]; then
+        source .ecos-project
+        project_type="${TYPE:-}"
+        template_name="${TEMPLATE:-hello}"
+    fi
+
+    if [[ "$project_type" != "asm" ]] && set_board_from_package "$target_board_name" "$profile_request"; then
+        refresh_project_support
+        return 0
+    fi
+    if [[ -n "$profile_request" ]]; then
+        err "--profile 只能用于清单中定义了 profiles 的 BSP: $target_board_name"
+        exit 1
+    fi
+
     rewrite_config
     get_config
 
@@ -404,4 +521,13 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-set_board "$1"
+target_board_name="$1"
+shift
+if [[ $# -gt 0 ]]; then
+    [[ $# -eq 2 && "$1" == "--profile" ]] || {
+        err "Usage: ecos set_board_isolated <board_name> [--profile <name>]"
+        exit 1
+    }
+    requested_profile="$2"
+fi
+set_board "$target_board_name" "$requested_profile"

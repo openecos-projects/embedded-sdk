@@ -1,0 +1,38 @@
+# [不要修改] 当前 SDK 只支持 schema 1。
+schema: 1
+
+# [不要修改] 以下标识由 ecos board create 根据命令参数生成。
+id: @BSP_ID@
+name: @BSP_NAME@
+aliases:
+  - @BSP_ALIAS@
+category: @BSP_CATEGORY@
+
+# [必须修改] TODO_BSP_REQUIRED：根据实际处理器确认架构名称。
+arch: riscv
+
+# [按需修改] 文件改名后必须同步修改这里的相对路径。
+files:
+  makefile: Makefile
+@MAKEFILE_ISOLATED_LINE@
+  board_header: board.h
+  build_conf: build_conf.mk
+
+# [按需修改] 同一块板可提供多套启动和内存布局。
+# [不要修改] default_profile 必须是 profiles 中已有的名称。
+default_profile: flash_xip
+profiles:
+  # [必须修改] TODO_BSP_REQUIRED：确认默认布局使用的链接脚本和启动文件。
+  flash_xip:
+    linker_script: sections.lds
+    startup: start.S
+
+# [不要修改] 这两个路径由 SDK 配置工具读取。
+kconfig:
+  board: board.kconfig
+  drivers: driver.kconfig
+
+paths:
+  drivers: driver
+  templates: templates
+@LOADER_LINE@

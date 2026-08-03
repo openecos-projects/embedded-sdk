@@ -1,0 +1,6 @@
+# @BSP_NAME@ hello 示例默认配置。
+# [不要修改] hello 示例使用系统串口，因此默认打开对应驱动。
+CONFIG_DRIVER_SYS_UART=y
+
+# [按需修改] hello 示例不使用 GPIO，默认关闭以减少未使用代码。
+# CONFIG_DRIVER_GPIO is not set

@@ -22,7 +22,11 @@ else
 $(error bad target=$(NAME))
 endif
 
+ifneq ($(wildcard ../../scripts/build.mk),)
+include ../../scripts/build.mk
+else
 include $(ECOS_SDK_HOME)/tools/scripts/build.mk
+endif
 
 $(obj)/lexer.lex.o: $(obj)/parser.tab.h
 $(obj)/lexer.lex.c: lexer.l $(obj)/parser.tab.h	

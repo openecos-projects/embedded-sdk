@@ -21,7 +21,7 @@ _ecos_completions() {
     fi
 
     # Available commands and options
-    cmds="init_project set_board flash monitor help"
+    cmds="board env init_project set_board flash monitor help"
     boards="c1 c2 l3 l3_1 l4"
     templates="asm_hello asm_gpio gpio hello i2c_scan i2c_sgp30 minesweeper pwm spi_st7735 spi_st7735_clock spi_st7735_donut spi_st7789 list"
 
@@ -45,6 +45,24 @@ _ecos_completions() {
     fi
 
     case "${subcmd}" in
+        board)
+            if [[ ( -n "${ZSH_VERSION-}" && ${CURRENT} -eq 3 ) || ( -n "${BASH_VERSION-}" && ${COMP_CWORD} -eq 2 ) ]]; then
+                local board_cmds="create check import add list info remove help"
+                if [[ -n "${ZSH_VERSION-}" ]]; then
+                    compadd -a "${(s: :)board_cmds}"
+                else
+                    COMPREPLY=( $(compgen -W "${board_cmds}" -- "${cur}") )
+                fi
+            fi
+            if [[ "${prev}" == "--update" ]]; then
+                if [[ -n "${ZSH_VERSION-}" ]]; then
+                    compadd -a "${(s: :)boards}"
+                else
+                    COMPREPLY=( $(compgen -W "${boards}" -- "${cur}") )
+                fi
+            fi
+            return 0
+            ;;
         set_board)
             if [[ ( -n "${ZSH_VERSION-}" && ${CURRENT} -eq 3 ) || ( -n "${BASH_VERSION-}" && ${COMP_CWORD} -eq 2 ) ]]; then
                 if [[ -n "${ZSH_VERSION-}" ]]; then

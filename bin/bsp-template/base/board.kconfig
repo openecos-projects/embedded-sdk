@@ -1,0 +1,39 @@
+menu "System Read-Only Information"
+    choice
+        bool "Target SoC Platform"
+        default @BSP_SYMBOL@
+
+    # [不要修改] 配置名由 ecos board create 根据 BSP id 生成。
+    config @BSP_SYMBOL@
+        bool "@BSP_NAME@ Platform"
+    endchoice
+
+    config BOARD_RAM_TYPE_NAME
+        string "RAM Type Name"
+        # [必须修改] TODO_BSP_REQUIRED：填写 SRAM、PSRAM 或芯片实际内存类型。
+        default "SRAM"
+
+    config BOARD_RAM_SIZE_KB
+        int "RAM Size (KB)"
+        # [必须修改] TODO_BSP_REQUIRED：填写实际可用 RAM 大小。
+        default 1
+
+    config BOARD_FLASH_SIZE_KB
+        int "Flash Size (KB)"
+        # [必须修改] TODO_BSP_REQUIRED：填写实际可用 Flash 大小。
+        default 1
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        # [必须修改] TODO_BSP_REQUIRED：填写上电后的实际 CPU 频率。
+        default 1
+        range 1 1000
+
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        # [按需修改] 默认串口波特率，驱动必须使用同一配置。
+        default 115200
+        range 1 4000000
+endmenu
