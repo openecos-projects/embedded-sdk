@@ -1,0 +1,29 @@
+menu "System Read-Only Information"
+    config STARTYSKY_T1
+        bool "StartySky T1 Platform"
+        default y
+
+    config BOARD_RAM_TYPE_NAME
+        string "RAM Type Name"
+        default "DSRAM"
+
+    config BOARD_RAM_SIZE_KB
+        int "RAM Size (KB)"
+        default 16
+
+    config BOARD_FLASH_SIZE_KB
+        int "Flash Size (KB)"
+        default 16384
+endmenu
+
+menu "System Configuration"
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 20
+        range 1 1000
+
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1200 4000000
+endmenu

@@ -1,0 +1,31 @@
+menu "Peripheral Drivers"
+    config DRIVER_SYS_UART
+        bool "SYS UART Driver Support"
+        default y
+        help
+            启用 StartySky T1 轮询系统串口驱动。
+
+    config DRIVER_GPIO
+        bool "GPIO Driver Support"
+        default n
+        help
+            启用 StartySky T1 GPIO 输入输出驱动。
+
+    config DRIVER_TIMER
+        bool "Timer Driver Support"
+        default n
+        help
+            启用 StartySky T1 Timer0 轮询延时驱动。
+
+    config DRIVER_I2C
+        bool "I2C Driver Support"
+        default n
+        help
+            启用 StartySky T1 I2C0 主机轮询驱动。
+
+    config DRIVER_QSPI
+        bool "QSPI Driver Support"
+        default n
+        help
+            启用 StartySky T1 QSPI0 主机轮询驱动。
+endmenu

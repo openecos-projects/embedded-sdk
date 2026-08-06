@@ -164,6 +164,7 @@ set_board() {
             "l3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3" ;;
             "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
             "l4") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4" ;;
+            "t1") board_sdk_dir="$SDK_ROOT/board/StartySkyT1" ;;
             *)
                 err "Unsupported board: $target_board_name"
                 exit 1

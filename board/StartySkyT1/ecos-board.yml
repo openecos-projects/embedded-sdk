@@ -1,0 +1,30 @@
+# 定义 StartySky T1 内置板卡清单。
+schema: 1
+id: startysky-t1
+name: StartySky T1
+aliases:
+  - t1
+category: StartySkyT1
+arch: riscv
+
+# 声明普通工程所需的构建和板卡文件。
+files:
+  makefile: Makefile
+  board_header: board.h
+  build_conf: build_conf.mk
+
+# 默认使用 Flash XIP 和 DSRAM 数据布局。
+default_profile: flash_xip
+profiles:
+  flash_xip:
+    linker_script: sections.lds
+    startup: start.S
+
+# 声明板卡和驱动配置入口。
+kconfig:
+  board: board.kconfig
+  drivers: driver.kconfig
+
+# 声明板卡驱动目录。
+paths:
+  drivers: driver
