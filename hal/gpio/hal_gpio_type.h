@@ -86,4 +86,15 @@ typedef enum{
     GPIO_FUNCTION_2 = 2,
 } gpio_func_t;
 
+typedef enum {
+    GPIO_INTR_DISABLE = 0,
+    GPIO_INTR_POSEDGE,
+    GPIO_INTR_NEGEDGE,
+    GPIO_INTR_ANYEDGE,
+    GPIO_INTR_LOW_LEVEL,
+    GPIO_INTR_HIGH_LEVEL,
+} gpio_intr_type_t;
+
+typedef void (*gpio_hal_isr_t)(void *arg);
+
 #endif

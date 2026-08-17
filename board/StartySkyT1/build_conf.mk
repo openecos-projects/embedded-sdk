@@ -10,10 +10,41 @@ SRC_PATH += $(BOARD_DRIVER_DIR)/gpio/gpio.c
 CFLAGS += -I$(ECOS_SDK_HOME)/hal/gpio
 endif
 
+# 根据配置加入 StartySky T1 机器中断和 PLIC 驱动。
+ifdef CONFIG_DRIVER_INTERRUPT
+SRC_PATH += $(BOARD_DRIVER_DIR)/interrupt/interrupt.c
+SRC_PATH += $(BOARD_DRIVER_DIR)/interrupt/trap.S
+CFLAGS += -I$(ECOS_SDK_HOME)/hal/interrupt
+endif
+
+# 根据配置加入 StartySky T1 GPIO 外部中断驱动。
+ifdef CONFIG_DRIVER_GPIO_INTERRUPT
+SRC_PATH += $(BOARD_DRIVER_DIR)/gpio/gpio_interrupt.c
+CFLAGS += -I$(ECOS_SDK_HOME)/hal/interrupt
+endif
+
 # 根据配置加入 StartySky T1 Timer0 驱动。
 ifdef CONFIG_DRIVER_TIMER
 SRC_PATH += $(BOARD_DRIVER_DIR)/timer/timer.c
 CFLAGS += -I$(ECOS_SDK_HOME)/hal/timer
+endif
+
+# 根据配置加入 StartySky T1 Timer0 中断驱动。
+ifdef CONFIG_DRIVER_TIMER_INTERRUPT
+SRC_PATH += $(BOARD_DRIVER_DIR)/timer/timer_interrupt.c
+CFLAGS += -I$(ECOS_SDK_HOME)/hal/interrupt
+endif
+
+# 根据配置加入 StartySky T1 CLINT 驱动。
+ifdef CONFIG_DRIVER_CLINT
+SRC_PATH += $(BOARD_DRIVER_DIR)/clint/clint.c
+CFLAGS += -I$(ECOS_SDK_HOME)/hal/clint
+endif
+
+# 根据配置加入 StartySky T1 SDRAM 驱动。
+ifdef CONFIG_DRIVER_SDRAM
+SRC_PATH += $(BOARD_DRIVER_DIR)/sdram/sdram.c
+CFLAGS += -I$(ECOS_SDK_HOME)/hal/sdram
 endif
 
 # 根据配置加入 StartySky T1 I2C0 驱动。

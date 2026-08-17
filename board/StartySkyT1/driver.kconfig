@@ -11,11 +11,45 @@ menu "Peripheral Drivers"
         help
             启用 StartySky T1 GPIO 输入输出驱动。
 
+    config DRIVER_INTERRUPT
+        bool "Machine Interrupt and PLIC Driver Support"
+        default n
+        help
+            启用 StartySky T1 机器模式陷阱入口和 PLIC 中断分发驱动。
+
+    config DRIVER_GPIO_INTERRUPT
+        bool "GPIO External Interrupt Driver Support"
+        depends on DRIVER_GPIO
+        select DRIVER_INTERRUPT
+        default n
+        help
+            启用 GPIO port A 引脚外部中断和单引脚 callback。
+
     config DRIVER_TIMER
         bool "Timer Driver Support"
         default n
         help
             启用 StartySky T1 Timer0 轮询延时驱动。
+
+    config DRIVER_TIMER_INTERRUPT
+        bool "Timer Interrupt Driver Support"
+        depends on DRIVER_TIMER
+        select DRIVER_INTERRUPT
+        default n
+        help
+            启用 Timer0 周期中断和 callback。
+
+    config DRIVER_CLINT
+        bool "CLINT Driver Support"
+        default n
+        help
+            启用 CLINT mtime 和 mtimecmp 高低位访问驱动。
+
+    config DRIVER_SDRAM
+        bool "SDRAM Driver Support"
+        default n
+        help
+            启用固定二十兆赫兹基线的 StartySky T1 SDRAM 初始化驱动。
 
     config DRIVER_I2C
         bool "I2C Driver Support"

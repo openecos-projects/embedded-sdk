@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdint.h>
 
 #include "hal_timer.h"
@@ -5,6 +6,9 @@
 
 /* 保存系统滴答初始化时的 CLINT 低位计数。 */
 static uint32_t system_tick_origin;
+
+/* 标记 Timer0 是否已经被周期中断 callback 占用。 */
+uint8_t startysky_t1_timer_interrupt_active;
 
 /**
  * 停止 Timer0 并清除已经锁存的完成状态。
@@ -75,7 +79,8 @@ static uint8_t startysky_t1_timer_delay_scaled(uint8_t timer_id,
     uint32_t maximum_units;
 
     /* StartySky T1 当前只提供 Timer0 给通用 Timer HAL 使用。 */
-    if ((timer_id != 0u) || (ticks_per_unit == 0u))
+    if ((timer_id != 0u) || (ticks_per_unit == 0u) ||
+        (startysky_t1_timer_interrupt_active != 0u))
         return 1u;
 
     /* 零长度延时直接成功返回。 */
@@ -174,4 +179,109 @@ uint32_t hal_get_sys_tick(uint8_t timer_id)
 
     /* 将五兆赫兹 CLINT 计数转换为毫秒。 */
     return elapsed_ticks / (STARTYSKY_T1_CLINT_MTIME_FREQ_HZ / 1000u);
+}
+
+
+/**
+ * 使用指定周期计数初始化 Timer0。
+ */
+int hal_timer_init(uint8_t timer_id, const hal_timer_config_t *config)
+{
+    /* 当前仅支持 Timer0，并拒绝空配置或零周期。 */
+    if ((timer_id != 0u) || (config == NULL) ||
+        (startysky_t1_timer_interrupt_active != 0u) ||
+        (config->period_ticks == 0u))
+        return -1;
+
+    /* 停止定时器、清除历史中断并写入周期装载值。 */
+    startysky_t1_timer_stop_and_clear();
+    REG_TIMER_0_LOAD_COUNT = config->period_ticks;
+
+    /* 默认使用周期模式并屏蔽中断，注册 callback 后再解除屏蔽。 */
+    REG_TIMER_0_CONTROL = STARTYSKY_T1_TIMER_CONTROL_USER |
+                          STARTYSKY_T1_TIMER_CONTROL_MASK;
+    __asm__ volatile("fence iorw, iorw" : : : "memory");
+    return 0;
+}
+
+
+/**
+ * 关闭 Timer0 并清除其周期配置。
+ */
+int hal_timer_deinit(uint8_t timer_id)
+{
+    /* 当前仅支持 Timer0。 */
+    if ((timer_id != 0u) ||
+        (startysky_t1_timer_interrupt_active != 0u))
+        return -1;
+
+    /* 停止并清除中断状态后清零装载寄存器。 */
+    startysky_t1_timer_stop_and_clear();
+    REG_TIMER_0_LOAD_COUNT = 0u;
+    return 0;
+}
+
+
+/**
+ * 启动已经初始化的 Timer0。
+ */
+int hal_timer_start(uint8_t timer_id)
+{
+    /* 当前仅支持 Timer0，且零装载值不允许启动。 */
+    if ((timer_id != 0u) || (REG_TIMER_0_LOAD_COUNT == 0u))
+        return -1;
+
+    /* 保留周期和中断屏蔽配置并设置使能位。 */
+    REG_TIMER_0_CONTROL |= STARTYSKY_T1_TIMER_CONTROL_ENABLE;
+    __asm__ volatile("fence iorw, iorw" : : : "memory");
+    return 0;
+}
+
+
+/**
+ * 停止 Timer0 并保留其周期和中断配置。
+ */
+int hal_timer_stop(uint8_t timer_id)
+{
+    /* 当前仅支持 Timer0。 */
+    if (timer_id != 0u)
+        return -1;
+
+    /* 清除使能位并等待寄存器访问完成。 */
+    REG_TIMER_0_CONTROL &= ~STARTYSKY_T1_TIMER_CONTROL_ENABLE;
+    __asm__ volatile("fence iorw, iorw" : : : "memory");
+    return 0;
+}
+
+
+/**
+ * 读取 Timer0 当前剩余计数值。
+ */
+int hal_timer_get_count(uint8_t timer_id, uint32_t *count)
+{
+    /* 拒绝无效 Timer 编号或空输出指针。 */
+    if ((timer_id != 0u) || (count == NULL))
+        return -1;
+
+    /* 返回当前计数寄存器值。 */
+    *count = REG_TIMER_0_CURRENT_VALUE;
+    return 0;
+}
+
+
+/**
+ * 读取 Timer0 EOI 寄存器以清除锁存中断。
+ */
+int hal_timer_clear_interrupt(uint8_t timer_id)
+{
+    uint32_t eoi_value;
+
+    /* 当前仅支持 Timer0。 */
+    if (timer_id != 0u)
+        return -1;
+
+    /* EOI 寄存器采用读清除语义。 */
+    eoi_value = REG_TIMER_0_EOI;
+    (void)eoi_value;
+    return 0;
 }

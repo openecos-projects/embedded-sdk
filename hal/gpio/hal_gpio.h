@@ -66,4 +66,59 @@ void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val);
  */
 void gpio_hal_set_mux(uint8_t gpio_id, uint8_t gpio_num, uint8_t val);
 
+/**
+ * @brief 配置指定 GPIO 引脚的中断触发类型
+ *
+ * @param gpio_id GPIO IP 组编号
+ * @param gpio_num GPIO 编号
+ * @param intr_type 中断触发类型
+ * @return int 0 表示成功，-1 表示参数或硬件不支持
+ */
+int gpio_hal_set_intr_type(uint8_t gpio_id,
+                           uint8_t gpio_num,
+                           gpio_intr_type_t intr_type);
+
+/**
+ * @brief 为指定 GPIO 引脚注册中断处理函数
+ *
+ * @param gpio_id GPIO IP 组编号
+ * @param gpio_num GPIO 编号
+ * @param handler 中断处理函数
+ * @param arg 传递给中断处理函数的参数
+ * @param priority PLIC 中断优先级
+ * @return int 0 表示成功，-1 表示失败
+ */
+int gpio_hal_isr_handler_add(uint8_t gpio_id,
+                             uint8_t gpio_num,
+                             gpio_hal_isr_t handler,
+                             void *arg,
+                             uint32_t priority);
+
+/**
+ * @brief 删除指定 GPIO 引脚的中断处理函数
+ *
+ * @param gpio_id GPIO IP 组编号
+ * @param gpio_num GPIO 编号
+ * @return int 0 表示成功，-1 表示失败
+ */
+int gpio_hal_isr_handler_remove(uint8_t gpio_id, uint8_t gpio_num);
+
+/**
+ * @brief 使能指定 GPIO 引脚的中断
+ *
+ * @param gpio_id GPIO IP 组编号
+ * @param gpio_num GPIO 编号
+ * @return int 0 表示成功，-1 表示失败
+ */
+int gpio_hal_intr_enable(uint8_t gpio_id, uint8_t gpio_num);
+
+/**
+ * @brief 禁止指定 GPIO 引脚的中断
+ *
+ * @param gpio_id GPIO IP 组编号
+ * @param gpio_num GPIO 编号
+ * @return int 0 表示成功，-1 表示失败
+ */
+int gpio_hal_intr_disable(uint8_t gpio_id, uint8_t gpio_num);
+
 #endif
