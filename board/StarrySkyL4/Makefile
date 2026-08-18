@@ -18,10 +18,12 @@ CATEGORY := StarrySkyL4
 # Include generated Kconfig values.
 -include configs/config/auto.conf
 
+# ysyx8c2 cores are RV32E: 16 GPRs and no M. Use ilp32e so GCC
+# never emits x16-x31 or hardware mul/div.
 VERIF_CFLAGS := -Wall \
 	  -std=gnu11 \
-	  -march=rv32im \
-	  -mabi=ilp32 \
+	  -march=rv32e \
+	  -mabi=ilp32e \
 	  -nostdlib \
 	  -fdata-sections \
 	  -ffunction-sections

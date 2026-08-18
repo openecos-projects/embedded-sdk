@@ -24,8 +24,8 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 
 ## 构建契约
 
-- 架构：`rv32im`
-- ABI：`ilp32`
+- 架构：`rv32e`
+- ABI：`ilp32e`
 - 默认优化：`-O0`
 - 对象顺序：startup、bootloader、应用/驱动、链接
 - 最终产物：ELF、BIN、TXT、HEX
