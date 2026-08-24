@@ -4,6 +4,73 @@
 #   2. link objects with riscv-none-elf-ld and the PSRAM linker script;
 #   3. generate objdump and stripped binary with objcopy -S -O binary.
 
+ifeq ($(YSYX_AM_BUILD),1)
+
+# ysyx-am 专用分支只负责受控 AM 工程，不改变普通 ECOS 构建规则。
+CROSS_COMPILE ?= riscv-none-elf-
+YSYX_ARCH := riscv32e-ysyxsoc
+YSYX_AM_HAL_SRCS := $(ECOS_SDK_HOME)/board/StarrySkyL4/driver/sys_uart/sys_uart.c \
+	$(ECOS_SDK_HOME)/board/StarrySkyL4/driver/timer/timer.c \
+	$(ECOS_SDK_HOME)/board/StarrySkyL4/driver/qspi/qspi.c
+
+ifeq ($(strip $(YSYX_STAGE_DIR)),)
+$(error 错误：缺少 YSYX_STAGE_DIR)
+endif
+ifeq ($(strip $(YSYX_BUILD_ROOT)),)
+$(error 错误：缺少 YSYX_BUILD_ROOT)
+endif
+ifeq ($(strip $(YSYX_IMAGE_DIR)),)
+$(error 错误：缺少 YSYX_IMAGE_DIR)
+endif
+YSYX_MICROBENCH_MAINARGS := test train ref huge
+ifneq ($(strip $(YSYX_MAINARGS)),)
+ifneq ($(YSYX_PROGRAM_ID),benchmarks/microbench)
+$(error 错误：只有 benchmarks/microbench 支持 MAINARGS)
+endif
+ifneq ($(words $(strip $(YSYX_MAINARGS))),1)
+$(error 错误：microbench MAINARGS 必须是单个规模名称)
+endif
+ifeq ($(filter $(strip $(YSYX_MAINARGS)),$(YSYX_MICROBENCH_MAINARGS)),)
+$(error 错误：microbench MAINARGS 只允许 test/train/ref/huge)
+endif
+endif
+
+.DEFAULT_GOAL := ysyx-am
+
+ysyx-am:
+	@mkdir -p "$(YSYX_GENERATED_DIR)/generated" "$(YSYX_IMAGE_DIR)" "$(YSYX_BUILD_ROOT)"
+	@{ \
+		echo '#ifndef __YSYX_AM_AUTOCONF_H__'; \
+		echo '#define __YSYX_AM_AUTOCONF_H__'; \
+		echo '#define CONFIG_CPU_FREQ_MHZ $(YSYX_CPU_FREQ_MHZ)'; \
+		echo '#define CONFIG_TIMER_FREQ_MHZ $(YSYX_TIMER_FREQ_MHZ)'; \
+		echo '#define CONFIG_UART_BAUD_RATE 115200'; \
+		echo '#define CONFIG_MAINARGS "$(strip $(YSYX_MAINARGS))"'; \
+		echo '#define CONFIG_YSYX_AM 1'; \
+		echo '#endif'; \
+	} > "$(YSYX_GENERATED_DIR)/generated/autoconf.h"
+	@$(MAKE) --no-print-directory -C "$(YSYX_STAGE_DIR)" image \
+		AM_HOME="$(AM_HOME)" \
+		ARCH="$(YSYX_ARCH)" \
+		BUILD_ROOT="$(YSYX_BUILD_ROOT)" \
+		IMAGE_OUTPUT_DIR="$(YSYX_IMAGE_DIR)" \
+		IMAGE_NAME=retrosoc_fw \
+		CROSS_COMPILE="$(CROSS_COMPILE)" \
+		ECOS_SDK_HOME="$(ECOS_SDK_HOME)" \
+		YSYX_L4=1 \
+		YSYX_BOARD_ID="$(YSYX_BOARD_ID)" \
+		YSYX_PROGRAM_ID="$(YSYX_PROGRAM_ID)" \
+		YSYX_APP_PATH="$(YSYX_APP_PATH)" \
+		YSYX_PROGRAM_AUTHORIZED="$(YSYX_PROGRAM_AUTHORIZED)" \
+		YSYX_CORE_MARCH="$(YSYX_CORE_MARCH)" \
+		YSYX_CORE_MABI="$(YSYX_CORE_MABI)" \
+		YSYX_GENERATED_DIR="$(YSYX_GENERATED_DIR)" \
+		YSYX_AM_HAL_SRCS="$(YSYX_AM_HAL_SRCS)"
+
+.PHONY: ysyx-am
+
+else
+
 TOOL_PATH ?= /home/dallous/share/project/darch/tools/builder/target/bin
 GCC_M ?= $(TOOL_PATH)/riscv-none-elf-gcc
 LD_M ?= $(TOOL_PATH)/riscv-none-elf-ld
@@ -99,3 +166,5 @@ clean_all:
 -include scripts/config.mk
 
 .PHONY: $(FIRMWARE_NAME) clean clean_config clean_all
+
+endif

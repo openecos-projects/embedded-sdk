@@ -81,6 +81,10 @@ install_sdk_core() {
     rm "$PREFIX/templates/" -rf
     cp -r "$SCRIPT_DIR/templates" "$PREFIX/"
 
+    # 拷贝 ysyx AbstractMachine、profile 和工程公共规则。
+    rm "$PREFIX/ysyx/" -rf
+    cp -r "$SCRIPT_DIR/ysyx" "$PREFIX/"
+
     # 拷贝板卡配置
     # 保留用户通过 ecos board import/add 放入 UserBSP 的内容，避免更新 SDK 时丢失。
     local user_bsp_backup

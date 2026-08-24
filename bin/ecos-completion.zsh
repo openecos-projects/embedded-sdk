@@ -23,7 +23,7 @@ _ecos_completions() {
     # Available commands and options
     cmds="board env init_project set_board flash monitor help"
     boards="c1 c2 l3 l3_1 l4 t1"
-    templates="asm_hello asm_gpio clint gpio gpio_interrupt hello i2c_eeprom i2c_scan i2c_sgp30 isram minesweeper plic pwm qspi_psram sdram spi_st7735 spi_st7735_clock spi_st7735_donut spi_st7789 timer timer_interrupt list"
+    templates="asm_hello asm_gpio clint gpio gpio_interrupt hello i2c_eeprom i2c_scan i2c_sgp30 isram minesweeper plic pwm qspi_psram sdram spi_st7735 spi_st7735_clock spi_st7735_donut spi_st7789 timer timer_interrupt ysyx-am list"
 
     # Complete main commands
     if [[ ( -n "${ZSH_VERSION-}" && ${CURRENT} -eq 2 ) || ( -n "${BASH_VERSION-}" && ${COMP_CWORD} -eq 1 ) ]]; then
@@ -74,6 +74,24 @@ _ecos_completions() {
             return 0
             ;;
         init_project)
+            if [[ "${cur}" == -* ]]; then
+                local init_options="-name -target -isolated --profile --core"
+                if [[ -n "${ZSH_VERSION-}" ]]; then
+                    compadd -a "${(s: :)init_options}"
+                else
+                    COMPREPLY=( $(compgen -W "${init_options}" -- "${cur}") )
+                fi
+                return 0
+            fi
+            if [[ "${prev}" == "--core" ]]; then
+                local core_profiles="rv32e-base rv32e-zicsr"
+                if [[ -n "${ZSH_VERSION-}" ]]; then
+                    compadd -a "${(s: :)core_profiles}"
+                else
+                    COMPREPLY=( $(compgen -W "${core_profiles}" -- "${cur}") )
+                fi
+                return 0
+            fi
             if [[ ( -n "${ZSH_VERSION-}" && ${CURRENT} -eq 3 ) || ( -n "${BASH_VERSION-}" && ${COMP_CWORD} -eq 2 ) ]]; then
                 if [[ -n "${ZSH_VERSION-}" ]]; then
                     compadd -a "${(s: :)templates}"

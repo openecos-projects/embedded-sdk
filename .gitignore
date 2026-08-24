@@ -49,5 +49,7 @@
 !tools/scripts
 !tools/scripts/**
 
+!ysyx/
+!ysyx/**
 
 

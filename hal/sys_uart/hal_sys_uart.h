@@ -2,7 +2,7 @@
 #define __HAL_SYS_UART_H__
 
 #include <stdint.h>
-#include "stdio.h"
+
 /**
  * @brief 初始化系统串口
  * 
@@ -29,5 +29,12 @@ void hal_sys_putstr(char *str);
  * @return uint8_t 接收到的字符
  */
 uint8_t hal_sys_getchar(void);
-#endif
 
+/**
+ * 尝试从系统串口读取一个字符。
+ *
+ * @param data 用于保存读取结果的地址
+ * @return 1 表示读取成功，0 表示当前没有数据
+ */
+uint8_t hal_sys_try_getchar(uint8_t *data);
+#endif

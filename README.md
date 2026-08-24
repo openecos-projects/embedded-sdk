@@ -2,6 +2,9 @@
 
 [English](README_EN.md) | 中文
 
+StarrySkyL4 对接 ysyx AbstractMachine 的专用工程流程见
+[docs/ysyx-am.md](docs/ysyx-am.md)。
+
 **ECOS 嵌入式 SDK** 是专为 StarrySky 系列 RISC-V 芯片及微控制器（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的生产级、模块化裸机固件开发套件。
 
 本 SDK 围绕全新的 **HAL V2** 硬件抽象层重构，采用 Kconfig 图形化配置与 Make 构建系统，致力于提供高效、安全的嵌入式开发体验。

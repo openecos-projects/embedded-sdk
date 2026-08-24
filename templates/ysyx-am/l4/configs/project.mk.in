@@ -1,0 +1,5 @@
+# 由 ecos init_project ysyx-am 生成。
+ECOS_SDK_HOME := @ECOS_SDK_HOME@
+AM_HOME := @AM_HOME@
+BOARD := starrysky-l4
+CORE_PROFILE := @CORE_PROFILE@

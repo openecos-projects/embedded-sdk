@@ -1,5 +1,8 @@
 # StarrySkyL4 完整变更日志
 
+StarrySkyL4 的 ysyx AbstractMachine 专用工程见
+[ysyx-am 使用说明](ysyx-am.md)。
+
 更新时间：2026-07-12
 
 基准提交：`b353023719cac6d8dfe390158eba8f89067d6c4a`（`feat(board): add StarrySkyL4 BSP support`）
