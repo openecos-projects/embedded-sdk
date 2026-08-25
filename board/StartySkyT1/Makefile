@@ -4,6 +4,8 @@
 
 BUILD_DIR := build
 CROSS ?= riscv-none-elf-
+LINKER_SCRIPT_SOURCE := ./sections.lds
+LINKER_SCRIPT := $(BUILD_DIR)/sections.lds
 
 # 配置 StartySky T1 的处理器架构、ABI 和裸机构建选项。
 CFLAGS := -Wall -Wextra -std=gnu11 \
@@ -32,11 +34,11 @@ endif
 SRC_PATH := ./start.S ./main.c
 CFLAGS += -I./ -I./configs
 
-# 加入板卡配置声明的系统串口驱动。
+# 加入板卡配置声明的启动组件和外设驱动。
 include $(BOARD_BUILD_CONF)
 
-# 配置链接入口、链接脚本、垃圾回收和映射文件。
-LDFLAGS := -nostdlib -Wl,-e,_start -T ./sections.lds \
+# 配置链接入口、预处理链接脚本、垃圾回收和映射文件。
+LDFLAGS := -nostdlib -Wl,-e,_start -T $(LINKER_SCRIPT) \
 	-Wl,--gc-sections -Wl,--build-id=none \
 	-Wl,-Map=$(BUILD_DIR)/$(FIRMWARE_NAME).map
 
@@ -45,6 +47,7 @@ LDFLAGS := -nostdlib -Wl,-e,_start -T ./sections.lds \
 # 生成 ELF、BIN 和反汇编文本产物。
 $(FIRMWARE_NAME):
 	@mkdir -p $(BUILD_DIR)
+	@$(CROSS)gcc -E -P -x c $(LINKER_CPPFLAGS) -o $(LINKER_SCRIPT) $(LINKER_SCRIPT_SOURCE)
 	@$(CROSS)gcc $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(SRC_PATH)
 	@$(CROSS)objcopy -O binary $(BUILD_DIR)/$(FIRMWARE_NAME).elf $(BUILD_DIR)/$(FIRMWARE_NAME).bin
 	@$(CROSS)objdump -d $(BUILD_DIR)/$(FIRMWARE_NAME).elf > $(BUILD_DIR)/$(FIRMWARE_NAME).txt

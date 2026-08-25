@@ -1,3 +1,10 @@
+# 根据配置加入 StartySky T1 SDRAM 启动加载器和链接宏。
+ifdef CONFIG_LINK_TARGET_SDRAM
+SRC_PATH += ./loader/loader.c
+CFLAGS += -DCONFIG_LINK_TARGET_SDRAM=1
+LINKER_CPPFLAGS += -DCONFIG_LINK_TARGET_SDRAM=1
+endif
+
 # 根据配置加入 StartySky T1 系统串口驱动。
 ifdef CONFIG_DRIVER_SYS_UART
 SRC_PATH += $(BOARD_DRIVER_DIR)/sys_uart/sys_uart.c

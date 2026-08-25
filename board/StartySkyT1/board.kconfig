@@ -4,12 +4,14 @@ menu "System Read-Only Information"
         default y
 
     config BOARD_RAM_TYPE_NAME
-        string "RAM Type Name"
-        default "DSRAM"
+        string
+        default "SDRAM" if LINK_TARGET_SDRAM
+        default "DSRAM" if LINK_TARGET_FLASH_XIP
 
     config BOARD_RAM_SIZE_KB
-        int "RAM Size (KB)"
-        default 16
+        int
+        default 32768 if LINK_TARGET_SDRAM
+        default 16 if LINK_TARGET_FLASH_XIP
 
     config BOARD_FLASH_SIZE_KB
         int "Flash Size (KB)"
@@ -17,6 +19,21 @@ menu "System Read-Only Information"
 endmenu
 
 menu "System Configuration"
+    choice
+        bool "Boot/Runtime Memory Selection"
+        default LINK_TARGET_FLASH_XIP
+
+        config LINK_TARGET_FLASH_XIP
+            bool "Flash XIP"
+            help
+                代码和只读数据直接在 Flash 中执行，数据和栈位于 DSRAM。
+
+        config LINK_TARGET_SDRAM
+            bool "SDRAM (Loaded by Bootloader)"
+            help
+                FSBL 初始化 SDRAM，并将加载镜像搬运到 SDRAM 后执行。
+    endchoice
+
     config CPU_FREQ_MHZ
         int "CPU Frequency (MHz)"
         default 20

@@ -25,6 +25,7 @@ kconfig:
   board: board.kconfig
   drivers: driver.kconfig
 
-# 声明板卡驱动目录。
+# 声明板卡驱动和加载器目录。
 paths:
   drivers: driver
+  loader: loader
