@@ -26,12 +26,12 @@ menu "System Configuration"
         config LINK_TARGET_FLASH_XIP
             bool "Flash XIP"
             help
-                代码和只读数据直接在 Flash 中执行，数据和栈位于 DSRAM。
+                Execute code and read-only data directly from Flash; place data and the stack in DSRAM.
 
         config LINK_TARGET_SDRAM
             bool "SDRAM (Loaded by Bootloader)"
             help
-                FSBL 初始化 SDRAM，并将加载镜像搬运到 SDRAM 后执行。
+                The FSBL initializes SDRAM and transfers the loaded image to SDRAM before execution.
     endchoice
 
     config CPU_FREQ_MHZ

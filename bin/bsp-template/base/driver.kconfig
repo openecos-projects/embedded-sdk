@@ -1,13 +1,13 @@
 menu "Peripheral Drivers"
     config DRIVER_SYS_UART
         bool "SYS UART Driver Support"
-        # [必须修改] TODO_BSP_REQUIRED：完成 sys_uart.c 后删除本标记；未实现时改为 n。
+        # [Required] TODO_BSP_REQUIRED: remove this marker after sys_uart.c is implemented; use n otherwise.
         default y
 
     config DRIVER_GPIO
         bool "GPIO Driver Support"
-        # [必须修改] TODO_BSP_REQUIRED：完成 gpio.c 后删除本标记；未实现时改为 n。
+        # [Required] TODO_BSP_REQUIRED: remove this marker after gpio.c is implemented; use n otherwise.
         default y
 
-    # [按需修改] 其他 HAL 实现完成后，在这里增加对应开关。
+    # [Optional] Add switches here as other HAL implementations become available.
 endmenu

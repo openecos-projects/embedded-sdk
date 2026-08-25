@@ -3,19 +3,19 @@ menu "Peripheral Drivers"
         bool "SYS UART Driver Support"
         default y
         help
-            启用 StartySky T1 轮询系统串口驱动。
+            Enable the StartySky T1 polled system UART driver.
 
     config DRIVER_GPIO
         bool "GPIO Driver Support"
         default n
         help
-            启用 StartySky T1 GPIO 输入输出驱动。
+            Enable the StartySky T1 GPIO input/output driver.
 
     config DRIVER_INTERRUPT
         bool "Machine Interrupt and PLIC Driver Support"
         default n
         help
-            启用 StartySky T1 机器模式陷阱入口和 PLIC 中断分发驱动。
+            Enable the StartySky T1 machine-mode trap entry and PLIC interrupt dispatch driver.
 
     config DRIVER_GPIO_INTERRUPT
         bool "GPIO External Interrupt Driver Support"
@@ -23,13 +23,13 @@ menu "Peripheral Drivers"
         select DRIVER_INTERRUPT
         default n
         help
-            启用 GPIO port A 引脚外部中断和单引脚 callback。
+            Enable GPIO Port A pin external interrupts and single-pin callbacks.
 
     config DRIVER_TIMER
         bool "Timer Driver Support"
         default n
         help
-            启用 StartySky T1 Timer0 轮询延时驱动。
+            Enable the StartySky T1 polled Timer0 delay driver.
 
     config DRIVER_TIMER_INTERRUPT
         bool "Timer Interrupt Driver Support"
@@ -37,29 +37,29 @@ menu "Peripheral Drivers"
         select DRIVER_INTERRUPT
         default n
         help
-            启用 Timer0 周期中断和 callback。
+            Enable Timer0 periodic interrupts and callbacks.
 
     config DRIVER_CLINT
         bool "CLINT Driver Support"
         default n
         help
-            启用 CLINT mtime 和 mtimecmp 高低位访问驱动。
+            Enable the CLINT mtime and mtimecmp high/low register access driver.
 
     config DRIVER_SDRAM
         bool "SDRAM Driver Support"
         default n
         help
-            启用固定二十兆赫兹基线的 StartySky T1 SDRAM 初始化驱动。
+            Enable the StartySky T1 SDRAM initialization driver with a fixed 20 MHz baseline.
 
     config DRIVER_I2C
         bool "I2C Driver Support"
         default n
         help
-            启用 StartySky T1 I2C0 主机轮询驱动。
+            Enable the StartySky T1 polled I2C0 master driver.
 
     config DRIVER_QSPI
         bool "QSPI Driver Support"
         default n
         help
-            启用 StartySky T1 QSPI0 主机轮询驱动。
+            Enable the StartySky T1 polled QSPI0 master driver.
 endmenu
