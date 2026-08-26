@@ -3,17 +3,8 @@ CFLAGS    += -fdata-sections -ffunction-sections
 ifneq ($(ECOS_AM_BUILD),1)
 $(error 错误：SDK 中的 ysyxsoc 平台只允许通过 StarrySkyL4 AbstractMachine 环境构建)
 endif
-ifneq ($(AM_PROGRAM_AUTHORIZED),1)
-$(error 错误：必须由 AbstractMachine 环境授权后才能构建 L4 AM 程序)
-endif
 ifneq ($(AM_BOARD_ID),starrysky-l4)
 $(error 错误：AbstractMachine 环境当前只支持 starrysky-l4，收到 $(AM_BOARD_ID))
-endif
-ifeq ($(strip $(AM_PROGRAM_ID)),)
-$(error 错误：缺少 AM_PROGRAM_ID，拒绝绕过程序清单构建)
-endif
-ifneq ($(AM_PROGRAM_ID),$(AM_APP_PATH))
-$(error 错误：程序授权 ID $(AM_PROGRAM_ID) 与实际路径 $(AM_APP_PATH) 不一致)
 endif
 ifeq ($(strip $(AM_CORE_MARCH)),)
 $(error 错误：缺少经过校验的核心 MARCH)

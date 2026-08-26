@@ -19,3 +19,7 @@ kconfig:
 
 paths:
   loader: loader
+
+abstract_machine:
+  path: environments/abstract-machine
+  default_core: rv32e-base

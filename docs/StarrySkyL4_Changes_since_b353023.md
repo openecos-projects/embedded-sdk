@@ -125,6 +125,10 @@ QSPI 引脚复用由 `hal_qspi_init()` 完成，应用不再直接配置 QSPI �
 
 ## 项目生成与配置
 
+- StarrySkyL4 BSP 声明 AbstractMachine 默认 core 为 `rv32e-base`；AM 工程不再要求
+  或允许用户选择核心。
+- AM 基础模板直接生成包含 `main.c` 的独立应用工程；am-kernels 迁入
+  `templates/am-kernels`，用户可以按程序路径实例化单个模板。
 - `ecos init_project` 直接调用同一 SDK 目录中的 `ecos-set_board`，避免 PATH 指向旧 SDK 时混用文件。
 - isolated 项目同样直接调用当前 SDK 的 `ecos-set_board_isolated`。
 - `set_board l4` 会复制 board 目录中的 Makefile、链接脚本、启动文件和 bootloader。

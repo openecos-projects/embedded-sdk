@@ -147,21 +147,34 @@ set_board() {
 
     # AbstractMachine 工程保留根 Makefile，只刷新板卡和 SDK 路径元数据。
     if [[ "$project_type" == "abstract-machine" ]]; then
-        local core_profile
+        local manifest board_id board_dir am_dir default_core template_name project_name
 
-        if [[ "$target_board_name" != "l4" && "$target_board_name" != "starrysky-l4" ]]; then
-            err "abstract-machine 当前只支持 l4"
-            exit 1
-        fi
         if [[ -n "$profile_request" ]]; then
-            err "abstract-machine 不使用 BSP --profile，请修改 CORE_PROFILE 或重新初始化工程"
+            err "AM 工程不使用 --profile；体系结构和核心配置由 BSP 的 AM 环境提供"
             exit 1
         fi
 
-        # 保留核心选择，并刷新 SDK/AM 绝对路径。
-        core_profile="${CORE_PROFILE:-$(sed -n 's/^CORE_PROFILE := //p' configs/abstract-machine.mk)}"
-        if [[ -z "$core_profile" ]]; then
-            err "abstract-machine 配置不完整，请重新执行 ecos init_project abstract-machine"
+        manifest="$(ecos_board_find_manifest "$target_board_name" || true)"
+        if [[ -z "$manifest" ]]; then
+            err "找不到 BSP：$target_board_name"
+            exit 1
+        fi
+        if ! ecos_board_validate_manifest "$manifest"; then
+            err "BSP 清单无效：$manifest"
+            exit 1
+        fi
+        board_id="$(ecos_board_manifest_value "$manifest" id)"
+        board_dir="$(realpath -m "$(ecos_board_manifest_dir "$manifest")")"
+        am_dir="$(ecos_board_am_environment_dir "$manifest" || true)"
+        default_core="$(ecos_board_am_default_core "$manifest")"
+        project_name="$(basename "$(pwd)")"
+
+        if [[ -z "$am_dir" || -z "$default_core" ]]; then
+            err "BSP 未声明完整的 abstract_machine.path/default_core：$manifest"
+            exit 1
+        fi
+        if [[ ! -f "$am_dir/cores/$default_core.conf" ]]; then
+            err "BSP 默认核心 profile 不存在：$default_core"
             exit 1
         fi
         mkdir -p configs
@@ -169,15 +182,24 @@ set_board() {
             echo "# 由 ecos set_board 刷新。"
             printf 'ECOS_SDK_HOME := %s\n' "$(realpath -m "$SDK_ROOT")"
             printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/third_party/abstract-machine")"
-            echo "BOARD := starrysky-l4"
-            echo "CORE_PROFILE := $core_profile"
+            echo "BOARD_PACKAGE := $board_dir"
+            echo "AM_BOARD_PORT_DIR := $(realpath -m "$am_dir")"
+            echo "BOARD := $board_id"
+            echo "AM_CORE_PROFILE := $default_core"
+            echo "AM_PROJECT_NAME := $project_name"
         } > configs/abstract-machine.mk.tmp
         mv configs/abstract-machine.mk.tmp configs/abstract-machine.mk
 
         # 刷新板卡元数据和 SDK 路径文件。
-        sed -i 's/^BOARD=.*/BOARD=starrysky-l4/' .ecos-project
+        template_name="${TEMPLATE:-abstract-machine}"
+        {
+            echo "TYPE=abstract-machine"
+            echo "BOARD=$board_id"
+            echo "TEMPLATE=$template_name"
+        } > .ecos-project.tmp
+        mv .ecos-project.tmp .ecos-project
         ecos_board_write_sdk_path_config "configs/sdk-path.mk"
-        log "Refreshed abstract-machine board metadata without replacing Makefile."
+        log "Refreshed AbstractMachine environment: $board_id ($default_core)"
         return 0
     fi
 

@@ -92,6 +92,6 @@ void _trm_init(void)
     /* 最小 TRM 只初始化所有白名单程序都需要的 UART。 */
     hal_sys_uart_init();
 
-    /* 进入 am-kernels 程序并在返回后停止。 */
+    /* 进入用户 AM 程序并在返回后停止。 */
     halt(main(mainargs));
 }

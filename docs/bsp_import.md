@@ -129,6 +129,8 @@ acme-demo-v1-bsp/
 - `default_profile` 指定不传 `--profile` 时使用的布局；它必须是 `profiles` 中已有的名称。
 - `default_profile` 可以不写，此时工具会选择 `profiles` 中声明的第一项。为避免调整顺序后默认布局变化，建议明确填写。
 - `profiles` 中每一项都要指定链接脚本和启动文件。
+- BSP 提供 AbstractMachine 环境时，在 `abstract_machine.path` 中声明板内环境目录，
+  并用 `abstract_machine.default_core` 指定默认核心 profile。
 - 不允许使用绝对路径或 `../` 指向 BSP 目录外。
 
 新生成的清单默认包含：
@@ -142,6 +144,20 @@ profiles:
 ```
 
 只有一套布局时保留这一项即可。旧 BSP 使用 `files.linker_script` 和 `files.startup` 的写法仍然可以导入和生成工程。
+
+可选的 AbstractMachine 声明示例：
+
+```yaml
+abstract_machine:
+  path: environments/abstract-machine
+  default_core: rv32e-base
+```
+
+默认 core 必须存在于 `<path>/cores/<default_core>.conf`。应用开发者创建工程时直接
+采用 BSP 默认值，不从命令行选择 core。所有 AM 应用和 am-kernels 模板只依赖 AM
+接口；板卡相关的启动、链接、架构参数和设备实现必须全部封装在该 BSP 环境中。
+环境目录至少要提供 `board.mk`、`build.mk` 和默认 core 配置文件；`build.mk` 负责
+把通用 AM 构建变量绑定到 BSP 的平台实现。
 
 ### 4.2 `board.h`
 

@@ -198,6 +198,21 @@ ecos_board_manifest_path() {
     echo "$(ecos_board_manifest_dir "$manifest")/$value"
 }
 
+ecos_board_am_environment_dir() {
+    local manifest="$1"
+    local value
+
+    value="$(ecos_board_manifest_section_value "$manifest" abstract_machine path)"
+    [[ -n "$value" ]] || return 1
+    echo "$(ecos_board_manifest_dir "$manifest")/$value"
+}
+
+ecos_board_am_default_core() {
+    local manifest="$1"
+
+    ecos_board_manifest_section_value "$manifest" abstract_machine default_core
+}
+
 ecos_board_iter_manifests() {
     local registry_dir
     registry_dir="$(ecos_board_registry_dir)"
@@ -312,6 +327,7 @@ ecos_board_validate_manifest() {
     local manifest="$1"
     local board_dir schema id name category arch alias value failed=0
     local profiles profile default_profile
+    local am_path am_default_core
 
     if [[ ! -f "$manifest" ]]; then
         echo "找不到 BSP 清单: $manifest" >&2
@@ -386,6 +402,30 @@ ecos_board_validate_manifest() {
             ecos_board_validate_relative_path "$board_dir" "$value" "paths.$key" dir || failed=1
         fi
     done
+
+    am_path="$(ecos_board_manifest_section_value "$manifest" abstract_machine path)"
+    am_default_core="$(ecos_board_am_default_core "$manifest")"
+    if [[ -n "$am_path" || -n "$am_default_core" ]]; then
+        if [[ -z "$am_path" ]]; then
+            echo "abstract_machine 缺少 path" >&2
+            failed=1
+        else
+            ecos_board_validate_relative_path "$board_dir" "$am_path" \
+                abstract_machine.path dir || failed=1
+            for key in board.mk build.mk; do
+                ecos_board_validate_relative_path "$board_dir" "$am_path/$key" \
+                    "abstract_machine.$key" file || failed=1
+            done
+        fi
+        if [[ ! "$am_default_core" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "abstract_machine.default_core 格式不正确: $am_default_core" >&2
+            failed=1
+        elif [[ -n "$am_path" ]]; then
+            ecos_board_validate_relative_path "$board_dir" \
+                "$am_path/cores/$am_default_core.conf" \
+                abstract_machine.default_core file || failed=1
+        fi
+    fi
 
     return "$failed"
 }

@@ -20,5 +20,6 @@ SDK 适配阶段修复。同步时需要单独复核 SDK 的精简范围和本�
 
 后续同步时先将上游内容复制到临时目录，重新排除上述生成物和非 L4 架构，再单独
 复核需要同步的公共文件。StarrySkyL4 的 HAL 适配放在
-`board/StarrySkyL4/environments/abstract-machine`，平台构建和程序管控放在
-`environments/abstract-machine`，不直接改写 SDK 内置 `am-kernels` 源码。
+`board/StarrySkyL4/environments/abstract-machine`，通用应用构建适配放在
+`environments/abstract-machine`。可实例化的程序保存在 `templates/am-kernels`，
+程序源码不包含板卡适配。

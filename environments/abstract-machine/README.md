@@ -1,10 +1,11 @@
 # AbstractMachine environment
 
-This directory contains the SDK-facing AbstractMachine environment: project
-rules, workload policy, and program staging. It is an optional runtime
-environment built on the SDK HAL, not a standalone ysyx project.
+This directory contains the SDK-wide build adapter for independent
+AbstractMachine applications. It binds an application Makefile to the AM
+runtime and to the AbstractMachine implementation declared by the selected
+BSP.
 
-Upstream sources are kept in `third_party/abstract-machine` and
-`third_party/am-kernels`. Board-specific startup, linker, capability profiles,
-and HAL bindings live under
-`board/<board>/environments/abstract-machine`.
+The AM runtime lives in `third_party/abstract-machine`, reusable program
+templates live in `templates/am-kernels`, and board-specific startup, linker,
+core, and HAL bindings live in `board/<board>/environments/abstract-machine`.
+Application templates contain no board-specific adaptation.

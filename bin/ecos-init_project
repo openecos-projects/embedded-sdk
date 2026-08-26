@@ -57,46 +57,59 @@ echo_available_templates() {
     echo "| coroutine_test   |    | √  |    |      |    |    |"
     echo "|------------------|----|----|----|------|----|----|"
     echo "  * means supported but code is in root dir instead of board specific dir"
+    echo ""
+    log "Available am-kernels templates:"
+    find "$SDK_ROOT/templates/am-kernels" -mindepth 2 -name Makefile -type f \
+        -printf '  am-kernels/%P\n' | sed 's|/Makefile$||' | sort
 }
 
-# 打印 L4 AbstractMachine 环境已登记的核心 profile。
-echo_am_core_profiles() {
-    local profile
-
-    echo "可用核心 profile："
-    for profile in "$SDK_ROOT"/board/StarrySkyL4/environments/abstract-machine/cores/*.conf; do
-        [[ -f "$profile" ]] || continue
-        echo "  $(basename "$profile" .conf)"
-    done
-}
-
-# 创建 StarrySkyL4 AbstractMachine 工程。
+# 从基础模板或 am-kernels 子目录创建独立 AM 应用工程。
 init_abstract_machine_project() {
-    local project_name="$1"
-    local target_board="$2"
-    local core_profile="$3"
-    local core_file project_path project_parent project_base temp_dir
+    local template_name="$1"
+    local project_name="$2"
+    local target_board="$3"
+    local manifest board_id board_dir am_dir default_core template_dir template_rel
+    local project_path project_parent project_base temp_dir
 
-    # 仅接受计划中声明的 L4 目标。
-    if [[ "$target_board" != "l4" && "$target_board" != "starrysky-l4" ]]; then
-        err "abstract-machine 当前只支持 target l4，收到：$target_board"
-        exit 1
-    fi
+    case "$template_name" in
+        abstract-machine)
+            template_dir="$SDK_ROOT/templates/abstract-machine/common"
+            ;;
+        am-kernels/*)
+            template_rel="${template_name#am-kernels/}"
+            if [[ ! "$template_rel" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$ ]] ||
+               [[ "$template_rel" == *".."* ]]; then
+                err "am-kernels 模板路径无效：$template_name"
+                exit 1
+            fi
+            template_dir="$(realpath -m "$SDK_ROOT/templates/am-kernels/$template_rel")"
+            if [[ "$template_dir" != "$(realpath -m "$SDK_ROOT/templates/am-kernels")"/* ]] ||
+               [[ ! -d "$template_dir" ]] || [[ ! -f "$template_dir/Makefile" ]]; then
+                err "找不到 am-kernels 模板：$template_name"
+                exit 1
+            fi
+            ;;
+        *)
+            err "不是 AM 工程模板：$template_name"
+            exit 1
+            ;;
+    esac
 
-    # 核心能力不能静默推断，必须显式选择已登记 profile。
-    if [[ -z "$core_profile" ]]; then
-        err "abstract-machine 必须使用 --core 选择核心 profile"
-        echo_am_core_profiles
+    manifest="$(ecos_board_find_manifest "$target_board" || true)"
+    if [[ -z "$manifest" ]]; then
+        err "找不到 BSP：$target_board"
         exit 1
     fi
-    if [[ ! "$core_profile" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-        err "核心 profile 名称格式无效：$core_profile"
+    if ! ecos_board_validate_manifest "$manifest"; then
+        err "BSP 清单无效：$manifest"
         exit 1
     fi
-    core_file="$SDK_ROOT/board/StarrySkyL4/environments/abstract-machine/cores/$core_profile.conf"
-    if [[ ! -f "$core_file" ]]; then
-        err "未登记核心 profile：$core_profile"
-        echo_am_core_profiles
+    board_id="$(ecos_board_manifest_value "$manifest" id)"
+    board_dir="$(realpath -m "$(ecos_board_manifest_dir "$manifest")")"
+    am_dir="$(ecos_board_am_environment_dir "$manifest" || true)"
+    default_core="$(ecos_board_am_default_core "$manifest")"
+    if [[ -z "$am_dir" || -z "$default_core" ]]; then
+        err "BSP 未声明完整的 abstract_machine.path/default_core：$manifest"
         exit 1
     fi
 
@@ -106,6 +119,10 @@ init_abstract_machine_project() {
     project_base="$(basename "$project_path")"
     if [[ "$project_path" =~ [[:space:]] ]]; then
         err "项目路径不能包含空白字符，GNU Make 无法安全表示该构建路径：$project_path"
+        exit 1
+    fi
+    if [[ ! "$project_base" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+        err "AM 工程名只允许字母、数字、点、下划线和短横线：$project_base"
         exit 1
     fi
     if [[ -e "$project_path" ]]; then
@@ -119,30 +136,32 @@ init_abstract_machine_project() {
     temp_dir="$(mktemp -d "$project_parent/.${project_base}.ecos-tmp.XXXXXX")"
     trap 'rm -rf -- "$temp_dir"' EXIT
 
-    # 复制专用前端并生成固定的项目元数据。
-    cp -a "$SDK_ROOT/templates/abstract-machine/l4/." "$temp_dir/"
+    # 只复制用户选择的程序模板，AM 运行环境继续由 SDK 和 BSP 提供。
+    cp -a "$template_dir/." "$temp_dir/"
+    mkdir -p "$temp_dir/configs"
     {
         echo "TYPE=abstract-machine"
-        echo "BOARD=starrysky-l4"
-        echo "TEMPLATE=abstract-machine"
-        echo "CORE_PROFILE=$core_profile"
+        echo "BOARD=$board_id"
+        echo "TEMPLATE=$template_name"
     } > "$temp_dir/.ecos-project"
     {
-        echo "# 由 ecos init_project abstract-machine 生成。"
+        echo "# 由 ecos init_project 生成，请使用 ecos set_board 刷新。"
         printf 'ECOS_SDK_HOME := %s\n' "$(realpath -m "$SDK_ROOT")"
         printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/third_party/abstract-machine")"
-        echo "BOARD := starrysky-l4"
-        echo "CORE_PROFILE := $core_profile"
+        echo "BOARD_PACKAGE := $board_dir"
+        echo "AM_BOARD_PORT_DIR := $(realpath -m "$am_dir")"
+        echo "BOARD := $board_id"
+        echo "AM_CORE_PROFILE := $default_core"
+        echo "AM_PROJECT_NAME := $project_base"
     } > "$temp_dir/configs/abstract-machine.mk"
     ECOS_SDK_HOME="$SDK_ROOT" ecos_board_write_sdk_path_config "$temp_dir/configs/sdk-path.mk"
-    rm -f "$temp_dir/configs/project.mk.in"
 
     # 原子移动完整工程，成功后取消清理 trap。
     mv "$temp_dir" "$project_path"
     trap - EXIT
     log "Project '$project_name' created successfully: $project_path"
-    log "Core profile: $core_profile"
-    log "Using bundled am-kernels: $(realpath -m "$SDK_ROOT/third_party/am-kernels")"
+    log "Template: $template_name"
+    log "AbstractMachine environment: $board_id ($default_core)"
 }
 
 resolve_template_dir() {
@@ -351,7 +370,8 @@ if [[ $# -eq 0 ]]; then
     err "Missing project name or 'list' argument"
     echo ""
     echo "Usage: ecos init_project <template_name> [-name new_project_name] [-target target_board] [--profile name]"
-    echo "       ecos init_project abstract-machine -name <name> -target l4 --core <profile>"
+    echo "       ecos init_project abstract-machine -name <name> -target <board>"
+    echo "       ecos init_project am-kernels/<path> -name <name> -target <board>"
     echo "       ecos init_project list"
     echo "Example: ecos init_project hello"
     echo "         ecos init_project hello -name my_new_hello"
@@ -366,7 +386,6 @@ template_name=""
 new_project_name=""
 target_board=""
 requested_profile=""
-requested_core=""
 isIsolated=false
 
 while [[ $# -gt 0 ]]; do
@@ -391,9 +410,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --core)
-            [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 1; }
-            requested_core="$2"
-            shift 2
+            err "--core 已移除；AM 核心配置由 BSP 提供"
+            exit 1
             ;;
         *)
             if [[ -z "$template_name" ]]; then
@@ -412,23 +430,22 @@ if [[ -z "$template_name" ]]; then
     exit 1
 fi
 
-if [[ "$template_name" == "abstract-machine" ]]; then
+if [[ "$template_name" == "abstract-machine" || "$template_name" == am-kernels/* ]]; then
     if [[ "$isIsolated" == true ]]; then
         err "abstract-machine 不能与 -isolated 混用"
         exit 1
     fi
     if [[ -n "$requested_profile" ]]; then
-        err "abstract-machine 当前没有 BSP --profile；请使用 --core 选择核心能力"
+        err "AM 工程不使用 --profile；体系结构和核心配置由 BSP 的 AM 环境提供"
         exit 1
     fi
-    init_abstract_machine_project "${new_project_name:-abstract-machine}" "${target_board:-l4}" \
-        "$requested_core"
+    if [[ -z "$target_board" ]]; then
+        err "AM 工程必须使用 -target 指定支持 AbstractMachine 的板卡"
+        exit 1
+    fi
+    init_abstract_machine_project "$template_name" \
+        "${new_project_name:-$(basename "$template_name")}" "$target_board"
     exit 0
-fi
-
-if [[ -n "$requested_core" ]]; then
-    err "--core 只能用于 abstract-machine 工程"
-    exit 1
 fi
 
 if [[ "${isIsolated:-false}" == false ]]; then
