@@ -50,7 +50,7 @@ ecos/embedded-sdk/
 ### 3. Environment Dependencies and Installation
 
 #### Dependencies
-- RISC-V cross-compilation toolchain (`riscv64-unknown-elf-gcc` / `riscv32-unknown-elf-gcc`)
+- SDK default RISC-V cross-compilation toolchain (`riscv64-unknown-elf-gcc`)
 - `make`
 - `direnv` (Recommended, for automatically loading environment variables in `testdir`)
 - Python 3 (Optional, for some build script automations)

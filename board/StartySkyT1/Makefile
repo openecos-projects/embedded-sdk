@@ -3,7 +3,7 @@
 -include configs/config/auto.conf
 
 BUILD_DIR := build
-CROSS ?= riscv-none-elf-
+CROSS ?= riscv64-unknown-elf-
 LINKER_SCRIPT_SOURCE := ./sections.lds
 LINKER_SCRIPT := $(BUILD_DIR)/sections.lds
 

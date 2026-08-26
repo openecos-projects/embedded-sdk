@@ -145,39 +145,39 @@ set_board() {
         project_type="${TYPE:-}"
     fi
 
-    # ysyx-am 保留根 Makefile，只刷新板卡和 SDK 路径元数据。
-    if [[ "$project_type" == "ysyx-am" ]]; then
+    # AbstractMachine 工程保留根 Makefile，只刷新板卡和 SDK 路径元数据。
+    if [[ "$project_type" == "abstract-machine" ]]; then
         local core_profile
 
         if [[ "$target_board_name" != "l4" && "$target_board_name" != "starrysky-l4" ]]; then
-            err "ysyx-am 当前只支持 l4"
+            err "abstract-machine 当前只支持 l4"
             exit 1
         fi
         if [[ -n "$profile_request" ]]; then
-            err "ysyx-am 不使用 BSP --profile，请修改 CORE_PROFILE 或重新初始化工程"
+            err "abstract-machine 不使用 BSP --profile，请修改 CORE_PROFILE 或重新初始化工程"
             exit 1
         fi
 
         # 保留核心选择，并刷新 SDK/AM 绝对路径。
-        core_profile="${CORE_PROFILE:-$(sed -n 's/^CORE_PROFILE := //p' configs/ysyx-am.mk)}"
+        core_profile="${CORE_PROFILE:-$(sed -n 's/^CORE_PROFILE := //p' configs/abstract-machine.mk)}"
         if [[ -z "$core_profile" ]]; then
-            err "ysyx-am 配置不完整，请重新执行 ecos init_project ysyx-am"
+            err "abstract-machine 配置不完整，请重新执行 ecos init_project abstract-machine"
             exit 1
         fi
         mkdir -p configs
         {
             echo "# 由 ecos set_board 刷新。"
             printf 'ECOS_SDK_HOME := %s\n' "$(realpath -m "$SDK_ROOT")"
-            printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/ysyx/abstract-machine")"
+            printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/third_party/abstract-machine")"
             echo "BOARD := starrysky-l4"
             echo "CORE_PROFILE := $core_profile"
-        } > configs/ysyx-am.mk.tmp
-        mv configs/ysyx-am.mk.tmp configs/ysyx-am.mk
+        } > configs/abstract-machine.mk.tmp
+        mv configs/abstract-machine.mk.tmp configs/abstract-machine.mk
 
         # 刷新板卡元数据和 SDK 路径文件。
         sed -i 's/^BOARD=.*/BOARD=starrysky-l4/' .ecos-project
         ecos_board_write_sdk_path_config "configs/sdk-path.mk"
-        log "Refreshed ysyx-am board metadata without replacing Makefile."
+        log "Refreshed abstract-machine board metadata without replacing Makefile."
         return 0
     fi
 

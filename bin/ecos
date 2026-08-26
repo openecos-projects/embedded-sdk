@@ -52,7 +52,7 @@ show_help() {
     echo "  ecos init_project hello             Initialize a new project named 'hello'"
     echo "  ecos init_project list              List all available project templates"
     echo "  ecos init_project hello -isolated   Initialize a new isolated project named 'hello'"
-    echo "  ecos init_project ysyx-am -name am_l4 -target l4 --core rv32e-base"
+    echo "  ecos init_project abstract-machine -name am_l4 -target l4 --core rv32e-base"
     echo "  ecos flash                          Flash the compiled firmware to the device"
     echo "  ecos monitor                        Open the default serial port at 115200 baud"
     echo ""

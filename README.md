@@ -2,8 +2,8 @@
 
 [English](README_EN.md) | 中文
 
-StarrySkyL4 对接 ysyx AbstractMachine 的专用工程流程见
-[docs/ysyx-am.md](docs/ysyx-am.md)。
+SDK 基于 HAL 提供的 StarrySkyL4 AbstractMachine 开发环境见
+[docs/abstract-machine.md](docs/abstract-machine.md)。
 
 **ECOS 嵌入式 SDK** 是专为 StarrySky 系列 RISC-V 芯片及微控制器（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的生产级、模块化裸机固件开发套件。
 
@@ -54,7 +54,7 @@ ecos/embedded-sdk/
 ### 3. 环境依赖与安装
 
 #### 依赖项
-- RISC-V 交叉编译工具链 (`riscv64-unknown-elf-gcc` / `riscv32-unknown-elf-gcc`)
+- SDK 默认 RISC-V 交叉编译工具链 (`riscv64-unknown-elf-gcc`)
 - `make`
 - `direnv` (推荐，用于 `testdir` 自动加载环境变量)
 - Python 3 (可选，用于某些构建脚本自动化)

@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := all
 
 BUILD_DIR := build
-CROSS ?= riscv-none-elf-
+CROSS ?= riscv64-unknown-elf-
 
 AS := $(CROSS)as
 LD := $(CROSS)ld

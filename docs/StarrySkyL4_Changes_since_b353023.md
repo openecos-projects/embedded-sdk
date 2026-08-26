@@ -1,7 +1,7 @@
 # StarrySkyL4 完整变更日志
 
-StarrySkyL4 的 ysyx AbstractMachine 专用工程见
-[ysyx-am 使用说明](ysyx-am.md)。
+StarrySkyL4 的 SDK AbstractMachine 环境见
+[AbstractMachine 环境使用说明](abstract-machine.md)。
 
 更新时间：2026-07-12
 
@@ -21,8 +21,8 @@ StarrySkyL4 的 ysyx AbstractMachine 专用工程见
 
 ### 与 verif 对齐
 
-- 使用 `riscv-none-elf-gcc` 将每个 `.c/.S` 单独编译为对象文件。
-- 使用 `riscv-none-elf-ld` 和 L4 PSRAM 链接脚本链接最终 ELF。
+- 使用 SDK 默认的 `riscv64-unknown-elf-gcc` 将每个 `.c/.S` 单独编译为对象文件。
+- 使用 `riscv64-unknown-elf-ld` 和 L4 PSRAM 链接脚本链接最终 ELF。
 - 链接顺序固定为：
   1. `start.S`
   2. `loader/loader.c`
@@ -35,7 +35,7 @@ StarrySkyL4 的 ysyx AbstractMachine 专用工程见
 
 ### 工具链与产物
 
-- 默认工具目录为 `/home/dallous/share/project/darch/tools/builder/target/bin`，可通过 Make 变量覆盖。
+- 默认从 SDK 配置的 `PATH` 查找 `riscv64-unknown-elf-*`，可通过 `CROSS` Make 变量覆盖。
 - 生成以下产物：
   - `build/<firmware>.elf`
   - `build/<firmware>.bin`

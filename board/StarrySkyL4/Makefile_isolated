@@ -1,11 +1,11 @@
 # StarrySkyL4 isolated firmware build script.
 # This mirrors verif/ build behavior: compile to objects first, then link with ld.
 
-TOOL_PATH ?= /home/dallous/share/project/darch/tools/builder/target/bin
-GCC_M ?= $(TOOL_PATH)/riscv-none-elf-gcc
-LD_M ?= $(TOOL_PATH)/riscv-none-elf-ld
-OBJDUMP_M ?= $(TOOL_PATH)/riscv-none-elf-objdump
-OBJCOPY_M ?= $(TOOL_PATH)/riscv-none-elf-objcopy
+CROSS ?= riscv64-unknown-elf-
+GCC_M ?= $(CROSS)gcc
+LD_M ?= $(CROSS)ld
+OBJDUMP_M ?= $(CROSS)objdump
+OBJCOPY_M ?= $(CROSS)objcopy
 
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj

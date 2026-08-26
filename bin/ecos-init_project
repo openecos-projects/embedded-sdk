@@ -49,7 +49,7 @@ echo_available_templates() {
     echo "| st7789           |    | √  |    | √    | √  |    |"
     echo "| timer            |    |    |    | √    | √  | √  |"
     echo "| timer_interrupt  |    |    |    |      |    | √  |"
-    echo "| ysyx-am          |    |    |    |      | √  |    |"
+    echo "| abstract-machine |    |    |    |      | √  |    |"
     echo "| wdg              |    |    |    | √    |    |    |"
     echo "| spi_flash_test   |    | √  |    |      |    |    |"
     echo "| filesystem_test  |    | √  |    |      |    |    |"
@@ -59,19 +59,19 @@ echo_available_templates() {
     echo "  * means supported but code is in root dir instead of board specific dir"
 }
 
-# 打印 L4 已登记的核心 profile。
-echo_ysyx_core_profiles() {
+# 打印 L4 AbstractMachine 环境已登记的核心 profile。
+echo_am_core_profiles() {
     local profile
 
     echo "可用核心 profile："
-    for profile in "$SDK_ROOT"/ysyx/profiles/StarrySkyL4/cores/*.conf; do
+    for profile in "$SDK_ROOT"/board/StarrySkyL4/environments/abstract-machine/cores/*.conf; do
         [[ -f "$profile" ]] || continue
         echo "  $(basename "$profile" .conf)"
     done
 }
 
-# 创建隔离的 StarrySkyL4 ysyx-am 工程。
-init_ysyx_am_project() {
+# 创建 StarrySkyL4 AbstractMachine 工程。
+init_abstract_machine_project() {
     local project_name="$1"
     local target_board="$2"
     local core_profile="$3"
@@ -79,24 +79,24 @@ init_ysyx_am_project() {
 
     # 仅接受计划中声明的 L4 目标。
     if [[ "$target_board" != "l4" && "$target_board" != "starrysky-l4" ]]; then
-        err "ysyx-am 当前只支持 target l4，收到：$target_board"
+        err "abstract-machine 当前只支持 target l4，收到：$target_board"
         exit 1
     fi
 
     # 核心能力不能静默推断，必须显式选择已登记 profile。
     if [[ -z "$core_profile" ]]; then
-        err "ysyx-am 必须使用 --core 选择核心 profile"
-        echo_ysyx_core_profiles
+        err "abstract-machine 必须使用 --core 选择核心 profile"
+        echo_am_core_profiles
         exit 1
     fi
     if [[ ! "$core_profile" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
         err "核心 profile 名称格式无效：$core_profile"
         exit 1
     fi
-    core_file="$SDK_ROOT/ysyx/profiles/StarrySkyL4/cores/$core_profile.conf"
+    core_file="$SDK_ROOT/board/StarrySkyL4/environments/abstract-machine/cores/$core_profile.conf"
     if [[ ! -f "$core_file" ]]; then
         err "未登记核心 profile：$core_profile"
-        echo_ysyx_core_profiles
+        echo_am_core_profiles
         exit 1
     fi
 
@@ -120,20 +120,20 @@ init_ysyx_am_project() {
     trap 'rm -rf -- "$temp_dir"' EXIT
 
     # 复制专用前端并生成固定的项目元数据。
-    cp -a "$SDK_ROOT/templates/ysyx-am/l4/." "$temp_dir/"
+    cp -a "$SDK_ROOT/templates/abstract-machine/l4/." "$temp_dir/"
     {
-        echo "TYPE=ysyx-am"
+        echo "TYPE=abstract-machine"
         echo "BOARD=starrysky-l4"
-        echo "TEMPLATE=ysyx-am"
+        echo "TEMPLATE=abstract-machine"
         echo "CORE_PROFILE=$core_profile"
     } > "$temp_dir/.ecos-project"
     {
-        echo "# 由 ecos init_project ysyx-am 生成。"
+        echo "# 由 ecos init_project abstract-machine 生成。"
         printf 'ECOS_SDK_HOME := %s\n' "$(realpath -m "$SDK_ROOT")"
-        printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/ysyx/abstract-machine")"
+        printf 'AM_HOME := %s\n' "$(realpath -m "$SDK_ROOT/third_party/abstract-machine")"
         echo "BOARD := starrysky-l4"
         echo "CORE_PROFILE := $core_profile"
-    } > "$temp_dir/configs/ysyx-am.mk"
+    } > "$temp_dir/configs/abstract-machine.mk"
     ECOS_SDK_HOME="$SDK_ROOT" ecos_board_write_sdk_path_config "$temp_dir/configs/sdk-path.mk"
     rm -f "$temp_dir/configs/project.mk.in"
 
@@ -142,7 +142,7 @@ init_ysyx_am_project() {
     trap - EXIT
     log "Project '$project_name' created successfully: $project_path"
     log "Core profile: $core_profile"
-    log "Using bundled am-kernels: $(realpath -m "$SDK_ROOT/ysyx/am-kernels")"
+    log "Using bundled am-kernels: $(realpath -m "$SDK_ROOT/third_party/am-kernels")"
 }
 
 resolve_template_dir() {
@@ -351,7 +351,7 @@ if [[ $# -eq 0 ]]; then
     err "Missing project name or 'list' argument"
     echo ""
     echo "Usage: ecos init_project <template_name> [-name new_project_name] [-target target_board] [--profile name]"
-    echo "       ecos init_project ysyx-am -name <name> -target l4 --core <profile>"
+    echo "       ecos init_project abstract-machine -name <name> -target l4 --core <profile>"
     echo "       ecos init_project list"
     echo "Example: ecos init_project hello"
     echo "         ecos init_project hello -name my_new_hello"
@@ -412,22 +412,22 @@ if [[ -z "$template_name" ]]; then
     exit 1
 fi
 
-if [[ "$template_name" == "ysyx-am" ]]; then
+if [[ "$template_name" == "abstract-machine" ]]; then
     if [[ "$isIsolated" == true ]]; then
-        err "ysyx-am 首版不能与 -isolated 混用"
+        err "abstract-machine 不能与 -isolated 混用"
         exit 1
     fi
     if [[ -n "$requested_profile" ]]; then
-        err "ysyx-am 当前没有 BSP --profile；请使用 --core 选择核心能力"
+        err "abstract-machine 当前没有 BSP --profile；请使用 --core 选择核心能力"
         exit 1
     fi
-    init_ysyx_am_project "${new_project_name:-ysyx-am}" "${target_board:-l4}" \
+    init_abstract_machine_project "${new_project_name:-abstract-machine}" "${target_board:-l4}" \
         "$requested_core"
     exit 0
 fi
 
 if [[ -n "$requested_core" ]]; then
-    err "--core 只能用于 ysyx-am 工程"
+    err "--core 只能用于 abstract-machine 工程"
     exit 1
 fi
 
