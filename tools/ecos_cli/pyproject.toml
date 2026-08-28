@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools==78.1.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecos-embedded-cli"
+version = "3.0.0.dev0"
+description = "Cross-platform command-line tools for the ECOS Embedded SDK"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [{ name = "ECOS Embedded SDK contributors" }]
+dependencies = ["PyYAML>=6.0,<7"]
+
+[project.scripts]
+ecos = "ecos_cli.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"ecos_cli.resources.toolchains" = ["*.json"]

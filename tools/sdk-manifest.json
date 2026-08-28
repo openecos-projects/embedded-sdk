@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "sdk_id": "ecos-embedded-sdk",
+  "sdk_version": "3.0.0",
+  "channel": "development",
+  "cli_compatibility": {
+    "major": 3,
+    "schema_version": "1.0"
+  },
+  "layout": {
+    "boards": "board",
+    "components": "components",
+    "devices": "devices",
+    "docs": "docs",
+    "examples": "example",
+    "hal": "hal",
+    "templates": "templates",
+    "cli": "tools/ecos_cli/src"
+  },
+  "toolchain": {
+    "id": "xpack-riscv-none-elf-gcc",
+    "release": "15.2.0-1"
+  }
+}

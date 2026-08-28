@@ -39,18 +39,29 @@
 !bin/**
 
 
-!install.sh
-
 !tools
+!tools/ecos.py
+!tools/install.py
+!tools/sdk-manifest.json
 !tools/fixdep
 !tools/fixdep/**
 !tools/kconfig
 !tools/kconfig/**
 !tools/scripts
 !tools/scripts/**
+!tools/toolchains/
+!tools/toolchains/*.py
+!tools/toolchains/*.json
+!tools/ecos_cli/
+!tools/ecos_cli/**
 
 !environments/
 !environments/**
 !third_party/
 !third_party/**
 
+**/__pycache__/
+*.py[cod]
+tools/ecos_cli/build/
+tools/ecos_cli/dist/
+tools/ecos_cli/src/*.egg-info/
