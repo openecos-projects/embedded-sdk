@@ -46,10 +46,10 @@ make
 注意，板卡资源仅包含板卡相关的文件、文件夹（SDK/board下的资源）
 
 1. 在ecos-set_board_isolated.sh的set_board函数中，编写“移动新板卡的相关文件”的逻辑
-2. 执行./install.sh更新SDK
+2. 执行 `python3 tools/install.py` 更新 SDK
 
 ## 新SDK资源的适配方式
 注意，SDK资源仅包含板卡不相关的文件、文件夹（SDK/board以外的资源）
 
 1. 在ecos-init_project.sh的init_project_isolated函数中，编写“移动SDK新资源”的逻辑
-2. 执行./install.sh更新SDK
+2. 执行 `python3 tools/install.py` 更新 SDK

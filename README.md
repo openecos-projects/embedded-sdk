@@ -5,6 +5,9 @@
 SDK 基于 HAL 提供的 StarrySkyL4 AbstractMachine 开发环境见
 [docs/abstract-machine.md](docs/abstract-machine.md)。
 
+SDK 3.0 的架构目标、非目标和迁移验收边界见
+[docs/sdk-3.0-development-boundary.md](docs/sdk-3.0-development-boundary.md)。
+
 **ECOS 嵌入式 SDK** 是专为 StarrySky 系列 RISC-V 芯片及微控制器（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的生产级、模块化裸机固件开发套件。
 
 本 SDK 围绕全新的 **HAL V2** 硬件抽象层重构，采用 Kconfig 图形化配置与 Make 构建系统，致力于提供高效、安全的嵌入式开发体验。
@@ -46,7 +49,7 @@ ecos/embedded-sdk/
 ├── scripts/        # Make 编译脚本及构建规则
 ├── templates/      # 官方提供的基础/外设裸机示例模板 (按外设划分，内部再区分具体板卡)
 ├── testdir/        # (仅供 SDK 开发者使用) 内部专用的快速模板测试与验证环境
-└── tools/          # 构建辅助工具 (kconfig, fixdep, ecos 命令行脚手架)
+└── tools/          # Python 安装器/CLI、工具链清单及构建辅助工具
 ```
 
 ---
@@ -54,17 +57,70 @@ ecos/embedded-sdk/
 ### 3. 环境依赖与安装
 
 #### 依赖项
-- SDK 默认 RISC-V 交叉编译工具链 (`riscv64-unknown-elf-gcc`)
+- SDK 锁定的 xPack GNU RISC-V Embedded GCC 15.2.0-1
+  (`riscv-none-elf-gcc`，安装脚本按宿主平台下载并校验)
 - `make`
 - `direnv` (推荐，用于 `testdir` 自动加载环境变量)
-- Python 3 (可选，用于某些构建脚本自动化)
+- Python 3.9 或更高版本
 
 #### 快速安装
-运行根目录下的安装脚本进行基础环境配置：
+详细的安装路径、参数、离线安装、多版本和故障排查见
+[docs/install.md](docs/install.md)。
+
+运行 Python 安装器。在 GNU/Linux 上默认安装到
+`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链：
 ```bash
-./install.sh
+python3 tools/install.py
 ```
-脚本运行完成后，需要重新打开终端或执行 `source ~/.bashrc` 来更新环境变量。
+安装器会读取 `tools/sdk-manifest.json` 中的 SDK `3.0.0` 标识，复制该清单并将安装结果
+注册为 active SDK。它会识别 Bash、Zsh、Fish 或 PowerShell，安装对应的 `ecos` 自动
+补全，并在该 Shell 的用户启动文件中维护带 `ECOS SDK` 标记的配置块。该配置块只添加
+CLI 路径和补全，不会持久设置 `ECOS_SDK_HOME`。安装完成后按输出提示重新加载配置或打开
+新终端。可以先用以下命令在不写文件、不联网的情况下检查完整安装计划：
+```bash
+python3 tools/install.py --dry-run
+```
+
+离线安装工具链使用 `--archive <path>`；只更新 SDK 文件而不安装工具链使用
+`--skip-toolchain`。使用 `--shell bash|zsh|fish|powershell` 可以覆盖自动识别结果，
+`--shell-profile <path>` 可以指定启动文件，`--shell none` 可以禁用 Shell 配置。
+`--prefix <path>` 表示版本目录的父目录，安装器会从 SDK 清单自动追加版本号；例如
+`--prefix ~/ecos-sdks` 的实际安装路径是 `~/ecos-sdks/3.0.0`。
+`--registration-name <name>` 可以指定注册名，`--no-activate` 保留当前全局 active SDK，
+`--force` 强制重新部署 SDK、替换同名注册，并在未跳过工具链时重新安装工具链。
+`--replace-registration` 和 `--force-toolchain` 可用于只强制对应部分。完整参数见
+`python3 tools/install.py --help`。
+
+3.0 安装包不会复制源码 `bin/` 中的 2.x Shell 命令。版本目录的 `bin/` 只包含生成的
+Python `ecos` 启动器；帮助和自动补全也只公开已经迁移到 Python 的命令。当前已迁移
+命令为 `sdk`、`project`、`build`、`toolchain` 和 `completion`。
+
+工具链识别、状态检查和安装由 Python `ecos` CLI 统一提供：
+```bash
+ecos sdk register /path/to/checkout --name dev --activate
+ecos sdk list
+ecos sdk current
+ecos sdk use 3.0.0
+ecos sdk pin 3.0.0 --project /path/to/project
+ecos sdk doctor
+ecos project create hello --path ~/workspace
+ecos toolchain detect
+ecos toolchain status
+ecos toolchain install
+ecos toolchain status --format json
+ecos completion bash
+ecos completion zsh
+ecos completion fish
+ecos completion powershell
+```
+
+SDK 路径按固定优先级解析：单次命令的全局 `--sdk`、工程 pin、当前路径所属的源码
+checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 checkout。高优先级配置
+存在但无效时会直接报错，不会静默切换到另一个版本。`ecos sdk unregister` 只删除注册
+关系，不删除 SDK 文件。
+
+使用 `ecos toolchain install --dry-run` 可以在不联网、不写文件的情况下查看安装计划；
+使用 `--archive <path>` 可以导入已离线下载的官方归档。
 
 ---
 

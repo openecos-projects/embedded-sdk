@@ -42,7 +42,7 @@ ecos/embedded-sdk/
 ├── scripts/        # Make build scripts and rules
 ├── templates/      # Official basic/peripheral bare-metal example templates
 ├── testdir/        # (For SDK developers only) Internal dedicated environment for rapid template testing
-└── tools/          # Build auxiliary tools (kconfig, fixdep, ecos CLI scaffolding)
+└── tools/          # Python installer/CLI, toolchain manifests, and build helpers
 ```
 
 ---
@@ -50,17 +50,74 @@ ecos/embedded-sdk/
 ### 3. Environment Dependencies and Installation
 
 #### Dependencies
-- SDK default RISC-V cross-compilation toolchain (`riscv64-unknown-elf-gcc`)
+- SDK-pinned xPack GNU RISC-V Embedded GCC 15.2.0-1
+  (`riscv-none-elf-gcc`, selected and verified for the host by the installer)
 - `make`
 - `direnv` (Recommended, for automatically loading environment variables in `testdir`)
-- Python 3 (Optional, for some build script automations)
+- Python 3.9 or newer
 
 #### Quick Installation
-Run the installation script in the root directory to configure the basic environment:
+Run the Python installer. On GNU/Linux it installs to
+`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain selected
+for the current host:
 ```bash
-./install.sh
+python3 tools/install.py
 ```
-After the script finishes, you need to reopen the terminal or run `source ~/.bashrc` to update the environment variables.
+The installer reads the SDK `3.0.0` identity from `tools/sdk-manifest.json`, copies the
+manifest, and registers the installed SDK as active. It detects Bash, Zsh, Fish, or
+PowerShell, installs the matching `ecos` completion, and maintains a marked `ECOS SDK`
+block in that shell's user startup file. The block adds only the CLI path and completion;
+it does not persist `ECOS_SDK_HOME`. Reload the file using the command printed after
+installation, or open a new terminal. Inspect the complete plan without writes or network
+access first with:
+```bash
+python3 tools/install.py --dry-run
+```
+
+Use `--archive <path>` for an offline toolchain archive, or `--skip-toolchain` to
+update only the SDK files. Use `--shell bash|zsh|fish|powershell` to override shell
+detection, `--shell-profile <path>` to select a startup file, or `--shell none` to
+disable shell configuration. `--prefix <path>` names the parent directory; the installer
+appends the version from the SDK manifest. For example, `--prefix ~/ecos-sdks` installs
+this release at `~/ecos-sdks/3.0.0`. Use `--registration-name <name>` to choose the registration,
+`--no-activate` to preserve the current global selection, or `--force` to redeploy the SDK,
+replace its registration, and reinstall the toolchain when enabled. Use
+`--replace-registration` or `--force-toolchain` to force only that part. See
+`python3 tools/install.py --help` for all options.
+
+The 3.0 package does not copy the 2.x shell commands from the source `bin/`
+directory. The version directory's `bin/` contains only generated Python `ecos` launchers;
+help and completion expose only commands already migrated to Python. The currently
+migrated commands are `sdk`, `project`, `build`, `toolchain`, and `completion`.
+
+Toolchain detection, status inspection, and installation are provided by the Python
+`ecos` CLI:
+```bash
+ecos sdk register /path/to/checkout --name dev --activate
+ecos sdk list
+ecos sdk current
+ecos sdk use 3.0.0
+ecos sdk pin 3.0.0 --project /path/to/project
+ecos sdk doctor
+ecos project create hello --path ~/workspace
+ecos toolchain detect
+ecos toolchain status
+ecos toolchain install
+ecos toolchain status --format json
+ecos completion bash
+ecos completion zsh
+ecos completion fish
+ecos completion powershell
+```
+
+SDK paths use a fixed priority: the command-wide `--sdk` selector, the project pin, the
+source checkout containing the current path, the compatibility variable `ECOS_SDK_HOME`,
+the registry's active entry, then the CLI entry checkout. An invalid higher-priority
+selection is an error and never silently falls back to another version. `ecos sdk
+unregister` removes only the registration, not SDK files.
+
+Use `ecos toolchain install --dry-run` to inspect the plan without network or file
+writes. Use `--archive <path>` to import an offline official archive.
 
 ---
 

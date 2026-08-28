@@ -31,7 +31,8 @@ ecos init_project
 
 这样不会把用户 BSP 混入 SDK 自带的板卡目录。
 
-重新运行 SDK 的 `install.sh` 时会保留目标 SDK 中已有的 `board/UserBSP/` 内容。
+重新运行 SDK 的 `python3 tools/install.py` 时会保留目标 SDK 中已有的
+`board/UserBSP/` 内容。
 
 ### SDK 环境
 
@@ -121,7 +122,8 @@ acme-demo-v1-bsp/
 
 这个文件告诉 SDK BSP 中各文件的位置。
 
-- `schema` 保持为 `1`。
+- 2.x 外部 BSP 兼容流程生成的 `schema` 保持为 `1`。SDK 3.0 内置 Board 已开始迁移到
+  schema 2；外部 BSP 的 schema 2 导入要等 Python 资源解析器完成后开放。
 - `id` 必须以小写字母开头，只能包含小写字母、数字和短横线；导入后不要随意改变。
 - `arch` 根据实际处理器确认。
 - 文件改名或移动后，同步修改 `files`、`kconfig` 或 `paths` 中的相对路径。

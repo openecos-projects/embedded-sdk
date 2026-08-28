@@ -69,11 +69,12 @@ L4 QSPI 使用经板上验证的 FIFO-first MMIO 顺序，驱动对象固定以 
 
 - `board/StarrySkyL4/Makefile`
 - `board/StarrySkyL4/Makefile_isolated`
-- `board/StarrySkyL4/start.S`
-- `board/StarrySkyL4/sections.lds`
-- `board/StarrySkyL4/loader/loader.c`
+- `components/soc/ysyx-2512/startup/start.S`
+- `components/soc/ysyx-2512/linker/sections.lds`
+- `components/soc/ysyx-2512/startup/loader.c`
 
-`templates/*/l4/start.S` 与 `sections.lds` 必须保持与 board 文件一致。`ecos init_project` 和 `ecos set_board` 始终使用当前 SDK 自身的 board 文件，不能依赖 PATH 中的其他 SDK 安装。
+`ysyx-2512` Target 是启动、链接和 SoC HAL 的单一来源。2.x Board 文件仅保留兼容入口；
+3.0 工程通过 Board 映射选择 Target，不再复制这些 SoC 文件。
 
 ## 已验证基线
 
