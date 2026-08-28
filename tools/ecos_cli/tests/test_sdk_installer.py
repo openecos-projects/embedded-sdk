@@ -163,6 +163,26 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(configured_path.split(":", 1)[0], str(prefix / "bin"))
             self.assertEqual(sdk_home, "unset")
 
+    def test_powershell_configuration_recovers_path_without_separator(self):
+        block = installer.shell_configuration_block(
+            Path("C:/Users/test/AppData/Local/ECOS/SDKs/3.0.0"),
+            "powershell",
+        )
+
+        self.assertIn("$ecosPathValue = $env:PATH", block)
+        self.assertIn(
+            "[Environment]::GetEnvironmentVariable('Path', 'Machine')",
+            block,
+        )
+        self.assertIn(
+            "[Environment]::GetEnvironmentVariable('Path', 'User')",
+            block,
+        )
+        self.assertIn(
+            "$ecosCurrentPaths = @($ecosPathValue -split [IO.Path]::PathSeparator",
+            block,
+        )
+
     def test_full_install_configures_requested_shell_profile(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

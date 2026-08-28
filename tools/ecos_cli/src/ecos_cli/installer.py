@@ -408,7 +408,14 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
     if shell == "powershell":
         lines = [
             f"$ecosSdkPaths = @({_powershell_quote(bin_dir)})",
-            "$ecosCurrentPaths = @($env:PATH -split [IO.Path]::PathSeparator)",
+            "$ecosPathValue = $env:PATH",
+            "if ($ecosPathValue -and $ecosPathValue -notlike '*;*') {",
+            "    $ecosPathValue = @(",
+            "        [Environment]::GetEnvironmentVariable('Path', 'Machine')",
+            "        [Environment]::GetEnvironmentVariable('Path', 'User')",
+            "    ) -join [IO.Path]::PathSeparator",
+            "}",
+            "$ecosCurrentPaths = @($ecosPathValue -split [IO.Path]::PathSeparator | Where-Object { $_ })",
             "$env:PATH = @(($ecosSdkPaths | Where-Object { $_ -notin $ecosCurrentPaths }) + $ecosCurrentPaths) -join [IO.Path]::PathSeparator",
         ]
         if migrate_legacy_environment:
@@ -422,7 +429,7 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
         lines.extend(
             [
                 f". {_powershell_quote(str(completion_file))}",
-                "Remove-Variable ecosSdkPaths, ecosCurrentPaths -ErrorAction SilentlyContinue",
+                "Remove-Variable ecosSdkPaths, ecosPathValue, ecosCurrentPaths -ErrorAction SilentlyContinue",
             ]
         )
         return "\n".join(lines)
