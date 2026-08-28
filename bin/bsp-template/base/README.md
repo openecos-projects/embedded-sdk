@@ -35,7 +35,8 @@ ecos board check .
 
 ## 不要修改
 
-- 不要修改 `schema: 1`。
+- 2.x 外部 BSP 兼容脚手架中不要修改 `schema: 1`；SDK 3.0 内置 Board 使用独立的
+  schema 2 资源定义。
 - 不要修改 SDK HAL 头文件规定的函数名、参数和返回值。
 - 不要修改 `BOARD_PACKAGE`、`BOARD_BUILD_CONF`、`BOARD_DRIVER_DIR` 等构建变量名。
 - `start.S` 和 `sections.lds` 共同使用的符号必须保持一致；如确需改名，应同时修改两边。

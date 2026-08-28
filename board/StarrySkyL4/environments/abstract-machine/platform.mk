@@ -23,7 +23,7 @@ AM_EXTERNAL_SRCS += $(AM_PORT_DIR)/src/trm.c \
 INC_PATH += $(ECOS_SDK_HOME)/hal/sys_uart \
 			$(ECOS_SDK_HOME)/hal/timer \
 			$(ECOS_SDK_HOME)/hal/qspi \
-			$(ECOS_SDK_HOME)/board/StarrySkyL4 \
+			$(ECOS_SDK_HOME)/components/soc/ysyx-2512/include \
 			$(AM_GENERATED_DIR)
 LDSCRIPTS += $(AM_PORT_DIR)/sections.lds
 LDFLAGS   += --gc-sections -e _start --undefined=_trm_init

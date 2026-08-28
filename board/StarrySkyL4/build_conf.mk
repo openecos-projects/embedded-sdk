@@ -1,6 +1,8 @@
 # L4 non-assembly firmware always executes from PSRAM via the board bootloader.
 LDFLAGS += -DCONFIG_LINK_TARGET_MEM
 CFLAGS += -DCONFIG_LINK_TARGET_MEM
+SOC_ROOT := $(ECOS_SDK_HOME)/components/soc/ysyx-2512
+CFLAGS += -I$(SOC_ROOT)/include
 
 # 根据配置文件添加编译优化选项
 ifdef CONFIG_BUILD_OPT_FLAGS
@@ -27,11 +29,11 @@ endif
 # 可选的驱动列表
 define driver_template
 ifdef CONFIG_DRIVER_$(1)
-        SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/board/StarrySkyL4/driver/$(2) -name "*.c")
+        SDK_SRC_PATH += $(shell find $(SOC_ROOT)/hal/$(2) -name "*.c")
         CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
 endif
 endef
-DRIVER_DIR := $(ECOS_SDK_HOME)/board/StarrySkyL4/driver
+DRIVER_DIR := $(SOC_ROOT)/hal
 DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null))
 
 $(foreach subdir,$(DRIVER_SUBDIRS), \

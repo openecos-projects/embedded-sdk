@@ -340,7 +340,10 @@ ecos_board_validate_manifest() {
     category="$(ecos_board_manifest_value "$manifest" category)"
     arch="$(ecos_board_manifest_value "$manifest" arch)"
 
-    [[ "$schema" == "1" ]] || { echo "schema 必须是 1" >&2; failed=1; }
+    [[ "$schema" == "1" || "$schema" == "2" ]] || {
+        echo "schema 必须是 1 或 2" >&2
+        failed=1
+    }
     [[ "$id" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]] || { echo "id 必须以小写字母开头，且只允许小写字母、数字和短横线: $id" >&2; failed=1; }
     [[ -n "$name" ]] || { echo "缺少清单项: name" >&2; failed=1; }
     [[ "$category" =~ ^[A-Za-z][A-Za-z0-9_]*$ ]] || { echo "category 格式不正确: $category" >&2; failed=1; }

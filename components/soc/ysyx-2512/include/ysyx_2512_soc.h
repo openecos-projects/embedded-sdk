@@ -1,7 +1,6 @@
 #ifndef ECOS_SOC_YSYX_2512_H
 #define ECOS_SOC_YSYX_2512_H
 
-/* 2.x isolated-project compatibility snapshot; 3.0 uses the SoC header. */
 #include <stdint.h>
 
 /* ========================== GPIO_0 寄存器组 ================================ */

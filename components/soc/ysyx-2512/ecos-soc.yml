@@ -1,0 +1,33 @@
+schema: 1
+id: ysyx-2512
+name: ysyx-2512
+arch: riscv
+description: SoC target used by StarrySky L4.
+cpu:
+  march: rv32e
+  abi: ilp32e
+toolchain:
+  prefix: riscv64-unknown-elf-
+memory:
+  flash:
+    origin: 0x30000000
+    size: 16M
+  psram:
+    origin: 0xC0000000
+    size: 8M
+build:
+  makefile: build.mk
+  kconfig: Kconfig
+  linker_script: linker/sections.lds
+  startup: startup/start.S
+  loader: startup/loader.c
+capabilities:
+  - console
+  - gpio
+  - hp-uart
+  - pwm
+  - qspi
+  - timer
+  - archinfo
+  - rng
+  - crc

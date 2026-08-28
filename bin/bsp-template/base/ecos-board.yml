@@ -1,4 +1,4 @@
-# [不要修改] 当前 SDK 只支持 schema 1。
+# [不要修改] 2.x 外部 BSP 兼容脚手架继续使用 schema 1。
 schema: 1
 
 # [不要修改] 以下标识由 ecos board create 根据命令参数生成。

@@ -14,6 +14,7 @@ BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
 PROJECT_PATH := $(shell pwd)
 CATEGORY := StarrySkyL4
+SOC_ROOT := $(ECOS_SDK_HOME)/components/soc/ysyx-2512
 
 # Include generated Kconfig values.
 -include configs/config/auto.conf
@@ -38,22 +39,22 @@ FIRMWARE_NAME := main
 endif
 .DEFAULT_GOAL := $(FIRMWARE_NAME)
 
-STARTUP_SRC := ./start.S
-BOOTLOADER_SRC := ./loader/loader.c
+STARTUP_SRC := $(SOC_ROOT)/startup/start.S
+BOOTLOADER_SRC := $(SOC_ROOT)/startup/loader.c
 APP_SRC := ./main.c $(SDK_SRC_PATH)
 STARTUP_OBJ := $(OBJ_DIR)/$(STARTUP_SRC:.S=.o)
 BOOTLOADER_OBJ := $(OBJ_DIR)/$(BOOTLOADER_SRC:.c=.o)
 APP_OBJS := $(addprefix $(OBJ_DIR)/,$(patsubst %.S,%.o,$(patsubst %.c,%.o,$(APP_SRC))))
 FIRMWARE_OBJS := $(STARTUP_OBJ) $(BOOTLOADER_OBJ) $(APP_OBJS)
 
-CFLAGS += -I./ -I./configs
+CFLAGS += -I./ -I./configs -I$(SOC_ROOT)/include
 
 # The verified L4 QSPI polling sequence is timing-sensitive at -Os/-O2.
 QSPI_SRCS := $(filter %/qspi.c,$(APP_SRC))
 QSPI_OBJS := $(addprefix $(OBJ_DIR)/,$(QSPI_SRCS:.c=.o))
 $(QSPI_OBJS): CFLAGS := $(filter-out -O%,$(CFLAGS)) -O0
 
-FIRMWARE_LDS_PATH := ./sections.lds
+FIRMWARE_LDS_PATH := $(SOC_ROOT)/linker/sections.lds
 LDFLAGS := -e _start -melf32lriscv -z noexecstack -T $(FIRMWARE_LDS_PATH) --gc-sections
 
 # Keep SDK memory report output after the verif-style link flow.

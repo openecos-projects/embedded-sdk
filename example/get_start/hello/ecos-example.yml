@@ -1,0 +1,6 @@
+schema: 1
+name: hello
+sources:
+  - main.c
+requires:
+  - console

@@ -1,10 +1,19 @@
-schema: 1
+schema: 2
 id: starrysky-l4
 name: StarrySky L4
 aliases:
   - l4
 category: StarrySkyL4
 arch: riscv
+target: ysyx-2512
+
+build:
+  default_profile: memory
+
+resources:
+  console:
+    driver: sys-uart
+    instance: 0
 
 files:
   makefile: Makefile

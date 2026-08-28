@@ -1,10 +1,19 @@
-schema: 1
+schema: 2
 id: starrysky-l3-1
 name: StarrySky L3_1
 aliases:
   - l3_1
 category: StarrySkyL3_1
 arch: riscv
+target: ysyx-l3
+
+build:
+  default_profile: flash-xip
+
+resources:
+  console:
+    driver: sys-uart
+    instance: 0
 
 files:
   makefile: Makefile
