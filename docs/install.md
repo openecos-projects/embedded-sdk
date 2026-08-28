@@ -34,6 +34,11 @@ python3 tools/install.py
 安装输出中的 `SDK install base` 是版本目录的父目录；`SDK installed at` 才是本次安装的
 实际 SDK 根目录。
 
+`tools/install.py` 安装的是 release SDK，工具链随 release 放在上述版本目录下。若后续仍
+从源码 checkout 运行 `python3 tools/ecos.py --sdk . ...`，该上下文默认使用独立的用户级
+工具链前缀；请额外执行 `python3 tools/ecos.py --sdk . toolchain install`，或改用已安装
+release 的 `ecos` 入口。两种情况下都不要求把交叉编译器加入全局 `PATH`。
+
 ## 2. 前置条件与支持平台
 
 ### 2.1 必要条件
@@ -350,9 +355,10 @@ python3 tools/ecos.py sdk register . --name dev --kind checkout --activate
 
 1. 当前命令的 `--sdk NAME|VERSION|PATH`。
 2. 从工程向上找到的 `.ecos/sdk.json` pin。
-3. 兼容变量 `ECOS_SDK_HOME`。
-4. 注册表 active SDK。
-5. 从源码 `tools/ecos.py` 运行时推导的 checkout。
+3. 当前路径所属的源码 checkout。
+4. 兼容变量 `ECOS_SDK_HOME`。
+5. 注册表 active SDK。
+6. 从源码 `tools/ecos.py` 运行时推导的 checkout。
 
 单次使用指定 SDK：
 
@@ -362,6 +368,9 @@ python3 tools/ecos.py --sdk . toolchain detect
 ```
 
 高优先级选择无效时会直接报错，不会静默回退到另一个版本。
+如果旧版启动文件仍设置了 `ECOS_SDK_HOME`，它会按兼容覆盖规则优先选择旧 SDK；可先执行
+`Remove-Item Env:ECOS_SDK_HOME`（PowerShell）或 `unset ECOS_SDK_HOME`（Bash/Zsh），再用
+`ecos sdk current` 检查实际上下文。
 
 ## 10. Shell 配置和补全
 
@@ -381,7 +390,11 @@ python3 tools/ecos.py --sdk . toolchain detect
 ```
 
 重复安装会更新同一标记块。它只添加版本目录 `bin` 到 `PATH` 并加载补全，不持久设置
-`ECOS_SDK_HOME`，也不修改标记块之外的配置。
+`ECOS_SDK_HOME`，也不修改标记块之外的配置。工具链的 `toolchain/riscv/bin` 不会加入
+全局 `PATH`：`xPack` 是工具链提供者名称，实际编译器命令是
+`riscv-none-elf-gcc`。`ecos build` 会从工具链状态解析器取得绝对路径，因此不要求用户
+手工设置交叉编译器 `PATH`；需要手工调用时请使用 `toolchain/riscv/bin` 下的完整路径，或
+只在当前 Shell 临时追加该目录。
 
 常用方式：
 

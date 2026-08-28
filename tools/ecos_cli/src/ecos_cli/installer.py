@@ -27,6 +27,9 @@ ProgressCallback = Callable[[str], None]
 SHELL_CONFIG_BEGIN = "# >>> ECOS SDK >>>"
 SHELL_CONFIG_END = "# <<< ECOS SDK <<<"
 COMPLETION_RELATIVE_ROOT = Path("share") / "ecos" / "completions"
+PYTHON_DEPENDENCY_RELATIVE_ROOT = Path("lib") / "ecos" / "python"
+PYTHON_DEPENDENCY_MARKER = ".ecos-python-dependencies.json"
+PYTHON_DEPENDENCIES = ("PyYAML==6.0.3",)
 
 SDK_DIRECTORIES = (
     "components",
@@ -61,8 +64,11 @@ from pathlib import Path
 
 SDK_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_ROOT = SDK_ROOT / "tools" / "ecos_cli" / "src"
+DEPENDENCY_ROOT = SDK_ROOT / "lib" / "ecos" / "python"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
+if str(DEPENDENCY_ROOT) not in sys.path:
+    sys.path.insert(0, str(DEPENDENCY_ROOT))
 
 from ecos_cli.cli import main
 
@@ -74,6 +80,10 @@ if __name__ == "__main__":
 
 class InstallerError(RuntimeError):
     """The SDK installation could not be completed."""
+
+
+class PythonDependencyError(InstallerError):
+    """The SDK's private Python dependencies could not be installed."""
 
 
 def default_install_base(
@@ -183,6 +193,11 @@ def installation_plan(sdk_root: Path, prefix: Path) -> dict[str, Any]:
             str(prefix / COMPLETION_RELATIVE_ROOT / filename)
             for filename in completion.COMPLETION_FILENAMES.values()
         ],
+        "python_dependencies": {
+            "root": str(prefix / PYTHON_DEPENDENCY_RELATIVE_ROOT),
+            "packages": list(PYTHON_DEPENDENCIES),
+            "installation": None,
+        },
     }
 
 
@@ -303,6 +318,116 @@ def install_completion_files(prefix: Path) -> dict[str, str]:
     return installed
 
 
+def _python_dependency_identity() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "python_executable": str(Path(sys.executable).resolve()),
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "packages": list(PYTHON_DEPENDENCIES),
+    }
+
+
+def _validate_python_dependencies(root: Path) -> bool:
+    marker_path = root / PYTHON_DEPENDENCY_MARKER
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if marker != _python_dependency_identity():
+        return False
+    command = (
+        "import sys; "
+        "sys.path.insert(0, sys.argv[1]); "
+        "import yaml; "
+        "raise SystemExit(0 if yaml.__version__ == '6.0.3' else 1)"
+    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", command, str(root)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _install_python_packages(destination: Path) -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-input",
+        "--no-warn-script-location",
+        "--only-binary=:all:",
+        "--target",
+        str(destination),
+        *PYTHON_DEPENDENCIES,
+    ]
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        raise PythonDependencyError(
+            "cannot install the SDK's private Python dependencies with "
+            f"{sys.executable}: {detail}"
+        ) from exc
+    except OSError as exc:
+        raise PythonDependencyError(
+            f"cannot run pip with {sys.executable}: {exc}"
+        ) from exc
+
+
+def install_python_dependencies(
+    prefix: Path,
+    *,
+    force: bool = False,
+    progress: Optional[ProgressCallback] = None,
+) -> dict[str, Any]:
+    destination = prefix / PYTHON_DEPENDENCY_RELATIVE_ROOT
+    if not force and _validate_python_dependencies(destination):
+        return {
+            "state": "reused",
+            "root": str(destination),
+            "packages": list(PYTHON_DEPENDENCIES),
+        }
+
+    if progress:
+        progress("Installing Python CLI dependencies")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".python-dependencies.install-", dir=destination.parent
+    ) as temporary:
+        staged = Path(temporary) / destination.name
+        _install_python_packages(staged)
+        marker = _python_dependency_identity()
+        (staged / PYTHON_DEPENDENCY_MARKER).write_text(
+            json.dumps(marker, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        if not _validate_python_dependencies(staged):
+            raise PythonDependencyError(
+                "installed Python dependencies failed validation"
+            )
+        _remove_managed_path(destination)
+        staged.replace(destination)
+
+    return {
+        "state": "installed",
+        "root": str(destination),
+        "packages": list(PYTHON_DEPENDENCIES),
+    }
+
+
 def detect_shell(requested: str) -> str:
     if requested != "auto":
         return requested
@@ -407,16 +532,16 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
         return "\n".join(lines)
     if shell == "powershell":
         lines = [
-            f"$ecosSdkPaths = @({_powershell_quote(bin_dir)})",
-            "$ecosPathValue = $env:PATH",
-            "if ($ecosPathValue -and $ecosPathValue -notlike '*;*') {",
-            "    $ecosPathValue = @(",
-            "        [Environment]::GetEnvironmentVariable('Path', 'Machine')",
-            "        [Environment]::GetEnvironmentVariable('Path', 'User')",
-            "    ) -join [IO.Path]::PathSeparator",
+            f"$ecosSdkBin = {_powershell_quote(bin_dir)}",
+            "$ecosPathSeparator = [IO.Path]::PathSeparator",
+            "$ecosCurrentPaths = @($env:PATH -split $ecosPathSeparator | Where-Object { $_ })",
+            "if ($ecosSdkBin -notin $ecosCurrentPaths) {",
+            "    $env:PATH = if ($env:PATH) {",
+            "        $ecosSdkBin + $ecosPathSeparator + $env:PATH",
+            "    } else {",
+            "        $ecosSdkBin",
+            "    }",
             "}",
-            "$ecosCurrentPaths = @($ecosPathValue -split [IO.Path]::PathSeparator | Where-Object { $_ })",
-            "$env:PATH = @(($ecosSdkPaths | Where-Object { $_ -notin $ecosCurrentPaths }) + $ecosCurrentPaths) -join [IO.Path]::PathSeparator",
         ]
         if migrate_legacy_environment:
             lines.extend(
@@ -429,7 +554,7 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
         lines.extend(
             [
                 f". {_powershell_quote(str(completion_file))}",
-                "Remove-Variable ecosSdkPaths, ecosPathValue, ecosCurrentPaths -ErrorAction SilentlyContinue",
+                "Remove-Variable ecosSdkBin, ecosPathSeparator, ecosCurrentPaths -ErrorAction SilentlyContinue",
             ]
         )
         return "\n".join(lines)
@@ -644,6 +769,8 @@ def _print_text(data: dict[str, Any], console: ConsoleProgress) -> None:
         installation = toolchain_result["installation"]
         console.info(f"Toolchain: {installation['state']}")
         console.info(f"Compiler: {installation['compiler']['path']}")
+    python_dependencies = data["python_dependencies"]["installation"]
+    console.info(f"Python dependencies: {python_dependencies['state']}")
     configuration = data["environment"]["configuration"]
     if configuration["state"] == "disabled":
         console.warning("Shell environment and completion configuration was disabled.")
@@ -790,6 +917,14 @@ def main(
             return 0
 
         core_result = install_sdk_core(source_root, prefix, progress=console.message)
+        python_dependency_result = install_python_dependencies(
+            prefix,
+            force=args.force,
+            progress=console.message,
+        )
+        core_result["python_dependencies"]["installation"] = (
+            python_dependency_result
+        )
         toolchain_result = None
         if not args.skip_toolchain:
             assert manifest is not None and host is not None and selection is not None
@@ -836,6 +971,13 @@ def main(
         else:
             _print_text(data, console)
         return 0
+    except PythonDependencyError as exc:
+        return _emit_error(
+            args.output_format,
+            "ECOS_PYTHON_DEPENDENCY_INSTALL_FAILED",
+            str(exc),
+            6,
+        )
     except InstallerError as exc:
         return _emit_error(args.output_format, "ECOS_INSTALL_CONFIG_INVALID", str(exc), 3)
     except SdkRegistryError as exc:

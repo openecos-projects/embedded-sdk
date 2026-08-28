@@ -29,6 +29,14 @@ ecos toolchain install --archive /path/to/xpack-archive
 `cli_version`、`schema_version`、`command`、`status`、`data` 和 `diagnostics`；下载和解压
 进度只写入标准错误。
 
+`xPack` 是清单中的 provider，不是一个名为 `xpack` 的命令。安装后的交叉编译器命令为
+`riscv-none-elf-gcc`、`riscv-none-elf-objcopy` 等。安装器不会把版本化工具链目录加入全局
+`PATH`，以避免多个 SDK 版本互相抢占；`ecos build` 使用状态检查返回的绝对路径。
+
+源码 checkout 执行 `ecos toolchain install` 时，默认前缀是用户目录
+`~/.local/ecos-sdk`；`tools/install.py` 部署 release SDK 时，工具链位于对应版本 SDK 根目录
+下的 `toolchain/`。用 `ecos toolchain status --format json` 查看当前上下文实际使用的路径。
+
 ## 退出码
 
 | 退出码 | 含义 |

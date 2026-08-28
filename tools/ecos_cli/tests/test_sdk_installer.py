@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -7,6 +8,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src"
@@ -60,6 +62,14 @@ def create_sdk_fixture(root: Path, version: str = "3.0.0") -> None:
     (root / "tools" / "sdk-manifest.json").write_text(
         json.dumps(manifest), encoding="utf-8"
     )
+
+
+def fake_python_dependency_install(prefix: Path, **_: object) -> dict[str, object]:
+    return {
+        "state": "installed",
+        "root": str(prefix / installer.PYTHON_DEPENDENCY_RELATIVE_ROOT),
+        "packages": list(installer.PYTHON_DEPENDENCIES),
+    }
 
 
 class SdkInstallerTest(unittest.TestCase):
@@ -163,25 +173,55 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(configured_path.split(":", 1)[0], str(prefix / "bin"))
             self.assertEqual(sdk_home, "unset")
 
-    def test_powershell_configuration_recovers_path_without_separator(self):
+    def test_powershell_configuration_never_rebuilds_process_path(self):
         block = installer.shell_configuration_block(
             Path("C:/Users/test/AppData/Local/ECOS/SDKs/3.0.0"),
             "powershell",
         )
 
-        self.assertIn("$ecosPathValue = $env:PATH", block)
-        self.assertIn(
-            "[Environment]::GetEnvironmentVariable('Path', 'Machine')",
-            block,
-        )
-        self.assertIn(
-            "[Environment]::GetEnvironmentVariable('Path', 'User')",
-            block,
-        )
-        self.assertIn(
-            "$ecosCurrentPaths = @($ecosPathValue -split [IO.Path]::PathSeparator",
-            block,
-        )
+        self.assertNotIn("GetEnvironmentVariable", block)
+        self.assertIn("$ecosSdkBin + $ecosPathSeparator + $env:PATH", block)
+
+    @unittest.skipUnless(
+        os.name == "nt" and shutil.which("powershell"),
+        "Windows PowerShell is required",
+    )
+    def test_powershell_configuration_preserves_process_path_idempotently(self):
+        powershell = shutil.which("powershell")
+        assert powershell is not None
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "sdk"
+            completion_file = (
+                prefix
+                / installer.COMPLETION_RELATIVE_ROOT
+                / installer.completion.COMPLETION_FILENAMES["powershell"]
+            )
+            completion_file.parent.mkdir(parents=True)
+            completion_file.write_text("", encoding="utf-8")
+            block = installer.shell_configuration_block(prefix, "powershell")
+            sdk_bin = str(prefix / "bin")
+
+            for original_path in (
+                r"C:\host-injected\python-codex",
+                r"C:\Python;C:\Users\test\AppData\Roaming\npm;C:\Windows\System32",
+            ):
+                with self.subTest(original_path=original_path):
+                    command = "\n".join(
+                        [
+                            f"$env:PATH = {installer._powershell_quote(original_path)}",
+                            block,
+                            block,
+                            "[Console]::Write($env:PATH)",
+                        ]
+                    )
+                    result = subprocess.run(
+                        [powershell, "-NoProfile", "-Command", command],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+
+                    self.assertEqual(result.stdout, f"{sdk_bin};{original_path}")
 
     def test_full_install_configures_requested_shell_profile(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -193,7 +233,11 @@ class SdkInstallerTest(unittest.TestCase):
             create_sdk_fixture(sdk_root)
             output = StringIO()
 
-            with redirect_stdout(output):
+            with patch.object(
+                installer,
+                "install_python_dependencies",
+                side_effect=fake_python_dependency_install,
+            ), redirect_stdout(output):
                 result = installer.main(
                     [
                         "--prefix",
@@ -217,6 +261,10 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(payload["data"]["install_base"], str(install_base.resolve()))
             self.assertEqual(payload["data"]["prefix"], str(prefix.resolve()))
             self.assertEqual(configuration["state"], "configured")
+            self.assertEqual(
+                payload["data"]["python_dependencies"]["installation"]["state"],
+                "installed",
+            )
             self.assertEqual(configuration["config_file"], str(profile.resolve()))
             self.assertTrue(profile.is_file())
             self.assertIn(installer.SHELL_CONFIG_BEGIN, profile.read_text(encoding="utf-8"))
@@ -241,21 +289,26 @@ class SdkInstallerTest(unittest.TestCase):
             create_sdk_fixture(first_source, "3.0.0")
             create_sdk_fixture(second_source, "3.1.0")
 
-            for source in (first_source, second_source):
-                with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                    result = installer.main(
-                        [
-                            "--prefix",
-                            str(install_base),
-                            "--skip-toolchain",
-                            "--shell",
-                            "none",
-                            "--registry",
-                            str(registry_path),
-                        ],
-                        sdk_root=source,
-                    )
-                self.assertEqual(result, 0)
+            with patch.object(
+                installer,
+                "install_python_dependencies",
+                side_effect=fake_python_dependency_install,
+            ):
+                for source in (first_source, second_source):
+                    with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                        result = installer.main(
+                            [
+                                "--prefix",
+                                str(install_base),
+                                "--skip-toolchain",
+                                "--shell",
+                                "none",
+                                "--registry",
+                                str(registry_path),
+                            ],
+                            sdk_root=source,
+                        )
+                    self.assertEqual(result, 0)
 
             registry = json.loads(registry_path.read_text(encoding="utf-8"))
             self.assertTrue((install_base / "3.0.0/tools/sdk-manifest.json").is_file())
@@ -321,7 +374,11 @@ class SdkInstallerTest(unittest.TestCase):
             )
 
             output = StringIO()
-            with redirect_stdout(output):
+            with patch.object(
+                installer,
+                "install_python_dependencies",
+                side_effect=fake_python_dependency_install,
+            ), redirect_stdout(output):
                 result = installer.main(
                     [*arguments, "--force"],
                     sdk_root=source,
@@ -505,6 +562,40 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertIn(
                 "Installed ECOS Python CLI launcher",
                 prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                'DEPENDENCY_ROOT = SDK_ROOT / "lib" / "ecos" / "python"',
+                prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
+            )
+
+    def test_installs_private_python_dependencies_atomically_and_reuses_them(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "sdk"
+
+            def install_fake_yaml(destination: Path) -> None:
+                package = destination / "yaml"
+                package.mkdir(parents=True)
+                (package / "__init__.py").write_text(
+                    "__version__ = '6.0.3'\n", encoding="utf-8"
+                )
+
+            with patch.object(
+                installer,
+                "_install_python_packages",
+                side_effect=install_fake_yaml,
+            ) as install_packages:
+                first = installer.install_python_dependencies(prefix)
+                second = installer.install_python_dependencies(prefix)
+
+            dependency_root = prefix / installer.PYTHON_DEPENDENCY_RELATIVE_ROOT
+            self.assertEqual(first["state"], "installed")
+            self.assertEqual(second["state"], "reused")
+            self.assertEqual(install_packages.call_count, 1)
+            self.assertTrue(dependency_root.joinpath("yaml/__init__.py").is_file())
+            self.assertTrue(
+                dependency_root.joinpath(
+                    installer.PYTHON_DEPENDENCY_MARKER
+                ).is_file()
             )
 
     def test_rejects_overlapping_install_prefix(self):
