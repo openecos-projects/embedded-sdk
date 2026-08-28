@@ -64,7 +64,11 @@ def create_sdk(root: Path) -> Path:
             f"schema: 1\nid: {target}\narch: riscv\n",
             encoding="utf-8",
         )
-        (target_root / "build.mk").write_text("all:\n\t@true\n", encoding="utf-8")
+        (target_root / "CMakeLists.txt").write_text(
+            "cmake_minimum_required(VERSION 3.20)\nproject(test C)\n",
+            encoding="utf-8",
+        )
+        (target_root / "toolchain.cmake").write_text("", encoding="utf-8")
     l3_board = root / "board" / "StarrySkyL3_1" / "ecos-board.yml"
     l3_board.parent.mkdir()
     l3_board.write_text(
@@ -302,29 +306,74 @@ class ProjectCreateTest(unittest.TestCase):
             self.assertEqual(create_result, ExitCode.OK)
             project = workspace / "hello_world"
 
-            def fake_make(command, *, cwd, env, check):
+            def fake_cmake(command, *, cwd, env, check):
                 build_dir = Path(cwd) / "build"
-                build_dir.mkdir()
-                for suffix in ("elf", "bin", "txt", "hex"):
+                build_dir.mkdir(exist_ok=True)
+                for suffix in ("elf", "bin", "txt", "hex", "map", "size"):
                     (build_dir / f"retrosoc_fw.{suffix}").write_bytes(b"output")
+                (build_dir / "compile_commands.json").write_text("[]", encoding="utf-8")
                 return mock.Mock(returncode=0)
 
+            active_toolchain = root / "toolchain"
+            (active_toolchain / "bin").mkdir(parents=True)
+            (active_toolchain / "bin" / "riscv-none-elf-gcc").write_bytes(b"")
             output = StringIO()
             with mock.patch(
-                "ecos_cli.build.subprocess.run", side_effect=fake_make
+                "ecos_cli.build.shutil.which",
+                side_effect=lambda name: name if name in {"cmake", "ninja"} else None,
+            ), mock.patch(
+                "ecos_cli.build.toolchain.default_prefix",
+                return_value=active_toolchain,
+            ), mock.patch(
+                "ecos_cli.build.toolchain.installation_status",
+                return_value={"state": "installed", "active_root": str(active_toolchain)},
+            ) as installation_status, mock.patch(
+                "ecos_cli.build.subprocess.run", side_effect=fake_cmake
             ) as run, redirect_stdout(output), redirect_stderr(output):
                 result = main(
                     ["--sdk", str(sdk), "build", "--project", str(project)]
                 )
 
             self.assertEqual(result, ExitCode.OK)
-            command = run.call_args.args[0]
-            self.assertEqual(command[1], "-f")
+            command = run.call_args_list[0].args[0]
+            self.assertEqual(command[1], "-S")
             self.assertEqual(
                 Path(command[2]),
-                sdk / "components/soc/ysyx-2512/build.mk",
+                sdk / "components/soc/ysyx-2512",
             )
-            self.assertIn(f"PROJECT_DIR={project}", command)
+            self.assertIn(f"-DPROJECT_DIR={project}", command)
+            self.assertEqual(installation_status.call_args.args[1], active_toolchain)
+
+    def test_clean_does_not_require_host_build_tools(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            create_result, _ = self.run_json(
+                sdk,
+                "hello_world",
+                "--path",
+                str(workspace),
+                "--board",
+                "starrysky-l4",
+            )
+            self.assertEqual(create_result, ExitCode.OK)
+            project = workspace / "hello_world"
+            build_dir = project / "build"
+            build_dir.mkdir()
+            (build_dir / "stale").write_text("old", encoding="utf-8")
+
+            output = StringIO()
+            with mock.patch(
+                "ecos_cli.build.shutil.which", return_value=None
+            ), redirect_stdout(output), redirect_stderr(output):
+                result = main(
+                    ["--sdk", str(sdk), "build", "--project", str(project), "--clean"]
+                )
+
+            self.assertEqual(result, ExitCode.OK, output.getvalue())
+            self.assertFalse(build_dir.exists())
 
     def test_build_rejects_board_target_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:

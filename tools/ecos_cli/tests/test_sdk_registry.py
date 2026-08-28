@@ -175,6 +175,21 @@ class SdkRegistryTest(unittest.TestCase):
             )
             self.assertTrue(project_entry["entry"]["root"].endswith("project-sdk"))
 
+    def test_explicit_registered_release_path_preserves_release_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            release = create_sdk(root / "release", "3.0.0")
+            registry = SdkRegistry(root / "sdks.json")
+            registry.register(release, name="release", kind="release")
+
+            context = SdkResolver(registry, environ={}).resolve(
+                explicit=str(release)
+            )
+
+            self.assertEqual(context.kind, "release")
+            self.assertEqual(context.registration_name, "release")
+            self.assertEqual(context.root, release.resolve())
+
     def test_resolver_prefers_enclosing_checkout_to_legacy_environment(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

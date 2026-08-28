@@ -1,7 +1,7 @@
 # StarrySkyL4 isolated firmware build script.
 # This mirrors verif/ build behavior: compile to objects first, then link with ld.
 
-CROSS ?= riscv64-unknown-elf-
+CROSS ?= riscv-none-elf-
 GCC_M ?= $(CROSS)gcc
 LD_M ?= $(CROSS)ld
 OBJDUMP_M ?= $(CROSS)objdump

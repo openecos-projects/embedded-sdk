@@ -8,7 +8,8 @@
 - `linker/`：Flash 和 PSRAM 链接脚本。
 - `hal/`：公共外设 HAL API 的 SoC 实现。
 - `Kconfig`：SoC 外设能力配置项。
-- `build.mk`：RV32E/ILP32E 固件构建和镜像生成规则。
+- `CMakeLists.txt`：RV32E/ILP32E 固件构建和镜像生成规则。
+- `toolchain.cmake`：使用 SDK 锁定的 `riscv-none-elf-` 工具链。
 
 Board 清单负责描述 Board ID、板级资源和默认 profile，并将 `starrysky-l4`
 映射到本 Target。Board 不再提供另一份芯片实现。
@@ -20,7 +21,8 @@ export ECOS_SDK_HOME=/path/to/embedded-sdk
 python3 "$ECOS_SDK_HOME/tools/ecos.py" --sdk "$ECOS_SDK_HOME" \
     project create hello --board starrysky-l4
 cd hello
-make
+ecos build
 ```
 
-构建完成后会生成 `build/retrosoc_fw.elf`、`.bin`、`.txt` 和 `.hex`。
+构建完成后会生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`.map`、`.size` 和
+`compile_commands.json`。

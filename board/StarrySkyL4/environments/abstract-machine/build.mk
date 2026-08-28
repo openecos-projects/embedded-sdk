@@ -1,5 +1,5 @@
 # StarrySkyL4 build bindings for AbstractMachine applications.
-CROSS_COMPILE ?= riscv64-unknown-elf-
+CROSS_COMPILE ?= riscv-none-elf-
 AM_ARCH := riscv32e-ysyxsoc
 AM_PORT_DIR := $(AM_BOARD_PORT_DIR)
 AM_PLATFORM_MK := $(AM_PORT_DIR)/platform.mk

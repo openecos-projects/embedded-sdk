@@ -1,10 +1,10 @@
 # StarrySkyL4 firmware build script.
 # Keep the L4 C-project build behavior aligned with verif/:
 #   1. compile every .c/.S source into an object file;
-#   2. link objects with riscv64-unknown-elf-ld and the PSRAM linker script;
+#   2. link objects with riscv-none-elf-ld and the PSRAM linker script;
 #   3. generate objdump and stripped binary with objcopy -S -O binary.
 
-CROSS ?= riscv64-unknown-elf-
+CROSS ?= riscv-none-elf-
 GCC_M ?= $(CROSS)gcc
 LD_M ?= $(CROSS)ld
 OBJDUMP_M ?= $(CROSS)objdump

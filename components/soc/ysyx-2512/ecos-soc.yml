@@ -7,7 +7,7 @@ cpu:
   march: rv32e
   abi: ilp32e
 toolchain:
-  prefix: riscv64-unknown-elf-
+  prefix: riscv-none-elf-
 memory:
   flash:
     origin: 0x30000000
@@ -16,7 +16,8 @@ memory:
     origin: 0xC0000000
     size: 8M
 build:
-  makefile: build.mk
+  cmake: CMakeLists.txt
+  toolchain_file: toolchain.cmake
   kconfig: Kconfig
   linker_script: linker/sections.lds
   startup: startup/start.S

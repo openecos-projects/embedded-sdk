@@ -28,9 +28,9 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 - ABI：`ilp32e`
 - 默认优化：`-O0`
 - 对象顺序：startup、bootloader、应用/驱动、链接
-- 最终产物：ELF、BIN、TXT、HEX
-- 默认目标为配置的 firmware name。
-- 成功构建仅输出内存使用报告，编译器告警仍正常显示。
+- 最终产物：ELF、BIN、TXT、HEX、MAP、SIZE 和 `compile_commands.json`
+- 默认目标为 `retrosoc_fw`；可由 CMake `FIRMWARE_NAME` 覆盖。
+- 构建通过 `ecos build` 调用 CMake/Ninja，编译器由 SDK 工具链状态解析器提供绝对路径。
 
 ## 外设地址
 
@@ -65,13 +65,16 @@ L4 QSPI 使用经板上验证的 FIFO-first MMIO 顺序，驱动对象固定以 
 
 ## 单一来源
 
-以下文件是普通和 isolated 工程的权威来源：
+以下文件是普通 CMake 工程的权威来源；isolated/AbstractMachine 仍属于兼容适配层：
 
-- `board/StarrySkyL4/Makefile`
-- `board/StarrySkyL4/Makefile_isolated`
+- `components/soc/ysyx-2512/CMakeLists.txt`
+- `components/soc/ysyx-2512/toolchain.cmake`
 - `components/soc/ysyx-2512/startup/start.S`
 - `components/soc/ysyx-2512/linker/sections.lds`
 - `components/soc/ysyx-2512/startup/loader.c`
+
+兼容入口可以继续通过 `CROSS_COMPILE` 覆盖工具链，但 3.0 普通工程不再读取这些
+Board Makefile。
 
 `ysyx-2512` Target 是启动、链接和 SoC HAL 的单一来源。2.x Board 文件仅保留兼容入口；
 3.0 工程通过 Board 映射选择 Target，不再复制这些 SoC 文件。

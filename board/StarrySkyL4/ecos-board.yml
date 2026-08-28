@@ -16,6 +16,7 @@ resources:
     instance: 0
 
 files:
+  # 2.x compatibility entry; 3.0 ordinary projects use the Target CMake files.
   makefile: Makefile
   board_header: board.h
   linker_script: sections.lds

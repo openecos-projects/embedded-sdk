@@ -2,7 +2,7 @@
 
 BUILD_DIR = ./build
 
-GCC = riscv64-unknown-elf-
+GCC = riscv-none-elf-
 AS = $(GCC)as
 LD = $(GCC)ld
 OBJDUMP = $(GCC)objdump

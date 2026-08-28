@@ -147,6 +147,16 @@ class SdkResolver:
         except SdkRegistrationNotFound:
             candidate = Path(selector).expanduser()
             if candidate.exists():
+                candidate = candidate.resolve()
+                try:
+                    registrations = self.registry.registrations()
+                except SdkRegistryError as exc:
+                    raise SdkResolutionError(
+                        f"cannot inspect SDK registrations for {candidate}: {exc}"
+                    ) from exc
+                for name, entry in registrations.items():
+                    if Path(entry["root"]).expanduser().resolve() == candidate:
+                        return self._registered_context(name, entry, "explicit-path")
                 try:
                     return sdk_manifest.context_from_root(
                         candidate,

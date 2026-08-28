@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from . import project
+from . import toolchain
 from .sdk_context import SdkContext
 
 
@@ -61,43 +62,114 @@ def build_project(
                 f"project Board {board!r} maps to {board_target!r}, not {target!r}"
             )
 
-    make = shutil.which("make")
-    if make is None:
-        raise BuildToolNotFound("required build tool is not available on PATH: make")
-    build_file = context.resource("components") / "soc" / target / "build.mk"
-    if not build_file.is_file():
+    build_dir = root / "build"
+    if clean:
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
+        return {
+            "path": str(root),
+            "board": board,
+            "target": target,
+            "clean": True,
+            "outputs": {},
+        }
+
+    cmake = shutil.which("cmake")
+    if cmake is None:
+        raise BuildToolNotFound("required build tool is not available on PATH: cmake")
+    ninja = shutil.which("ninja")
+    if ninja is None:
+        raise BuildToolNotFound("required build tool is not available on PATH: ninja")
+
+    target_root = context.resource("components") / "soc" / target
+    project_build_file = root / "CMakeLists.txt"
+    build_file = (
+        project_build_file
+        if project_build_file.is_file()
+        else target_root / "CMakeLists.txt"
+    )
+    toolchain_file = target_root / "toolchain.cmake"
+    if not build_file.is_file() or not toolchain_file.is_file():
         raise BuildConfigurationError(
-            f"Target does not provide build rules: {build_file}"
+            f"Target does not provide CMake build rules: {build_file}"
         )
     source = root / "main.c"
-    if not clean and not source.is_file():
+    if not source.is_file():
         raise BuildConfigurationError(
             f"project application source does not exist: {source}"
         )
 
-    command = [
-        make,
-        "-f",
-        str(build_file),
-        f"PROJECT_DIR={root}",
-        f"ECOS_SDK_HOME={context.root}",
-    ]
-    if clean:
-        command.append("clean")
     environment = os.environ.copy()
     environment["ECOS_SDK_HOME"] = str(context.root)
-    result = subprocess.run(command, cwd=root, env=environment, check=False)
+
+    toolchain_manifest = toolchain.load_manifest()
+    host = toolchain.detect_host()
+    # A source checkout keeps downloaded toolchains in the user-level prefix;
+    # an installed SDK release keeps them beside its own manifest and assets.
+    toolchain_prefix = (
+        context.root
+        if context.kind == "release"
+        else toolchain.default_prefix()
+    )
+    status = toolchain.installation_status(
+        toolchain_manifest, toolchain_prefix, host
+    )
+    if status["state"] != "installed":
+        raise BuildConfigurationError(
+            "the SDK toolchain is not installed or is invalid "
+            f"(state: {status['state']}, path: {status.get('root', toolchain_prefix)}); "
+            "run 'ecos toolchain install' first"
+        )
+    toolchain_root = Path(status["active_root"])
+    compiler = toolchain.compiler_path(toolchain_root, toolchain_manifest, host)
+    if not compiler.is_file():
+        raise BuildConfigurationError(
+            f"active SDK toolchain compiler does not exist: {compiler}"
+        )
+
+    configure_command = [
+        cmake,
+        "-S",
+        str(build_file.parent),
+        "-B",
+        str(build_dir),
+        "-G",
+        "Ninja",
+        f"-DCMAKE_MAKE_PROGRAM={ninja}",
+        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file}",
+        f"-DECOS_TOOLCHAIN_ROOT={toolchain_root}",
+        f"-DECOS_TARGET_DIR={target_root}",
+        f"-DPROJECT_DIR={root}",
+        "-DFIRMWARE_NAME=retrosoc_fw",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    ]
+    result = subprocess.run(
+        configure_command, cwd=root, env=environment, check=False
+    )
     if result.returncode != 0:
         raise BuildCommandError(result.returncode)
 
-    build_dir = root / "build"
+    result = subprocess.run(
+        [cmake, "--build", str(build_dir), "--parallel"],
+        cwd=root,
+        env=environment,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise BuildCommandError(result.returncode)
+
     outputs = {
         suffix: str(build_dir / f"retrosoc_fw.{suffix}")
-        for suffix in ("elf", "bin", "txt", "hex")
+        for suffix in ("elf", "bin", "txt", "hex", "map", "size")
         if (build_dir / f"retrosoc_fw.{suffix}").is_file()
     }
+    compile_commands = build_dir / "compile_commands.json"
+    if compile_commands.is_file():
+        outputs["compile_commands"] = str(compile_commands)
     if not clean:
-        missing = sorted({"elf", "bin", "txt"}.difference(outputs))
+        missing = sorted(
+            {"elf", "bin", "txt", "map", "size", "compile_commands"}.difference(outputs)
+        )
         if missing:
             raise BuildOutputError(
                 f"Target build did not produce required outputs: {', '.join(missing)}"

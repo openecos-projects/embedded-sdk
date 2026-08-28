@@ -242,14 +242,13 @@ Example，再在生成的工程中修改应用源码。Example 可以存放在 S
 
 ```bash
 ecos build
-# 或使用 hello 工程自带的入口
-make
 ```
 
 `ecos build` 必须重新验证 Board 到 Target 的映射，随后从
-`components/soc/<target>/build.mk` 加载目标构建规则。StarrySky L4 当前生成
-`build/retrosoc_fw.elf`、`.bin`、`.txt` 和 `.hex`；缺少 ELF、BIN 或 TXT 时即使底层
-构建命令返回成功也视为失败。
+`components/soc/<target>/CMakeLists.txt` 加载目标构建规则，并使用 Ninja 生成器。
+StarrySky L4 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`.map`、`.size`
+和 `compile_commands.json`；缺少 ELF、BIN、TXT、MAP、size 报告或编译数据库时即使
+底层构建命令返回成功也视为失败。
 
 创建工程必须完成以下工作：
 

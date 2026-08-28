@@ -10,7 +10,8 @@ SDK 3.0 的架构目标、非目标和迁移验收边界见
 
 **ECOS 嵌入式 SDK** 是专为 StarrySky 系列 RISC-V 芯片及微控制器（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的生产级、模块化裸机固件开发套件。
 
-本 SDK 围绕全新的 **HAL V2** 硬件抽象层重构，采用 Kconfig 图形化配置与 Make 构建系统，致力于提供高效、安全的嵌入式开发体验。
+本 SDK 围绕全新的 **HAL V2** 硬件抽象层重构，采用 Kconfig 图形化配置与 CMake/Ninja
+构建系统，致力于提供高效、安全的嵌入式开发体验。
 
 ---
 
@@ -59,7 +60,9 @@ ecos/embedded-sdk/
 #### 依赖项
 - SDK 锁定的 xPack GNU RISC-V Embedded GCC 15.2.0-1
   (`riscv-none-elf-gcc`，安装脚本按宿主平台下载并校验)
-- `make`
+- CMake 3.20 或更高版本
+- Ninja
+- GNU Make（仅旧版/第三方 AbstractMachine 兼容流程需要）
 - `direnv` (推荐，用于 `testdir` 自动加载环境变量)
 - Python 3.9 或更高版本
 
