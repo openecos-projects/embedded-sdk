@@ -60,8 +60,8 @@ ecos/embedded-sdk/
 #### 依赖项
 - SDK 锁定的 xPack GNU RISC-V Embedded GCC 15.2.0-1
   (`riscv-none-elf-gcc`，安装脚本按宿主平台下载并校验)
-- CMake 3.20 或更高版本
-- Ninja
+- CMake 3.20 或更高版本（安装脚本锁定 `cmake==3.31.10` 并安装到 SDK 私有目录）
+- Ninja（安装脚本锁定 `ninja==1.11.1.4` 并安装到 SDK 私有目录）
 - GNU Make（仅旧版/第三方 AbstractMachine 兼容流程需要）
 - `direnv` (推荐，用于 `testdir` 自动加载环境变量)
 - Python 3.9 或更高版本
@@ -71,21 +71,23 @@ ecos/embedded-sdk/
 [docs/install.md](docs/install.md)。
 
 运行 Python 安装器。在 GNU/Linux 上默认安装到
-`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链：
+`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链以及 CMake/Ninja：
 ```bash
 python3 tools/install.py
 ```
 安装器会读取 `tools/sdk-manifest.json` 中的 SDK `3.0.0` 标识，复制该清单并将安装结果
 注册为 active SDK。它会识别 Bash、Zsh、Fish 或 PowerShell，安装对应的 `ecos` 自动
-补全，并在该 Shell 的用户启动文件中维护带 `ECOS SDK` 标记的配置块。该配置块只添加
-CLI 路径和补全，不会持久设置 `ECOS_SDK_HOME`。安装完成后按输出提示重新加载配置或打开
-新终端。可以先用以下命令在不写文件、不联网的情况下检查完整安装计划：
+补全，并在该 Shell 的用户启动文件中维护带 `ECOS SDK` 标记的配置块。该配置块会添加
+SDK CLI、CMake/Ninja 路径和补全，不会持久设置 `ECOS_SDK_HOME`。安装完成后按输出提示
+重新加载配置或打开新终端。可以先用以下命令在不写文件、不联网的情况下检查完整安装计划：
 ```bash
 python3 tools/install.py --dry-run
 ```
 
-离线安装工具链使用 `--archive <path>`；只更新 SDK 文件而不安装工具链使用
-`--skip-toolchain`。使用 `--shell bash|zsh|fish|powershell` 可以覆盖自动识别结果，
+离线安装 xPack 工具链使用 `--archive <path>`；首次安装 Python/CMake/Ninja 依赖仍需
+PyPI 或 pip 本地缓存。`--skip-toolchain` 只跳过交叉编译器，SDK
+所需的 Python、CMake 和 Ninja 依赖仍会安装。使用
+`--shell bash|zsh|fish|powershell` 可以覆盖自动识别结果，
 `--shell-profile <path>` 可以指定启动文件，`--shell none` 可以禁用 Shell 配置。
 `--prefix <path>` 表示版本目录的父目录，安装器会从 SDK 清单自动追加版本号；例如
 `--prefix ~/ecos-sdks` 的实际安装路径是 `~/ecos-sdks/3.0.0`。

@@ -72,6 +72,29 @@ def fake_python_dependency_install(prefix: Path, **_: object) -> dict[str, objec
     }
 
 
+def fake_host_dependency_install(prefix: Path, **_: object) -> dict[str, object]:
+    root = prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+    host_bin = installer.dependencies.host_dependency_bin(prefix)
+    ninja_name = "ninja.exe" if sys.platform == "win32" else "ninja"
+    return {
+        "state": "installed",
+        "root": str(root),
+        "bin": str(host_bin),
+        "paths": [
+            str(path) for path in installer.dependencies.host_dependency_paths(prefix)
+        ],
+        "packages": list(installer.HOST_TOOL_PACKAGES),
+        "tools": {
+            item["name"]: str(
+                root / "cmake/data/bin/cmake"
+                if item["name"] == "cmake"
+                else host_bin / ninja_name
+            )
+            for item in installer.HOST_TOOL_DEPENDENCIES
+        },
+    }
+
+
 class SdkInstallerTest(unittest.TestCase):
     def test_default_install_base_is_platform_specific(self):
         home = Path("/users/test")
@@ -102,6 +125,41 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(
                 installer.versioned_install_path(install_base, "3.0.0"),
                 install_base.resolve() / "3.0.0",
+            )
+
+    def test_host_dependency_script_directory_is_platform_specific(self):
+        prefix = Path("C:/Users/test/AppData/Local/ECOS/SDKs/3.0.0")
+
+        self.assertEqual(
+            installer.dependencies.host_dependency_bin(
+                prefix, platform_name="win32"
+            ),
+            prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT / "Scripts",
+        )
+        self.assertEqual(
+            installer.dependencies.host_dependency_bin(
+                prefix, platform_name="linux"
+            ),
+            prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT / "bin",
+        )
+
+    def test_managed_host_tools_accept_windows_executable_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cmake = root / "cmake/data/bin/cmake.exe"
+            ninja = root / "Scripts/ninja.exe"
+            cmake.parent.mkdir(parents=True)
+            ninja.parent.mkdir(parents=True)
+            cmake.write_bytes(b"")
+            ninja.write_bytes(b"")
+
+            self.assertEqual(
+                installer.dependencies.managed_host_tool(root, "cmake"),
+                cmake.resolve(),
+            )
+            self.assertEqual(
+                installer.dependencies.managed_host_tool(root, "ninja"),
+                ninja.resolve(),
             )
 
     def test_configures_all_supported_shells_idempotently(self):
@@ -161,7 +219,7 @@ class SdkInstallerTest(unittest.TestCase):
                 [
                     "/bin/bash",
                     "-c",
-                    f"{block}\nprintf '%s\\n%s' \"$PATH\" \"${{ECOS_SDK_HOME-unset}}\"",
+                    f"{block}\n{block}\nprintf '%s\\n%s' \"$PATH\" \"${{ECOS_SDK_HOME-unset}}\"",
                 ],
                 check=True,
                 capture_output=True,
@@ -170,7 +228,21 @@ class SdkInstallerTest(unittest.TestCase):
             )
 
             configured_path, sdk_home = result.stdout.splitlines()
-            self.assertEqual(configured_path.split(":", 1)[0], str(prefix / "bin"))
+            self.assertEqual(
+                configured_path.split(":"),
+                [
+                    str(prefix / "bin"),
+                    str(
+                        prefix
+                        / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+                        / "cmake/data/bin"
+                    ),
+                    str(prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT / "bin"),
+                    str(old_sdk_bin),
+                    "/usr/bin",
+                    "/bin",
+                ],
+            )
             self.assertEqual(sdk_home, "unset")
 
     def test_powershell_configuration_never_rebuilds_process_path(self):
@@ -180,7 +252,8 @@ class SdkInstallerTest(unittest.TestCase):
         )
 
         self.assertNotIn("GetEnvironmentVariable", block)
-        self.assertIn("$ecosSdkBin + $ecosPathSeparator + $env:PATH", block)
+        self.assertIn("$ecosManagedPaths + $ecosCurrentPaths", block)
+        self.assertIn("$ecosHostBin", block)
 
     @unittest.skipUnless(
         os.name == "nt" and shutil.which("powershell"),
@@ -200,6 +273,12 @@ class SdkInstallerTest(unittest.TestCase):
             completion_file.write_text("", encoding="utf-8")
             block = installer.shell_configuration_block(prefix, "powershell")
             sdk_bin = str(prefix / "bin")
+            host_bin = str(installer.dependencies.host_dependency_bin(prefix))
+            cmake_bin = str(
+                prefix
+                / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+                / "cmake/data/bin"
+            )
 
             for original_path in (
                 r"C:\host-injected\python-codex",
@@ -221,7 +300,21 @@ class SdkInstallerTest(unittest.TestCase):
                         text=True,
                     )
 
-                    self.assertEqual(result.stdout, f"{sdk_bin};{original_path}")
+                    self.assertEqual(
+                        result.stdout,
+                        f"{sdk_bin};{cmake_bin};{host_bin};{original_path}",
+                    )
+
+    def test_powershell_environment_commands_preserve_process_path(self):
+        commands = installer.environment_commands(
+            Path("C:/Users/test/AppData/Local/ECOS/SDKs/3.0.0"),
+            "powershell",
+        )
+        rendered = "\n".join(commands)
+
+        self.assertIn("[IO.Path]::PathSeparator", rendered)
+        self.assertIn("$ecosManagedPaths + $ecosCurrentPaths", rendered)
+        self.assertNotIn("GetEnvironmentVariable", rendered)
 
     def test_full_install_configures_requested_shell_profile(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -237,6 +330,10 @@ class SdkInstallerTest(unittest.TestCase):
                 installer,
                 "install_python_dependencies",
                 side_effect=fake_python_dependency_install,
+            ), patch.object(
+                installer,
+                "install_host_dependencies",
+                side_effect=fake_host_dependency_install,
             ), redirect_stdout(output):
                 result = installer.main(
                     [
@@ -263,6 +360,10 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(configuration["state"], "configured")
             self.assertEqual(
                 payload["data"]["python_dependencies"]["installation"]["state"],
+                "installed",
+            )
+            self.assertEqual(
+                payload["data"]["host_dependencies"]["installation"]["state"],
                 "installed",
             )
             self.assertEqual(configuration["config_file"], str(profile.resolve()))
@@ -293,6 +394,10 @@ class SdkInstallerTest(unittest.TestCase):
                 installer,
                 "install_python_dependencies",
                 side_effect=fake_python_dependency_install,
+            ), patch.object(
+                installer,
+                "install_host_dependencies",
+                side_effect=fake_host_dependency_install,
             ):
                 for source in (first_source, second_source):
                     with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
@@ -378,6 +483,10 @@ class SdkInstallerTest(unittest.TestCase):
                 installer,
                 "install_python_dependencies",
                 side_effect=fake_python_dependency_install,
+            ), patch.object(
+                installer,
+                "install_host_dependencies",
+                side_effect=fake_host_dependency_install,
             ), redirect_stdout(output):
                 result = installer.main(
                     [*arguments, "--force"],
@@ -597,6 +706,44 @@ class SdkInstallerTest(unittest.TestCase):
                     installer.PYTHON_DEPENDENCY_MARKER
                 ).is_file()
             )
+
+    def test_installs_private_host_dependencies_atomically_and_reuses_them(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "sdk"
+
+            def install_fake_host_tools(destination: Path) -> None:
+                cmake = destination / "cmake/data/bin/cmake"
+                script_dir = "Scripts" if sys.platform == "win32" else "bin"
+                ninja_name = "ninja.exe" if sys.platform == "win32" else "ninja"
+                ninja = destination / script_dir / ninja_name
+                cmake.parent.mkdir(parents=True)
+                ninja.parent.mkdir(parents=True)
+                cmake.write_text("cmake version 3.31.10\n", encoding="utf-8")
+                ninja.write_text("1.11.1\n", encoding="utf-8")
+
+            with patch.object(
+                installer,
+                "_install_host_packages",
+                side_effect=install_fake_host_tools,
+            ) as install_packages, patch.object(
+                installer.dependencies,
+                "probe_host_tool",
+                return_value={"valid": True},
+            ):
+                first = installer.install_host_dependencies(prefix)
+                second = installer.install_host_dependencies(prefix)
+
+            dependency_root = prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+            self.assertEqual(first["state"], "installed")
+            self.assertEqual(second["state"], "reused")
+            self.assertEqual(install_packages.call_count, 1)
+            self.assertTrue(
+                dependency_root.joinpath("cmake/data/bin/cmake").is_file()
+            )
+            self.assertTrue(
+                dependency_root.joinpath(installer.HOST_DEPENDENCY_MARKER).is_file()
+            )
+            self.assertEqual(set(first["tools"]), {"cmake", "ninja"})
 
     def test_rejects_overlapping_install_prefix(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -360,8 +360,9 @@ CMake 是 SDK 3.0 唯一正式的核心构建描述系统。Ninja 是开发、CI
 - 支持通过 CMake File API 或等价的正式接口查询 target 图，不要求工具解析 Ninja
   文件、终端日志或 CMake 内部缓存格式。
 
-CMake 最低版本和 Ninja 最低版本必须在阶段 A 根据受支持开发环境确定并由 CLI 预检，
-不得在不同 Board 中分别提高版本要求。默认配置过程不使用 `FetchContent` 自动联网。
+CMake 最低版本为 3.20，Ninja 最低版本为 1.10，由 CLI 统一预检；安装器分别锁定
+`cmake==3.31.10` 和 `ninja==1.11.1.4`，不得在不同 Board 中分别提高版本要求。默认
+配置过程不使用 `FetchContent` 自动联网。
 
 ### 8.3 工具链和宿主平台策略
 

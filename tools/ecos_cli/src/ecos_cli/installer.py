@@ -16,6 +16,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 
 from . import __version__
 from . import completion
+from . import dependencies
 from . import sdk_manifest
 from . import toolchain
 from .progress import ConsoleProgress
@@ -27,9 +28,13 @@ ProgressCallback = Callable[[str], None]
 SHELL_CONFIG_BEGIN = "# >>> ECOS SDK >>>"
 SHELL_CONFIG_END = "# <<< ECOS SDK <<<"
 COMPLETION_RELATIVE_ROOT = Path("share") / "ecos" / "completions"
-PYTHON_DEPENDENCY_RELATIVE_ROOT = Path("lib") / "ecos" / "python"
-PYTHON_DEPENDENCY_MARKER = ".ecos-python-dependencies.json"
-PYTHON_DEPENDENCIES = ("PyYAML==6.0.3",)
+PYTHON_DEPENDENCY_RELATIVE_ROOT = dependencies.PYTHON_DEPENDENCY_RELATIVE_ROOT
+PYTHON_DEPENDENCY_MARKER = dependencies.PYTHON_DEPENDENCY_MARKER
+PYTHON_DEPENDENCIES = dependencies.PYTHON_DEPENDENCIES
+HOST_DEPENDENCY_RELATIVE_ROOT = dependencies.HOST_DEPENDENCY_RELATIVE_ROOT
+HOST_DEPENDENCY_MARKER = dependencies.HOST_DEPENDENCY_MARKER
+HOST_TOOL_DEPENDENCIES = dependencies.HOST_TOOL_DEPENDENCIES
+HOST_TOOL_PACKAGES = dependencies.HOST_TOOL_PACKAGES
 
 SDK_DIRECTORIES = (
     "components",
@@ -84,6 +89,10 @@ class InstallerError(RuntimeError):
 
 class PythonDependencyError(InstallerError):
     """The SDK's private Python dependencies could not be installed."""
+
+
+class HostDependencyError(InstallerError):
+    """The SDK's host build dependencies could not be installed."""
 
 
 def default_install_base(
@@ -196,6 +205,16 @@ def installation_plan(sdk_root: Path, prefix: Path) -> dict[str, Any]:
         "python_dependencies": {
             "root": str(prefix / PYTHON_DEPENDENCY_RELATIVE_ROOT),
             "packages": list(PYTHON_DEPENDENCIES),
+            "installation": None,
+        },
+        "host_dependencies": {
+            "root": str(prefix / HOST_DEPENDENCY_RELATIVE_ROOT),
+            "bin": str(dependencies.host_dependency_bin(prefix)),
+            "paths": [
+                str(path) for path in dependencies.host_dependency_paths(prefix)
+            ],
+            "packages": list(HOST_TOOL_PACKAGES),
+            "tools": [item["name"] for item in HOST_TOOL_DEPENDENCIES],
             "installation": None,
         },
     }
@@ -428,6 +447,123 @@ def install_python_dependencies(
     }
 
 
+def _host_dependency_identity() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "python_executable": str(Path(sys.executable).resolve()),
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "packages": list(HOST_TOOL_PACKAGES),
+    }
+
+
+def _validate_host_dependencies(root: Path) -> bool:
+    marker_path = root / HOST_DEPENDENCY_MARKER
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if marker != _host_dependency_identity():
+        return False
+    for item in HOST_TOOL_DEPENDENCIES:
+        executable = dependencies.managed_host_tool(root, item["name"])
+        if executable is None:
+            return False
+        probe = dependencies.probe_host_tool(executable, item["minimum_version"])
+        if not probe["valid"]:
+            return False
+    return True
+
+
+def _install_host_packages(destination: Path) -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-input",
+        "--no-warn-script-location",
+        "--only-binary=:all:",
+        "--target",
+        str(destination),
+        *HOST_TOOL_PACKAGES,
+    ]
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        raise HostDependencyError(
+            "cannot install the SDK's CMake/Ninja dependencies with "
+            f"{sys.executable}: {detail}"
+        ) from exc
+    except OSError as exc:
+        raise HostDependencyError(
+            f"cannot run pip for the SDK's CMake/Ninja dependencies with "
+            f"{sys.executable}: {exc}"
+        ) from exc
+
+
+def _host_dependency_result(prefix: Path, state: str) -> dict[str, Any]:
+    root = dependencies.host_dependency_root(prefix)
+    tools: dict[str, str] = {}
+    for item in HOST_TOOL_DEPENDENCIES:
+        executable = dependencies.managed_host_tool(root, item["name"])
+        if executable is None:
+            raise HostDependencyError(
+                f"installed host dependency is missing: {item['name']}"
+            )
+        tools[item["name"]] = str(executable)
+    return {
+        "state": state,
+        "root": str(root),
+        "bin": str(dependencies.host_dependency_bin(prefix)),
+        "paths": [
+            str(path) for path in dependencies.host_dependency_paths(prefix)
+        ],
+        "packages": list(HOST_TOOL_PACKAGES),
+        "tools": tools,
+    }
+
+
+def install_host_dependencies(
+    prefix: Path,
+    *,
+    force: bool = False,
+    progress: Optional[ProgressCallback] = None,
+) -> dict[str, Any]:
+    """Install the pinned CMake and Ninja wheels into an SDK-local root."""
+
+    destination = prefix / HOST_DEPENDENCY_RELATIVE_ROOT
+    if not force and _validate_host_dependencies(destination):
+        return _host_dependency_result(prefix, "reused")
+
+    if progress:
+        progress("Installing CMake/Ninja host dependencies")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".host-dependencies.install-", dir=destination.parent
+    ) as temporary:
+        staged = Path(temporary) / destination.name
+        _install_host_packages(staged)
+        (staged / HOST_DEPENDENCY_MARKER).write_text(
+            json.dumps(_host_dependency_identity(), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        if not _validate_host_dependencies(staged):
+            raise HostDependencyError(
+                "installed CMake/Ninja dependencies failed validation"
+            )
+        _remove_managed_path(destination)
+        staged.replace(destination)
+
+    return _host_dependency_result(prefix, "installed")
+
+
 def detect_shell(requested: str) -> str:
     if requested != "auto":
         return requested
@@ -493,13 +629,30 @@ def _powershell_quote(value: str) -> str:
 def shell_configuration_block(prefix: Path, shell: str) -> str:
     completion_file = prefix / COMPLETION_RELATIVE_ROOT / completion.COMPLETION_FILENAMES[shell]
     bin_dir = str(prefix / "bin")
+    host_bin_dir = str(dependencies.host_dependency_bin(prefix))
+    cmake_bin_dir = str(dependencies.host_dependency_paths(prefix)[0])
     legacy_sdk_home = str(toolchain.default_prefix().expanduser().resolve())
     migrate_legacy_environment = prefix.expanduser().resolve() != Path(legacy_sdk_home)
     if shell in {"bash", "zsh"}:
         lines = [
             f"_ecos_sdk_bin={shlex.quote(bin_dir)}",
-            'export PATH="$_ecos_sdk_bin:${PATH#"$_ecos_sdk_bin:"}"',
-            "unset _ecos_sdk_bin",
+            f"_ecos_sdk_host_bin={shlex.quote(host_bin_dir)}",
+            f"_ecos_sdk_cmake_bin={shlex.quote(cmake_bin_dir)}",
+            "_ecos_sdk_path_remainder=$(",
+            "    IFS=:",
+            "    set -f",
+            "    _ecos_sdk_filtered_path=",
+            "    for _ecos_sdk_path_entry in ${PATH-}; do",
+            "        case \"$_ecos_sdk_path_entry\" in",
+            '            "$_ecos_sdk_bin"|"$_ecos_sdk_host_bin"|"$_ecos_sdk_cmake_bin") ;;',
+            "            *) _ecos_sdk_filtered_path=\"${_ecos_sdk_filtered_path}${_ecos_sdk_filtered_path:+:}${_ecos_sdk_path_entry}\" ;;",
+            "        esac",
+            "    done",
+            "    printf '%s' \"$_ecos_sdk_filtered_path\"",
+            ")",
+            'PATH="$_ecos_sdk_bin:$_ecos_sdk_cmake_bin:$_ecos_sdk_host_bin${_ecos_sdk_path_remainder:+:${_ecos_sdk_path_remainder}}"',
+            "export PATH",
+            "unset _ecos_sdk_bin _ecos_sdk_host_bin _ecos_sdk_cmake_bin _ecos_sdk_path_remainder _ecos_sdk_filtered_path _ecos_sdk_path_entry",
         ]
         if migrate_legacy_environment:
             lines.extend(
@@ -519,7 +672,9 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
         lines.append(f"source {shlex.quote(str(completion_file))}")
         return "\n".join(lines)
     if shell == "fish":
-        lines = [f"fish_add_path {_fish_quote(bin_dir)}"]
+        lines = [
+            f"fish_add_path {_fish_quote(bin_dir)} {_fish_quote(cmake_bin_dir)} {_fish_quote(host_bin_dir)}"
+        ]
         if migrate_legacy_environment:
             lines.extend(
                 [
@@ -533,15 +688,12 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
     if shell == "powershell":
         lines = [
             f"$ecosSdkBin = {_powershell_quote(bin_dir)}",
+            f"$ecosHostBin = {_powershell_quote(host_bin_dir)}",
+            f"$ecosCMakeBin = {_powershell_quote(cmake_bin_dir)}",
             "$ecosPathSeparator = [IO.Path]::PathSeparator",
-            "$ecosCurrentPaths = @($env:PATH -split $ecosPathSeparator | Where-Object { $_ })",
-            "if ($ecosSdkBin -notin $ecosCurrentPaths) {",
-            "    $env:PATH = if ($env:PATH) {",
-            "        $ecosSdkBin + $ecosPathSeparator + $env:PATH",
-            "    } else {",
-            "        $ecosSdkBin",
-            "    }",
-            "}",
+            "$ecosManagedPaths = @($ecosSdkBin, $ecosCMakeBin, $ecosHostBin)",
+            "$ecosCurrentPaths = @($env:PATH -split $ecosPathSeparator | Where-Object { $_ -and ($_ -notin $ecosManagedPaths) })",
+            "$env:PATH = ($ecosManagedPaths + $ecosCurrentPaths) -join $ecosPathSeparator",
         ]
         if migrate_legacy_environment:
             lines.extend(
@@ -554,7 +706,7 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
         lines.extend(
             [
                 f". {_powershell_quote(str(completion_file))}",
-                "Remove-Variable ecosSdkBin, ecosPathSeparator, ecosCurrentPaths -ErrorAction SilentlyContinue",
+                "Remove-Variable ecosSdkBin, ecosHostBin, ecosCMakeBin, ecosPathSeparator, ecosManagedPaths, ecosCurrentPaths -ErrorAction SilentlyContinue",
             ]
         )
         return "\n".join(lines)
@@ -669,20 +821,33 @@ def environment_commands(prefix: Path, shell: str) -> list[str]:
     if shell == "none":
         return []
     bin_dir = str(prefix / "bin")
+    host_paths = [str(path) for path in dependencies.host_dependency_paths(prefix)]
     if shell in {"bash", "zsh"}:
         return [
+            f"export PATH={shlex.quote(host_paths[1])}:$PATH",
+            f"export PATH={shlex.quote(host_paths[0])}:$PATH",
             f"export PATH={shlex.quote(bin_dir)}:$PATH",
             f"source {shlex.quote(str(prefix / COMPLETION_RELATIVE_ROOT / completion.COMPLETION_FILENAMES[shell]))}",
         ]
     if shell == "fish":
         return [
-            f"fish_add_path {_fish_quote(bin_dir)}",
+            "fish_add_path "
+            f"{_fish_quote(bin_dir)} {_fish_quote(host_paths[0])} {_fish_quote(host_paths[1])}",
             f"source {_fish_quote(str(prefix / COMPLETION_RELATIVE_ROOT / completion.COMPLETION_FILENAMES[shell]))}",
         ]
     if shell == "powershell":
-        escaped_paths = bin_dir.replace("'", "''")
+        managed_paths = ", ".join(
+            _powershell_quote(path)
+            for path in (bin_dir, host_paths[0], host_paths[1])
+        )
         return [
-            f"$env:PATH = '{escaped_paths};' + $env:PATH",
+            f"$ecosManagedPaths = @({managed_paths})",
+            "$ecosCurrentPaths = @($env:PATH -split [IO.Path]::PathSeparator | "
+            "Where-Object { $_ -and ($_ -notin $ecosManagedPaths) })",
+            "$env:PATH = ($ecosManagedPaths + $ecosCurrentPaths) -join "
+            "[IO.Path]::PathSeparator",
+            "Remove-Variable ecosManagedPaths, ecosCurrentPaths "
+            "-ErrorAction SilentlyContinue",
             f". {_powershell_quote(str(prefix / COMPLETION_RELATIVE_ROOT / completion.COMPLETION_FILENAMES[shell]))}",
         ]
     raise InstallerError(f"unsupported shell format: {shell}")
@@ -699,7 +864,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-dir", type=Path, default=toolchain.default_cache_root())
     parser.add_argument("--archive", type=Path, help="install the toolchain from an offline archive")
     parser.add_argument(
-        "--skip-toolchain", action="store_true", help="install SDK files without the toolchain"
+        "--skip-toolchain",
+        action="store_true",
+        help="skip the cross compiler but install SDK host dependencies",
     )
     parser.add_argument(
         "--force-toolchain", action="store_true", help="replace an invalid toolchain installation"
@@ -771,6 +938,10 @@ def _print_text(data: dict[str, Any], console: ConsoleProgress) -> None:
         console.info(f"Compiler: {installation['compiler']['path']}")
     python_dependencies = data["python_dependencies"]["installation"]
     console.info(f"Python dependencies: {python_dependencies['state']}")
+    host_dependencies = data["host_dependencies"]["installation"]
+    console.info(f"Host build dependencies: {host_dependencies['state']}")
+    for name, path in host_dependencies["tools"].items():
+        console.info(f"{name}: {path}")
     configuration = data["environment"]["configuration"]
     if configuration["state"] == "disabled":
         console.warning("Shell environment and completion configuration was disabled.")
@@ -905,6 +1076,14 @@ def main(
                         f"{plan['toolchain']['selection']['name']} "
                         f"{plan['toolchain']['selection']['release']}"
                     )
+                console.info(
+                    "Python dependencies: "
+                    + ", ".join(plan["python_dependencies"]["packages"])
+                )
+                console.info(
+                    "Host build dependencies: "
+                    + ", ".join(plan["host_dependencies"]["packages"])
+                )
                 if configuration_plan["state"] == "disabled":
                     console.info("Shell configuration: disabled")
                 else:
@@ -925,6 +1104,12 @@ def main(
         core_result["python_dependencies"]["installation"] = (
             python_dependency_result
         )
+        host_dependency_result = install_host_dependencies(
+            prefix,
+            force=args.force,
+            progress=console.message,
+        )
+        core_result["host_dependencies"]["installation"] = host_dependency_result
         toolchain_result = None
         if not args.skip_toolchain:
             assert manifest is not None and host is not None and selection is not None
@@ -975,6 +1160,13 @@ def main(
         return _emit_error(
             args.output_format,
             "ECOS_PYTHON_DEPENDENCY_INSTALL_FAILED",
+            str(exc),
+            6,
+        )
+    except HostDependencyError as exc:
+        return _emit_error(
+            args.output_format,
+            "ECOS_HOST_DEPENDENCY_INSTALL_FAILED",
             str(exc),
             6,
         )

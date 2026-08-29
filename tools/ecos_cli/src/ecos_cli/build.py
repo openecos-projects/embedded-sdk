@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
+from . import dependencies
 from . import project
 from . import toolchain
 from .sdk_context import SdkContext
@@ -35,6 +36,23 @@ class BuildCommandError(BuildError):
 
 class BuildOutputError(BuildError):
     """The Target build did not produce its required firmware outputs."""
+
+
+def _resolve_host_tool(context: SdkContext, item: dict[str, str]) -> str:
+    managed = dependencies.managed_host_tool(
+        dependencies.host_dependency_root(context.root), item["name"]
+    )
+    if managed is not None:
+        return str(managed)
+    found = shutil.which(item["executable"]) or shutil.which(
+        f"{item['executable']}.exe"
+    )
+    if found is None:
+        raise BuildToolNotFound(
+            f"required build dependency {item['name']} is unavailable; "
+            "run 'tools/install.py' to install the SDK dependencies"
+        )
+    return found
 
 
 def build_project(
@@ -74,12 +92,12 @@ def build_project(
             "outputs": {},
         }
 
-    cmake = shutil.which("cmake")
-    if cmake is None:
-        raise BuildToolNotFound("required build tool is not available on PATH: cmake")
-    ninja = shutil.which("ninja")
-    if ninja is None:
-        raise BuildToolNotFound("required build tool is not available on PATH: ninja")
+    host_tools = {
+        item["name"]: _resolve_host_tool(context, item)
+        for item in dependencies.HOST_TOOL_DEPENDENCIES
+    }
+    cmake = host_tools["cmake"]
+    ninja = host_tools["ninja"]
 
     target_root = context.resource("components") / "soc" / target
     project_build_file = root / "CMakeLists.txt"
@@ -101,6 +119,18 @@ def build_project(
 
     environment = os.environ.copy()
     environment["ECOS_SDK_HOME"] = str(context.root)
+    host_paths = [
+        path
+        for path in dependencies.host_dependency_paths(context.root)
+        if path.is_dir()
+    ]
+    if host_paths:
+        current_path = environment.get("PATH", "")
+        environment["PATH"] = os.pathsep.join(
+            value
+            for value in ([str(path) for path in host_paths] + [current_path])
+            if value
+        )
 
     toolchain_manifest = toolchain.load_manifest()
     host = toolchain.detect_host()
@@ -179,5 +209,6 @@ def build_project(
         "board": board,
         "target": target,
         "clean": clean,
+        "host_tools": host_tools,
         "outputs": outputs,
     }

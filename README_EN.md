@@ -52,32 +52,34 @@ ecos/embedded-sdk/
 #### Dependencies
 - SDK-pinned xPack GNU RISC-V Embedded GCC 15.2.0-1
   (`riscv-none-elf-gcc`, selected and verified for the host by the installer)
-- CMake 3.20 or newer
-- Ninja
+- CMake 3.20 or newer (the installer pins `cmake==3.31.10` in the SDK)
+- Ninja (the installer pins `ninja==1.11.1.4` in the SDK)
 - GNU Make (legacy and third-party AbstractMachine compatibility flows only)
 - `direnv` (Recommended, for automatically loading environment variables in `testdir`)
 - Python 3.9 or newer
 
 #### Quick Installation
 Run the Python installer. On GNU/Linux it installs to
-`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain selected
-for the current host:
+`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain and the
+CMake/Ninja build dependencies selected for the current host:
 ```bash
 python3 tools/install.py
 ```
 The installer reads the SDK `3.0.0` identity from `tools/sdk-manifest.json`, copies the
 manifest, and registers the installed SDK as active. It detects Bash, Zsh, Fish, or
 PowerShell, installs the matching `ecos` completion, and maintains a marked `ECOS SDK`
-block in that shell's user startup file. The block adds only the CLI path and completion;
-it does not persist `ECOS_SDK_HOME`. Reload the file using the command printed after
-installation, or open a new terminal. Inspect the complete plan without writes or network
-access first with:
+block in that shell's user startup file. The block adds the SDK CLI and host build-tool
+paths plus completion; it does not persist `ECOS_SDK_HOME`. Reload the file using the
+command printed after installation, or open a new terminal. Inspect the complete plan
+without writes or network access first with:
 ```bash
 python3 tools/install.py --dry-run
 ```
 
-Use `--archive <path>` for an offline toolchain archive, or `--skip-toolchain` to
-update only the SDK files. Use `--shell bash|zsh|fish|powershell` to override shell
+Use `--archive <path>` for an offline xPack archive; the first Python/CMake/Ninja install
+still needs PyPI or a populated pip cache. `--skip-toolchain` skips only the cross compiler;
+the SDK's Python, CMake, and Ninja dependencies are still installed. Use
+`--shell bash|zsh|fish|powershell` to override shell
 detection, `--shell-profile <path>` to select a startup file, or `--shell none` to
 disable shell configuration. `--prefix <path>` names the parent directory; the installer
 appends the version from the SDK manifest. For example, `--prefix ~/ecos-sdks` installs

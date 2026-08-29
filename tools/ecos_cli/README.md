@@ -26,6 +26,8 @@ python3 tools/ecos.py completion powershell
 
 `tools/install.py` 会自动识别当前 Shell，将四类补全文件安装到
 `share/ecos/completions/`，并以 `ECOS SDK` 标记块幂等配置对应的用户启动文件。
+安装器还会把锁定的 `PyYAML`、CMake 和 Ninja wheel 安装到版本目录的私有依赖目录，
+构建时优先使用这些 SDK-local 工具，不依赖系统级 CMake/Ninja 或交叉编译器 PATH。
 可用 `--shell` 覆盖识别结果、`--shell-profile` 指定启动文件或用 `--shell none`
 禁用配置。
 

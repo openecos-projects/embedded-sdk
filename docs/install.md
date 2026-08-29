@@ -20,10 +20,11 @@ python3 tools/install.py
 2. 从清单读取 `sdk_version`，计算平台对应的版本目录。
 3. 选择当前主机对应的 xPack RISC-V 工具链资产。
 4. 复制 SDK 文件，但不复制源码 `bin/` 中的旧 Shell 命令。
-5. 检测工具链；缺失时下载、校验并安装，已正确安装时直接复用。
-6. 将最终路径写入用户级 SDK 注册表，并默认设为 active SDK。
-7. 生成 Python `ecos` 启动器和四类 Shell 补全文件。
-8. 幂等更新当前 Shell 的用户启动文件。
+5. 将锁定的 Python、CMake 和 Ninja 依赖安装到 SDK 私有目录，已正确安装时直接复用。
+6. 检测工具链；缺失时下载、校验并安装，已正确安装时直接复用。
+7. 将最终路径写入用户级 SDK 注册表，并默认设为 active SDK。
+8. 生成 Python `ecos` 启动器和四类 Shell 补全文件。
+9. 幂等更新当前 Shell 的用户启动文件。
 
 当前 `3.0.0` 在 GNU/Linux 上默认安装到：
 
@@ -34,18 +35,21 @@ python3 tools/install.py
 安装输出中的 `SDK install base` 是版本目录的父目录；`SDK installed at` 才是本次安装的
 实际 SDK 根目录。
 
-`tools/install.py` 安装的是 release SDK，工具链随 release 放在上述版本目录下。若后续仍
-从源码 checkout 运行 `python3 tools/ecos.py --sdk . ...`，该上下文默认使用独立的用户级
-工具链前缀；请额外执行 `python3 tools/ecos.py --sdk . toolchain install`，或改用已安装
-release 的 `ecos` 入口。两种情况下都不要求把交叉编译器加入全局 `PATH`。
+`tools/install.py` 安装的是 release SDK，工具链和 CMake/Ninja 依赖随 release 放在上述
+版本目录下。若后续仍从源码 checkout 运行 `python3 tools/ecos.py --sdk . ...`，该上下文
+默认使用独立的用户级工具链前缀；请额外执行
+`python3 tools/ecos.py --sdk . toolchain install`，或改用已安装 release 的 `ecos` 入口。
+源码 checkout 的构建工具会优先使用 checkout 中的私有依赖，否则使用宿主机 PATH；
+release SDK 则直接使用安装器部署的 CMake/Ninja。两种情况下都不要求把交叉编译器加入
+全局 `PATH`。
 
 ## 2. 前置条件与支持平台
 
 ### 2.1 必要条件
 
-- Python 3.9 或更高版本。
+- Python 3.9 或更高版本，并可运行 `python -m pip`。
 - 能够读取当前 SDK 源码目录并写入用户数据目录。
-- 在线安装工具链时能够访问 GitHub Release。
+- 默认安装需要访问 PyPI 和 GitHub Release；安装器不会调用系统包管理器。
 - 离线安装时提供与当前主机和锁定清单匹配的官方归档。
 
 ### 2.2 当前工具链资产覆盖
@@ -111,6 +115,7 @@ python3 tools/install.py --dry-run
 - SDK 源码路径和最终版本目录。
 - 将要复制的目录与文件。
 - 当前主机匹配的工具链资产。
+- 将要安装的 Python、CMake 和 Ninja 依赖及其 SDK 私有路径。
 - 将要写入的注册名和 active 状态。
 - 将要修改的 Shell 启动文件。
 
@@ -159,8 +164,8 @@ python3 tools/install.py --help
 | --- | --- |
 | `--prefix PATH` | 指定版本目录的父目录，安装器自动追加清单版本号。 |
 | `--cache-dir PATH` | 覆盖工具链下载缓存目录。 |
-| `--archive PATH` | 使用本地官方工具链归档，不执行网络下载。 |
-| `--skip-toolchain` | 只安装 SDK 文件，不检测或安装工具链。 |
+| `--archive PATH` | 使用本地官方交叉工具链归档，不下载 xPack。 |
+| `--skip-toolchain` | 跳过交叉编译器；Python、CMake 和 Ninja 依赖仍会安装。 |
 | `--force-toolchain` | 只强制重装工具链，不替换 SDK 注册冲突。 |
 | `--force` | 重新部署 SDK、替换同名注册，并在启用工具链时强制重装工具链。 |
 | `--dry-run` | 输出完整计划，不写文件、不联网。 |
@@ -178,7 +183,7 @@ python3 tools/install.py --help
 - `--skip-toolchain --force-toolchain`
 - `--shell none --shell-profile PATH`
 
-`--force --skip-toolchain` 是有效组合：强制部署 SDK 和替换注册，但跳过工具链。
+`--force --skip-toolchain` 是有效组合：强制部署 SDK 和替换注册，但跳过交叉编译器。
 
 ## 6. 安装内容
 
@@ -197,6 +202,17 @@ tools/toolchains/          tools/ecos_cli/
 tools/ecos.py
 tools/sdk-manifest.json
 ```
+
+安装器还会在版本目录中生成受管的主机依赖：
+
+```text
+lib/ecos/python/                 # CLI 的 PyYAML 依赖
+lib/ecos/host/bin/ninja          # Ninja（Windows 为 Scripts/ninja.exe）
+lib/ecos/host/cmake/data/bin/    # CMake 原生可执行文件
+```
+
+当前锁定版本为 `PyYAML==6.0.3`、`cmake==3.31.10` 和 `ninja==1.11.1.4`。CMake/Ninja
+使用 Python wheel 安装，不写入系统 Python 或系统级程序目录。
 
 安装器不会复制源码 `bin/`。版本目录中的 `bin/` 会重新生成，并且只包含：
 
@@ -291,7 +307,9 @@ Windows 示例：
 python tools/install.py --archive C:\Downloads\xpack-riscv-none-elf-gcc-15.2.0-1-win32-x64.zip
 ```
 
-离线归档仍必须通过 SHA-256、归档根目录和编译器可执行性校验。
+离线归档仍必须通过 SHA-256、归档根目录和编译器可执行性校验。`--archive` 只覆盖
+xPack 交叉工具链；首次安装 Python、CMake 和 Ninja 依赖时，pip 仍需访问 PyPI 或使用
+已经填充的本地缓存。
 
 先安装 SDK、稍后安装工具链：
 
@@ -389,9 +407,9 @@ python3 tools/ecos.py --sdk . toolchain detect
 # <<< ECOS SDK <<<
 ```
 
-重复安装会更新同一标记块。它只添加版本目录 `bin` 到 `PATH` 并加载补全，不持久设置
-`ECOS_SDK_HOME`，也不修改标记块之外的配置。工具链的 `toolchain/riscv/bin` 不会加入
-全局 `PATH`：`xPack` 是工具链提供者名称，实际编译器命令是
+重复安装会更新同一标记块。它会添加版本目录 `bin` 以及 SDK 私有 CMake/Ninja 目录到
+`PATH` 并加载补全，不持久设置 `ECOS_SDK_HOME`，也不修改标记块之外的配置。工具链的
+`toolchain/riscv/bin` 不会加入全局 `PATH`：`xPack` 是工具链提供者名称，实际编译器命令是
 `riscv-none-elf-gcc`。`ecos build` 会从工具链状态解析器取得绝对路径，因此不要求用户
 手工设置交叉编译器 `PATH`；需要手工调用时请使用 `toolchain/riscv/bin` 下的完整路径，或
 只在当前 Shell 临时追加该目录。
@@ -564,6 +582,8 @@ ecos toolchain status --format json
 - `sdk doctor` 报告注册项为 `valid`。
 - `toolchain status` 报告 `state: installed`。
 - 编译器路径位于当前 release SDK 的工具链版本目录。
+- 安装结果中的 `host_dependencies.installation.state` 为 `installed` 或 `reused`，且包含
+  可运行的 CMake 和 Ninja 路径。
 
 ## 14. 移除安装
 

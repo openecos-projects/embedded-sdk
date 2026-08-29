@@ -32,6 +32,8 @@ ecos toolchain install --archive /path/to/xpack-archive
 `xPack` 是清单中的 provider，不是一个名为 `xpack` 的命令。安装后的交叉编译器命令为
 `riscv-none-elf-gcc`、`riscv-none-elf-objcopy` 等。安装器不会把版本化工具链目录加入全局
 `PATH`，以避免多个 SDK 版本互相抢占；`ecos build` 使用状态检查返回的绝对路径。
+CMake 和 Ninja 属于独立的宿主构建依赖，由 `tools/install.py` 以锁定版本安装到 SDK
+私有目录；它们的路径会加入受管 Shell 配置，构建编排也会直接使用绝对路径。
 
 源码 checkout 执行 `ecos toolchain install` 时，默认前缀是用户目录
 `~/.local/ecos-sdk`；`tools/install.py` 部署 release SDK 时，工具链位于对应版本 SDK 根目录

@@ -11,7 +11,7 @@ SOURCE_ROOT = Path(__file__).parents[1] / "src"
 SDK_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from ecos_cli import toolchain  # noqa: E402
+from ecos_cli import dependencies, toolchain  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
 
 
@@ -19,6 +19,20 @@ REQUIRED_TOOLS = (
     "cmake",
     "ninja",
 )
+
+
+def host_tool_is_ready(name: str) -> bool:
+    spec = next(
+        item
+        for item in dependencies.HOST_TOOL_DEPENDENCIES
+        if item["name"] == name
+    )
+    return bool(
+        dependencies.managed_host_tool(
+            dependencies.host_dependency_root(SDK_ROOT), name
+        )
+        or shutil.which(spec["executable"])
+    )
 
 
 def sdk_toolchain_is_ready() -> bool:
@@ -34,8 +48,9 @@ def sdk_toolchain_is_ready() -> bool:
 
 
 @unittest.skipUnless(
-    all(shutil.which(tool) for tool in REQUIRED_TOOLS) and sdk_toolchain_is_ready(),
-    "CMake/Ninja or the SDK toolchain is not installed",
+    all(host_tool_is_ready(tool) for tool in REQUIRED_TOOLS)
+    and sdk_toolchain_is_ready(),
+    "SDK CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
     def test_hello_build_produces_executable_bin_and_disassembly(self):

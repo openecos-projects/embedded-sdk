@@ -12,6 +12,7 @@ from unittest import mock
 SOURCE_ROOT = Path(__file__).parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
+from ecos_cli import dependencies  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
 from ecos_cli.sdk_registry import SdkRegistry  # noqa: E402
 
@@ -343,6 +344,62 @@ class ProjectCreateTest(unittest.TestCase):
             )
             self.assertIn(f"-DPROJECT_DIR={project}", command)
             self.assertEqual(installation_status.call_args.args[1], active_toolchain)
+
+    def test_build_prefers_sdk_local_cmake_and_ninja(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            create_result, _ = self.run_json(
+                sdk,
+                "hello_world",
+                "--path",
+                str(workspace),
+                "--board",
+                "starrysky-l4",
+            )
+            self.assertEqual(create_result, ExitCode.OK)
+            project = workspace / "hello_world"
+
+            host_root = sdk / dependencies.HOST_DEPENDENCY_RELATIVE_ROOT
+            cmake = host_root / "cmake/data/bin/cmake"
+            ninja = host_root / "bin/ninja"
+            cmake.parent.mkdir(parents=True)
+            ninja.parent.mkdir(parents=True)
+            cmake.write_bytes(b"")
+            ninja.write_bytes(b"")
+
+            def fake_cmake(command, *, cwd, env, check):
+                build_dir = Path(cwd) / "build"
+                build_dir.mkdir(exist_ok=True)
+                for suffix in ("elf", "bin", "txt", "hex", "map", "size"):
+                    (build_dir / f"retrosoc_fw.{suffix}").write_bytes(b"output")
+                (build_dir / "compile_commands.json").write_text("[]", encoding="utf-8")
+                return mock.Mock(returncode=0)
+
+            active_toolchain = root / "toolchain"
+            (active_toolchain / "bin").mkdir(parents=True)
+            (active_toolchain / "bin" / "riscv-none-elf-gcc").write_bytes(b"")
+            with mock.patch(
+                "ecos_cli.build.shutil.which", return_value=None
+            ), mock.patch(
+                "ecos_cli.build.toolchain.default_prefix",
+                return_value=active_toolchain,
+            ), mock.patch(
+                "ecos_cli.build.toolchain.installation_status",
+                return_value={"state": "installed", "active_root": str(active_toolchain)},
+            ), mock.patch(
+                "ecos_cli.build.subprocess.run", side_effect=fake_cmake
+            ) as run, redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                result = main(
+                    ["--sdk", str(sdk), "build", "--project", str(project)]
+                )
+
+            self.assertEqual(result, ExitCode.OK)
+            configure = run.call_args_list[0].args[0]
+            self.assertEqual(configure[0], str(cmake.resolve()))
+            self.assertIn(f"-DCMAKE_MAKE_PROGRAM={ninja.resolve()}", configure)
 
     def test_clean_does_not_require_host_build_tools(self):
         with tempfile.TemporaryDirectory() as directory:
