@@ -29,8 +29,11 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 - 默认优化：`-O0`
 - 对象顺序：startup、bootloader、应用/驱动、链接
 - 最终产物：ELF、BIN、TXT、HEX、MAP、SIZE 和 `compile_commands.json`
+- 产物清单：`build/artifacts.json`，包含架构、ABI、入口、段布局及各文件摘要。
 - 默认目标为 `retrosoc_fw`；可由 CMake `FIRMWARE_NAME` 覆盖。
 - 构建通过 `ecos build` 调用 CMake/Ninja，编译器由 SDK 工具链状态解析器提供绝对路径。
+- `ecos flash` 按 Board 的 `mass-storage` 配置消费产物清单；`ecos monitor` 使用 Board 的
+  PySerial 配置。两者均不调用 2.x Shell/Make 业务逻辑。
 
 ## 外设地址
 

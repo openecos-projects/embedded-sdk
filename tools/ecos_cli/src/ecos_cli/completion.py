@@ -17,7 +17,11 @@ ROOT_COMMANDS = (
     "sdk",
     "toolchain",
     "project",
+    "validate",
+    "configure",
     "build",
+    "flash",
+    "monitor",
     "completion",
     "help",
 )
@@ -49,7 +53,15 @@ _ecos_complete() {{
     elif [[ "$cmd" == "completion" && $COMP_CWORD -eq 2 ]]; then
         candidates="bash zsh fish powershell"
     elif [[ "$cmd" == "build" && "$cur" == -* ]]; then
-        candidates="--project --clean --help"
+        candidates="--project --clean --format --help"
+    elif [[ "$cmd" == "validate" && "$cur" == -* ]]; then
+        candidates="--project --format --help"
+    elif [[ "$cmd" == "configure" && "$cur" == -* ]]; then
+        candidates="--project --dry-run --format --help"
+    elif [[ "$cmd" == "flash" && "$cur" == -* ]]; then
+        candidates="--project --device --format --help"
+    elif [[ "$cmd" == "monitor" && "$cur" == -* ]]; then
+        candidates="--project --port --baudrate --timeout --expect --format --help"
     elif [[ "$cmd" == "toolchain" && "$cur" == -* ]]; then
         case "$sub" in
             detect) candidates="--format --help" ;;
@@ -97,7 +109,15 @@ _ecos() {{
     elif [[ "$words[2]" == "completion" && $CURRENT -eq 3 ]]; then
         candidates=(bash zsh fish powershell)
     elif [[ "$words[2]" == "build" && "$PREFIX" == -* ]]; then
-        candidates=(--project --clean --help)
+        candidates=(--project --clean --format --help)
+    elif [[ "$words[2]" == "validate" && "$PREFIX" == -* ]]; then
+        candidates=(--project --format --help)
+    elif [[ "$words[2]" == "configure" && "$PREFIX" == -* ]]; then
+        candidates=(--project --dry-run --format --help)
+    elif [[ "$words[2]" == "flash" && "$PREFIX" == -* ]]; then
+        candidates=(--project --device --format --help)
+    elif [[ "$words[2]" == "monitor" && "$PREFIX" == -* ]]; then
+        candidates=(--project --port --baudrate --timeout --expect --format --help)
     elif [[ "$words[2]" == "toolchain" && "$PREFIX" == -* ]]; then
         case "$words[3]" in
             detect) candidates=(--format --help) ;;
@@ -171,6 +191,15 @@ complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l pro
 complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l clean
+complete -c ecos -f -n '__fish_seen_subcommand_from build' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l project -r
+complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from configure' -l dry-run
+complete -c ecos -f -n '__fish_seen_subcommand_from flash' -l device -r
+complete -c ecos -f -n '__fish_seen_subcommand_from monitor' -l port -r
+complete -c ecos -f -n '__fish_seen_subcommand_from monitor' -l baudrate -r
+complete -c ecos -f -n '__fish_seen_subcommand_from monitor' -l timeout -r
+complete -c ecos -f -n '__fish_seen_subcommand_from monitor' -l expect -r
 complete -c ecos -f -n '__fish_seen_subcommand_from toolchain; and __fish_seen_subcommand_from detect status install' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from status install' -l prefix -r
 complete -c ecos -f -n '__fish_seen_subcommand_from status' -l custom -r
@@ -206,7 +235,15 @@ Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
     }} elseif ($command -eq 'completion' -and $words.Count -le 3) {{
         $candidates = @('bash', 'zsh', 'fish', 'powershell')
     }} elseif ($command -eq 'build' -and $wordToComplete.StartsWith('-')) {{
-        $candidates = @('--project', '--clean', '--help')
+        $candidates = @('--project', '--clean', '--format', '--help')
+    }} elseif ($command -eq 'validate' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--format', '--help')
+    }} elseif ($command -eq 'configure' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--dry-run', '--format', '--help')
+    }} elseif ($command -eq 'flash' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--device', '--format', '--help')
+    }} elseif ($command -eq 'monitor' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--port', '--baudrate', '--timeout', '--expect', '--format', '--help')
     }} elseif ($command -eq 'toolchain' -and $wordToComplete.StartsWith('-')) {{
         $candidates = switch ($subcommand) {{
             'detect' {{ '--format', '--help' }}

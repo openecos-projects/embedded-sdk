@@ -15,7 +15,11 @@ HOST_DEPENDENCY_RELATIVE_ROOT = Path("lib") / "ecos" / "host"
 HOST_DEPENDENCY_MARKER = ".ecos-host-dependencies.json"
 
 # Keep these versions fixed so an SDK installation is reproducible.
-PYTHON_DEPENDENCIES = ("PyYAML==6.0.3",)
+PYTHON_DEPENDENCIES = (
+    "PyYAML==6.0.3",
+    "kconfiglib==14.1.0",
+    "pyserial==3.5",
+)
 HOST_TOOL_DEPENDENCIES: tuple[dict[str, str], ...] = (
     {
         "name": "cmake",

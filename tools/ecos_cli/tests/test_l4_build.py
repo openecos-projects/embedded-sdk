@@ -1,3 +1,4 @@
+import importlib.util
 import shutil
 import sys
 import tempfile
@@ -49,8 +50,9 @@ def sdk_toolchain_is_ready() -> bool:
 
 @unittest.skipUnless(
     all(host_tool_is_ready(tool) for tool in REQUIRED_TOOLS)
-    and sdk_toolchain_is_ready(),
-    "SDK CMake/Ninja dependencies or the SDK toolchain is not installed",
+    and sdk_toolchain_is_ready()
+    and importlib.util.find_spec("kconfiglib") is not None,
+    "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
     def test_hello_build_produces_executable_bin_and_disassembly(self):

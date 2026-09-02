@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import yaml
 
@@ -346,7 +346,11 @@ def _write_metadata_atomic(path: Path, metadata: dict[str, Any]) -> None:
 
 
 def set_board(
-    context: SdkContext, board: str, *, project_root: Optional[Path] = None
+    context: SdkContext,
+    board: str,
+    *,
+    project_root: Optional[Path] = None,
+    validator: Optional[Callable[[dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     board_id, target = resolve_board(context, board)
     metadata_path, metadata = load_project_metadata(project_root or Path.cwd())
@@ -354,6 +358,8 @@ def set_board(
     metadata["schema"] = PROJECT_SCHEMA_VERSION
     metadata["board"] = board_id
     metadata["target"] = target
+    if validator is not None:
+        validator(metadata)
     _write_metadata_atomic(metadata_path, metadata)
     return {
         "path": str(metadata_path.parent.parent),
@@ -366,7 +372,11 @@ def set_board(
 
 
 def set_target(
-    context: SdkContext, target: str, *, project_root: Optional[Path] = None
+    context: SdkContext,
+    target: str,
+    *,
+    project_root: Optional[Path] = None,
+    validator: Optional[Callable[[dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     target_id = resolve_target(context, target)
     metadata_path, metadata = load_project_metadata(project_root or Path.cwd())
@@ -374,6 +384,8 @@ def set_target(
     metadata["schema"] = PROJECT_SCHEMA_VERSION
     metadata["board"] = None
     metadata["target"] = target_id
+    if validator is not None:
+        validator(metadata)
     _write_metadata_atomic(metadata_path, metadata)
     return {
         "path": str(metadata_path.parent.parent),
@@ -407,6 +419,7 @@ def create_project(
     profile: Optional[str] = None,
     dry_run: bool = False,
     force: bool = False,
+    validator: Optional[Callable[[Path], None]] = None,
 ) -> dict[str, Any]:
     example_name = normalize_example_name(example)
     project_name = validate_project_name(
@@ -482,6 +495,8 @@ def create_project(
             metadata_file.write(serialize_project_metadata(metadata))
         if context.registration_name:
             write_project_pin(temporary, context)
+        if validator is not None:
+            validator(temporary)
 
         if destination_exists:
             backup = project_parent / (

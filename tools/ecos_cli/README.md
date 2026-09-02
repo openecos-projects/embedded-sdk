@@ -17,7 +17,11 @@ python3 tools/ecos.py project create hello --target ysyx-2512 --path ~/workspace
 python3 tools/ecos.py project create hello --path ~/workspace --dry-run
 python3 tools/ecos.py project set-board starrysky-l4 --project ~/workspace/hello
 python3 tools/ecos.py project set-target ysyx-2512 --project ~/workspace/hello
+python3 tools/ecos.py validate --project ~/workspace/hello
+python3 tools/ecos.py configure --project ~/workspace/hello
 python3 tools/ecos.py build --project ~/workspace/hello
+python3 tools/ecos.py flash --project ~/workspace/hello
+python3 tools/ecos.py monitor --project ~/workspace/hello --port /dev/ttyUSB0
 python3 tools/ecos.py completion bash
 python3 tools/ecos.py completion zsh
 python3 tools/ecos.py completion fish
@@ -26,7 +30,8 @@ python3 tools/ecos.py completion powershell
 
 `tools/install.py` 会自动识别当前 Shell，将四类补全文件安装到
 `share/ecos/completions/`，并以 `ECOS SDK` 标记块幂等配置对应的用户启动文件。
-安装器还会把锁定的 `PyYAML`、CMake 和 Ninja wheel 安装到版本目录的私有依赖目录，
+安装器还会把锁定的 `PyYAML`、Kconfiglib、PySerial、CMake 和 Ninja wheel 安装到
+版本目录的私有依赖目录，
 构建时优先使用这些 SDK-local 工具，不依赖系统级 CMake/Ninja 或交叉编译器 PATH。
 可用 `--shell` 覆盖识别结果、`--shell-profile` 指定启动文件或用 `--shell none`
 禁用配置。

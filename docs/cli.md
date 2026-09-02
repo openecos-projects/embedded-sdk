@@ -104,7 +104,11 @@ ecos toolchain --sdk 3.0.0 status
 | `ecos project create EXAMPLE` | 从指定 Example 创建外部工程并写入工程元数据。 |
 | `ecos project set-board BOARD` | 设置 Board，并用 Board 清单映射覆盖 Target。 |
 | `ecos project set-target TARGET` | 设置 Target/SoC，并清空工程的 Board。 |
+| `ecos validate` | 只读校验并解析 Project、Example、Board、Target 和 Component 清单。 |
+| `ecos configure` | 生成统一 resolved project、CMake 和 Kconfig 派生配置。 |
 | `ecos build` | 按工程中的 Board/Target 选择 SoC 构建规则并生成固件。 |
+| `ecos flash` | 按 Board 烧录配置写入 `artifacts.json` 声明的固件。 |
+| `ecos monitor` | 按 Board 串口配置打开跨平台串口监视器。 |
 | `ecos completion SHELL` | 输出指定 Shell 的补全脚本。 |
 
 ### 3.2 3.0 计划命令
@@ -121,12 +125,8 @@ ecos toolchain --sdk 3.0.0 status
 | `ecos example describe ID` | 显示 Example 来源、依赖和兼容条件。 |
 | `ecos component list` | 列出 SDK Component。 |
 | `ecos component describe ID` | 显示 Component 依赖和公开接口元数据。 |
-| `ecos validate` | 不编译，检查工程 schema、依赖、能力和工具链。 |
-| `ecos configure` | 解析工程并生成 CMake、Kconfig 等派生配置。 |
 | `ecos menuconfig` | 进入跨平台交互配置界面。 |
 | `ecos clean` | 清理工程构建产物，不删除用户源码。 |
-| `ecos flash` | 烧录当前工程产物。 |
-| `ecos monitor` | 打开串口监视器。 |
 | `ecos doctor` | 检查工程、SDK、工具链、烧录器、串口和宿主环境。 |
 
 资源类命令统一采用 `<resource> list` 和 `<resource> describe ID`，不得分别发明
@@ -247,7 +247,7 @@ ecos build
 `ecos build` 必须重新验证 Board 到 Target 的映射，随后从
 `components/soc/<target>/CMakeLists.txt` 加载目标构建规则，并使用 Ninja 生成器。
 StarrySky L4 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`.map`、`.size`
-和 `compile_commands.json`；缺少 ELF、BIN、TXT、MAP、size 报告或编译数据库时即使
+和 `compile_commands.json`；缺少 ELF、BIN、HEX、MAP、size 报告或编译数据库时即使
 底层构建命令返回成功也视为失败。
 
 创建工程必须完成以下工作：
@@ -259,9 +259,10 @@ StarrySky L4 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`
 4. 验证 Board、Target、Component 和 Example 的能力及依赖关系。
 5. 仅在 `build/` 或 `.ecos/generated/` 中生成本机派生配置。
 
-当前已实现 Example 目录复制、工程命名、Board/profile 初始选择持久化、工程元数据、SDK
-pin、原子替换、dry-run 和 JSON 输出。Board/Target/Component 能力校验与 CMake/Kconfig
-派生配置将在对应资源 schema 和 `validate`、`configure` 命令实现后接入。
+当前统一解析器已经接入 `validate`、`configure`、`build`、`flash` 和 `monitor`。它负责
+校验 Project、Example、Board、Target 和 Component 清单，递归解析 Component 依赖，检查
+Board 到 Target 映射、profile、能力、源码、头文件、内存、产物和工具链声明，并产生唯一
+的 resolved project model。CMake 不再自行选择 Board、Component 或应用源码。
 
 工程元数据不得记录某台主机的 SDK 绝对路径。正式工程应位于 SDK 安装目录之外。
 
@@ -270,23 +271,41 @@ pin、原子替换、dry-run 和 JSON 输出。Board/Target/Component 能力校�
 
 ## 7. 高频工程命令设计
 
-以下命令默认使用当前目录中的工程，同时必须支持 `--project PATH`，以便 IDE、CI 和 AI
+以下已实现命令默认使用当前目录中的工程，同时支持 `--project PATH`，以便 IDE、CI 和 AI
 不依赖进程当前目录：
 
 ```bash
 ecos validate [--project PATH] [--format text|json]
-ecos configure [--project PATH] [--dry-run]
-ecos menuconfig [--project PATH]
-ecos build [--project PATH]
-ecos clean [--project PATH] [--dry-run]
-ecos flash [--project PATH] [--port PORT]
-ecos monitor [--project PATH] [--port PORT]
-ecos doctor [--project PATH] [--format text|json]
+ecos configure [--project PATH] [--dry-run] [--format text|json]
+ecos build [--project PATH] [--clean] [--format text|json]
+ecos flash [--project PATH] [--device DIRECTORY] [--format text|json]
+ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
+             [--timeout SECONDS] [--expect TEXT] [--format text|json]
 ```
 
-这些参数仍处于计划状态，实现阶段可以增加必要选项，但不得改变以下语义：
+`ecos configure` 只写 `.ecos/generated/`，并原子维护以下完整文件集：
 
-- `validate`、`doctor` 和其他查询命令无副作用。
+- `resolved-project.json`：唯一的已解析工程模型。
+- `resolved-project.cmake`、`sdkconfig.cmake`：CMake 输入。
+- `Kconfig`、`.config`、`sdkconfig.h`：Kconfig 输入和输出。
+- `configuration.fingerprint`：当前解析和 Kconfig 配置指纹。
+
+`ecos build` 每次先检查并按需更新上述配置，然后从磁盘重新读取
+`resolved-project.json`。构建成功后写入 `build/artifacts.json`，记录 ELF、BIN、HEX 等
+文件的路径、大小和 SHA-256，以及架构、ISA、ABI、入口、段布局、SDK、Board、Target、
+工具链、源码指纹和配置指纹。`flash` 只接受摘要完整、配置未过期且符合当前 Board 的产物清单，
+不会猜测固件文件名。
+
+StarrySky L4 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上由 Python 查找
+卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
+模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
+
+以下命令仍处于计划状态：`menuconfig`、独立的 `clean` 和工程级 `doctor`。当前清理入口为
+`ecos build --clean`。
+
+工程命令遵循以下语义：
+
+- `validate` 和其他查询命令无副作用。
 - `configure` 生成派生状态，不修改用户维护的应用源码。
 - `build` 使用 CMake 和 Ninja，并通过统一 SDK/工具链解析器获得环境。
 - `clean` 只能删除已识别工程内的构建产物。
@@ -295,11 +314,13 @@ ecos doctor [--project PATH] [--format text|json]
 
 ## 8. 输出与退出码
 
-已实现的 SDK、工具链查询和安装命令支持：
+已实现的 SDK、工具链和工程命令支持：
 
 ```bash
 ecos sdk list --format json
 ecos toolchain status --format json
+ecos validate --format json
+ecos build --format json
 ```
 
 JSON 顶层固定包含：

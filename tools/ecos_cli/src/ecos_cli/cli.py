@@ -12,7 +12,11 @@ from typing import Any, Optional, Sequence
 from . import __version__
 from . import build
 from . import completion
+from . import configuration
+from . import flashing
+from . import monitoring
 from . import project
+from . import project_model
 from . import sdk_manifest
 from . import toolchain
 from .progress import ConsoleProgress
@@ -107,6 +111,16 @@ def emit_error(
         if suggestion:
             console.info(f"Suggestion: {suggestion}")
     return int(exit_code)
+
+
+def _requested_output_format(arguments: Sequence[str]) -> str:
+    values = list(arguments)
+    for index, value in enumerate(values):
+        if value == "--format" and index + 1 < len(values):
+            return "json" if values[index + 1] == "json" else "text"
+        if value.startswith("--format="):
+            return "json" if value.split("=", 1)[1] == "json" else "text"
+    return "text"
 
 
 def _add_selection_options(parser: argparse.ArgumentParser) -> None:
@@ -570,6 +584,110 @@ def run_completion(argv: Sequence[str]) -> int:
     return int(ExitCode.OK)
 
 
+def _project_error(
+    command: str, output_format: str, exc: Exception
+) -> int:
+    if isinstance(exc, project.ProjectNotFound):
+        code = "ECOS_PROJECT_NOT_FOUND"
+    elif isinstance(exc, project.ProjectMetadataError):
+        code = "ECOS_PROJECT_METADATA_INVALID"
+    elif isinstance(exc, (project.BoardNotFound, project.BoardManifestError)):
+        code = "ECOS_PROJECT_BOARD_INVALID"
+    elif isinstance(exc, project.TargetNotFound):
+        code = "ECOS_PROJECT_TARGET_NOT_FOUND"
+    elif isinstance(exc, project_model.CapabilityMismatchError):
+        code = "ECOS_PROJECT_CAPABILITY_MISMATCH"
+    elif isinstance(exc, project_model.ComponentResolutionError):
+        code = "ECOS_PROJECT_COMPONENT_INVALID"
+    elif isinstance(exc, project_model.ToolchainResolutionError):
+        code = "ECOS_PROJECT_TOOLCHAIN_INVALID"
+    else:
+        code = "ECOS_PROJECT_MODEL_INVALID"
+    return emit_error(command, output_format, code, str(exc), ExitCode.CONFIG)
+
+
+def run_validate(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos validate",
+        description="Validate and resolve an ECOS project without writing files.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "validate",
+            _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc),
+            ExitCode.USAGE,
+        )
+    try:
+        data = configuration.validate_project(sdk_context, project_root=args.project)
+        if args.output_format == "json":
+            emit_json(envelope("validate", "ok", data))
+        else:
+            console = ConsoleProgress()
+            console.info(f"Project is valid: {data['path']}")
+            console.info(f"Board: {data['board'] or 'none'}")
+            console.info(f"Target: {data['target']}")
+            console.info(f"Fingerprint: {data['source_fingerprint']}")
+        return int(ExitCode.OK)
+    except (
+        project.ProjectError,
+        project_model.ProjectModelError,
+        configuration.ConfigurationError,
+    ) as exc:
+        return _project_error("validate", args.output_format, exc)
+
+
+def run_configure(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos configure",
+        description="Generate resolved CMake and Kconfig inputs for an ECOS project.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument("--dry-run", action="store_true", help="resolve without writing files")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "configure",
+            _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc),
+            ExitCode.USAGE,
+        )
+    try:
+        result = configuration.configure_project(
+            sdk_context, project_root=args.project, dry_run=args.dry_run
+        )
+        data = result.data
+        if args.output_format == "json":
+            emit_json(envelope("configure", "ok", data))
+        else:
+            console = ConsoleProgress()
+            action = "would update" if args.dry_run and data["changed"] else (
+                "updated" if data["changed"] else "already current"
+            )
+            console.info(f"Project configuration {action}: {data['path']}")
+            console.info(f"Generated directory: {data['generated']['directory']}")
+            console.info(f"Fingerprint: {data['configuration_fingerprint']}")
+        return int(ExitCode.OK)
+    except (
+        project.ProjectError,
+        project_model.ProjectModelError,
+        configuration.ConfigurationError,
+    ) as exc:
+        return _project_error("configure", args.output_format, exc)
+
+
 def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
     parser = EcosArgumentParser(
         prog="ecos build",
@@ -583,12 +701,15 @@ def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
         help="project directory (default: current directory)",
     )
     parser.add_argument("--clean", action="store_true", help="remove build outputs")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
     try:
         args = parser.parse_args(list(argv))
     except UsageError as exc:
         return emit_error(
             "build",
-            "text",
+            _requested_output_format(argv),
             "ECOS_USAGE_INVALID_ARGUMENTS",
             str(exc),
             ExitCode.USAGE,
@@ -597,54 +718,245 @@ def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
         data = build.build_project(
             sdk_context, project_root=args.project, clean=args.clean
         )
-        console = ConsoleProgress()
-        if data["clean"]:
-            console.info(f"Build outputs removed: {data['path']}/build")
+        if args.output_format == "json":
+            emit_json(envelope("build", "ok", data))
         else:
-            console.info(f"Project built: {data['path']}")
-            console.info(f"Target: {data['target']}")
-            for output in data["outputs"].values():
-                console.info(f"Output: {output}")
+            console = ConsoleProgress()
+            if data["clean"]:
+                console.info(f"Build outputs removed: {data['path']}/build")
+            else:
+                console.info(f"Project built: {data['path']}")
+                console.info(f"Target: {data['target']}")
+                for output in data["outputs"].values():
+                    console.info(f"Output: {output}")
         return int(ExitCode.OK)
     except project.ProjectNotFound as exc:
         return emit_error(
-            "build", "text", "ECOS_PROJECT_NOT_FOUND", str(exc), ExitCode.CONFIG
+            "build",
+            args.output_format,
+            "ECOS_PROJECT_NOT_FOUND",
+            str(exc),
+            ExitCode.CONFIG,
         )
     except project.ProjectMetadataError as exc:
         return emit_error(
             "build",
-            "text",
+            args.output_format,
             "ECOS_PROJECT_METADATA_INVALID",
             str(exc),
             ExitCode.CONFIG,
         )
     except (project.BoardNotFound, project.BoardManifestError) as exc:
         return emit_error(
-            "build", "text", "ECOS_PROJECT_BOARD_INVALID", str(exc), ExitCode.CONFIG
+            "build",
+            args.output_format,
+            "ECOS_PROJECT_BOARD_INVALID",
+            str(exc),
+            ExitCode.CONFIG,
         )
     except project.TargetNotFound as exc:
         return emit_error(
-            "build", "text", "ECOS_PROJECT_TARGET_NOT_FOUND", str(exc), ExitCode.CONFIG
+            "build",
+            args.output_format,
+            "ECOS_PROJECT_TARGET_NOT_FOUND",
+            str(exc),
+            ExitCode.CONFIG,
         )
     except build.BuildConfigurationError as exc:
         return emit_error(
-            "build", "text", "ECOS_BUILD_CONFIG_INVALID", str(exc), ExitCode.CONFIG
+            "build",
+            args.output_format,
+            "ECOS_BUILD_CONFIG_INVALID",
+            str(exc),
+            ExitCode.CONFIG,
         )
     except build.BuildToolNotFound as exc:
         return emit_error(
             "build",
-            "text",
+            args.output_format,
             "ECOS_BUILD_TOOL_NOT_FOUND",
             str(exc),
             ExitCode.EXTERNAL_TOOL,
         )
     except build.BuildCommandError as exc:
         return emit_error(
-            "build", "text", "ECOS_BUILD_FAILED", str(exc), ExitCode.EXTERNAL_TOOL
+            "build",
+            args.output_format,
+            "ECOS_BUILD_FAILED",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
         )
     except build.BuildOutputError as exc:
         return emit_error(
-            "build", "text", "ECOS_BUILD_OUTPUT_MISSING", str(exc), ExitCode.EXTERNAL_TOOL
+            "build",
+            args.output_format,
+            "ECOS_BUILD_OUTPUT_INVALID",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
+        )
+
+
+def run_flash(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos flash",
+        description="Flash the current firmware using the selected Board provider.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument(
+        "--device",
+        dest="device",
+        type=Path,
+        metavar="DIRECTORY",
+        help="programmer mount directory (auto-detected by volume label by default)",
+    )
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "flash",
+            _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc),
+            ExitCode.USAGE,
+        )
+    try:
+        data = flashing.flash_project(
+            sdk_context, project_root=args.project, device=args.device
+        )
+        if args.output_format == "json":
+            emit_json(envelope("flash", "ok", data))
+        else:
+            console = ConsoleProgress()
+            console.info(f"Firmware flashed: {data['artifact']}")
+            console.info(f"Device: {data['device']}")
+            console.info(f"SHA-256: {data['sha256']}")
+        return int(ExitCode.OK)
+    except (project.ProjectError, project_model.ProjectModelError) as exc:
+        return _project_error("flash", args.output_format, exc)
+    except flashing.FlashConfigurationError as exc:
+        return emit_error(
+            "flash",
+            args.output_format,
+            "ECOS_FLASH_CONFIG_INVALID",
+            str(exc),
+            ExitCode.CONFIG,
+        )
+    except flashing.FlashArtifactError as exc:
+        return emit_error(
+            "flash",
+            args.output_format,
+            "ECOS_FLASH_ARTIFACT_INVALID",
+            str(exc),
+            ExitCode.CONFIG,
+        )
+    except flashing.FlashDeviceNotFound as exc:
+        return emit_error(
+            "flash",
+            args.output_format,
+            "ECOS_FLASH_DEVICE_NOT_FOUND",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
+        )
+    except flashing.FlashWriteError as exc:
+        return emit_error(
+            "flash",
+            args.output_format,
+            "ECOS_FLASH_FAILED",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
+        )
+
+
+def run_monitor(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos monitor",
+        description="Monitor the selected Board console through a serial port.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument("--port", help="serial port (auto-detected by default)")
+    parser.add_argument("--baudrate", type=int, help="override the Board baudrate")
+    parser.add_argument("--timeout", type=float, help="stop after this many seconds")
+    parser.add_argument("--expect", help="succeed after observing this UTF-8 text")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "monitor",
+            _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc),
+            ExitCode.USAGE,
+        )
+    if args.output_format == "json" and args.timeout is None and args.expect is None:
+        return emit_error(
+            "monitor",
+            args.output_format,
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            "JSON monitoring requires --timeout or --expect so a final result is produced",
+            ExitCode.USAGE,
+        )
+    timeout = 10.0 if args.expect is not None and args.timeout is None else args.timeout
+    try:
+        if args.output_format == "text":
+            ConsoleProgress().info(
+                f"Opening serial monitor{f' on {args.port}' if args.port else ''}"
+            )
+        data = monitoring.monitor_project(
+            sdk_context,
+            project_root=args.project,
+            port=args.port,
+            baudrate=args.baudrate,
+            timeout=timeout,
+            expect=args.expect,
+            stream=None if args.output_format == "json" else sys.stdout,
+        )
+        if args.output_format == "json":
+            emit_json(envelope("monitor", "ok", data))
+        else:
+            console = ConsoleProgress()
+            console.info(f"Serial monitor closed: {data['port']}")
+            if args.expect is not None:
+                console.info(f"Expected output observed: {args.expect}")
+        return int(ExitCode.OK)
+    except (project.ProjectError, project_model.ProjectModelError) as exc:
+        return _project_error("monitor", args.output_format, exc)
+    except monitoring.MonitorConfigurationError as exc:
+        return emit_error(
+            "monitor",
+            args.output_format,
+            "ECOS_MONITOR_CONFIG_INVALID",
+            str(exc),
+            ExitCode.CONFIG,
+        )
+    except monitoring.MonitorDependencyError as exc:
+        return emit_error(
+            "monitor",
+            args.output_format,
+            "ECOS_MONITOR_DEPENDENCY_MISSING",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
+        )
+    except monitoring.MonitorPortError as exc:
+        return emit_error(
+            "monitor",
+            args.output_format,
+            "ECOS_MONITOR_PORT_FAILED",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
+        )
+    except monitoring.MonitorExpectationError as exc:
+        return emit_error(
+            "monitor",
+            args.output_format,
+            "ECOS_MONITOR_EXPECTATION_FAILED",
+            str(exc),
+            ExitCode.EXTERNAL_TOOL,
         )
 
 
@@ -760,6 +1072,18 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
     command = f"project.{args.project_command}"
     try:
         if args.project_command == "create":
+            example_name = project.normalize_example_name(args.example)
+            source = project.resolve_example(sdk_context, example_name)
+            project_model.validate_example_source(
+                sdk_context, source, example_name
+            )
+            validator = None
+            if not args.dry_run and (
+                args.board is not None or args.target is not None
+            ):
+                validator = lambda root: project_model.resolve_project(
+                    sdk_context, project_root=root
+                )
             data = project.create_project(
                 sdk_context,
                 args.example,
@@ -770,14 +1094,29 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
                 profile=args.profile,
                 dry_run=args.dry_run,
                 force=args.force,
+                validator=validator,
             )
         elif args.project_command == "set-board":
             data = project.set_board(
-                sdk_context, args.board, project_root=args.project
+                sdk_context,
+                args.board,
+                project_root=args.project,
+                validator=lambda metadata: project_model.resolve_project(
+                    sdk_context,
+                    project_root=args.project,
+                    metadata_override=metadata,
+                ),
             )
         else:
             data = project.set_target(
-                sdk_context, args.target, project_root=args.project
+                sdk_context,
+                args.target,
+                project_root=args.project,
+                validator=lambda metadata: project_model.resolve_project(
+                    sdk_context,
+                    project_root=args.project,
+                    metadata_override=metadata,
+                ),
             )
         if args.output_format == "json":
             emit_json(envelope(command, "ok", data))
@@ -871,6 +1210,8 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
             str(exc),
             ExitCode.CONFIG,
         )
+    except project_model.ProjectModelError as exc:
+        return _project_error(command, args.output_format, exc)
 
 
 def print_help() -> None:
@@ -889,7 +1230,11 @@ def print_help() -> None:
     print("  project create EXAMPLE           Create a project from an SDK example")
     print("  project set-board BOARD          Select a Board and its mapped Target")
     print("  project set-target TARGET        Select a Target and clear the Board")
+    print("  validate                          Validate project manifests and capabilities")
+    print("  configure                         Generate CMake and Kconfig project state")
     print("  build                             Build the selected project Target")
+    print("  flash                             Flash the validated firmware artifact")
+    print("  monitor                           Monitor and assert Board serial output")
     print("  toolchain detect                  Detect host and select the pinned asset")
     print("  toolchain status                  Inspect the current toolchain installation")
     print("  toolchain install                 Download or import the pinned toolchain")
@@ -914,6 +1259,18 @@ def _global_arguments(arguments: list[str]) -> tuple[Optional[str], list[str]]:
             if not sdk_selector:
                 raise UsageError("argument --sdk: expected one argument")
     return sdk_selector, remaining
+
+
+def _project_hint(arguments: Sequence[str]) -> Optional[Path]:
+    values = list(arguments)
+    for index, value in enumerate(values):
+        if value == "--project" and index + 1 < len(values):
+            return Path(values[index + 1])
+        if value.startswith("--project="):
+            selected = value.split("=", 1)[1]
+            if selected:
+                return Path(selected)
+    return None
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -945,7 +1302,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         except SdkResolutionError as exc:
             return emit_error(
                 "toolchain",
-                "json" if "json" in command_args else "text",
+                _requested_output_format(command_args),
                 "ECOS_SDK_RESOLUTION_FAILED",
                 str(exc),
                 ExitCode.CONFIG,
@@ -956,32 +1313,39 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         try:
             context = SdkResolver(
                 checkout_hint=Path(__file__).resolve().parents[4]
-            ).resolve(explicit=sdk_selector)
+            ).resolve(explicit=sdk_selector, project=_project_hint(command_args))
         except SdkResolutionError as exc:
             return emit_error(
                 "project",
-                "json" if "json" in command_args else "text",
+                _requested_output_format(command_args),
                 "ECOS_SDK_RESOLUTION_FAILED",
                 str(exc),
                 ExitCode.CONFIG,
                 suggestion="Run 'ecos sdk current' to inspect SDK selection.",
             )
         return run_project(command_args, context)
-    if command == "build":
+    if command in {"validate", "configure", "build", "flash", "monitor"}:
         try:
             context = SdkResolver(
                 checkout_hint=Path(__file__).resolve().parents[4]
-            ).resolve(explicit=sdk_selector)
+            ).resolve(explicit=sdk_selector, project=_project_hint(command_args))
         except SdkResolutionError as exc:
             return emit_error(
-                "build",
-                "text",
+                command,
+                _requested_output_format(command_args),
                 "ECOS_SDK_RESOLUTION_FAILED",
                 str(exc),
                 ExitCode.CONFIG,
                 suggestion="Run 'ecos sdk current' to inspect SDK selection.",
             )
-        return run_build(command_args, context)
+        handlers = {
+            "validate": run_validate,
+            "configure": run_configure,
+            "build": run_build,
+            "flash": run_flash,
+            "monitor": run_monitor,
+        }
+        return handlers[command](command_args, context)
     if command == "completion":
         return run_completion(command_args)
     return emit_error(

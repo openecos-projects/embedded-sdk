@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Optional, Union
 
+from . import artifacts
+from . import configuration
 from . import dependencies
 from . import project
 from . import toolchain
@@ -70,20 +72,6 @@ def build_project(
     _, metadata = project.load_project_metadata(root)
     target = metadata.get("target")
     board = metadata.get("board")
-    if not isinstance(target, str) or not target:
-        raise BuildConfigurationError(
-            "project has no Target; run 'ecos project set-board BOARD' or "
-            "'ecos project set-target TARGET'"
-        )
-    target = project.resolve_target(context, target)
-    if board is not None:
-        if not isinstance(board, str):
-            raise BuildConfigurationError("project Board must be a string or null")
-        board_id, board_target = project.resolve_board(context, board)
-        if board_id != board or board_target != target:
-            raise BuildConfigurationError(
-                f"project Board {board!r} maps to {board_target!r}, not {target!r}"
-            )
 
     build_dir = root / "build"
     if clean:
@@ -97,6 +85,14 @@ def build_project(
             "outputs": {},
         }
 
+    try:
+        configured = configuration.configure_project(context, project_root=root)
+        resolved = configuration.load_resolved_project(root)
+    except (configuration.ConfigurationError, configuration.ProjectModelError) as exc:
+        raise BuildConfigurationError(str(exc)) from exc
+    target = resolved["project"]["target"]
+    board = resolved["project"]["board"]
+
     host_tools = {
         item["name"]: _resolve_host_tool(context, item)
         for item in dependencies.HOST_TOOL_DEPENDENCIES
@@ -104,24 +100,13 @@ def build_project(
     cmake = host_tools["cmake"]
     ninja = host_tools["ninja"]
 
-    target_root = context.resource("components") / "soc" / target
-    project_build_file = root / "CMakeLists.txt"
-    build_file = (
-        project_build_file
-        if project_build_file.is_file()
-        else target_root / "CMakeLists.txt"
-    )
-    toolchain_file = target_root / "toolchain.cmake"
+    target_root = Path(resolved["target"]["root"])
+    build_file = Path(resolved["build"]["cmake"])
+    toolchain_file = Path(resolved["build"]["toolchain_file"])
     if not build_file.is_file() or not toolchain_file.is_file():
         raise BuildConfigurationError(
             f"Target does not provide CMake build rules: {build_file}"
         )
-    source = root / "main.c"
-    if not source.is_file():
-        raise BuildConfigurationError(
-            f"project application source does not exist: {source}"
-        )
-
     environment = os.environ.copy()
     environment["ECOS_SDK_HOME"] = str(context.root)
     host_paths = [
@@ -138,6 +123,23 @@ def build_project(
         )
 
     toolchain_manifest = toolchain.load_manifest()
+    requirement = resolved["toolchain"]
+    if (
+        toolchain_manifest["id"] != requirement["id"]
+        or toolchain_manifest["release"] != requirement["release"]
+        or (
+            requirement["prefix"] is not None
+            and toolchain_manifest["tool_prefix"] != requirement["prefix"]
+        )
+        or (
+            requirement["triple"] is not None
+            and toolchain_manifest["target_triplet"] != requirement["triple"]
+        )
+    ):
+        raise BuildConfigurationError(
+            "the CLI toolchain manifest does not match the resolved project: "
+            f"expected {requirement['id']} {requirement['release']}"
+        )
     host = toolchain.detect_host()
     # A source checkout keeps downloaded toolchains in the user-level prefix;
     # an installed SDK release keeps them beside its own manifest and assets.
@@ -162,6 +164,11 @@ def build_project(
             f"active SDK toolchain compiler does not exist: {compiler}"
         )
 
+    project_config = (
+        root
+        / configuration.GENERATED_DIRECTORY
+        / configuration.RESOLVED_CMAKE_FILE
+    )
     configure_command = [
         cmake,
         "-S",
@@ -174,7 +181,7 @@ def build_project(
         f"-DCMAKE_TOOLCHAIN_FILE={_cmake_path(toolchain_file)}",
         f"-DECOS_TOOLCHAIN_ROOT={_cmake_path(toolchain_root)}",
         f"-DECOS_TARGET_DIR={_cmake_path(target_root)}",
-        f"-DPROJECT_DIR={_cmake_path(root)}",
+        f"-DECOS_PROJECT_CONFIG={_cmake_path(project_config)}",
         "-DFIRMWARE_NAME=retrosoc_fw",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     ]
@@ -193,22 +200,15 @@ def build_project(
     if result.returncode != 0:
         raise BuildCommandError(result.returncode)
 
+    try:
+        artifact_manifest = artifacts.create_manifest(root, resolved)
+    except artifacts.ArtifactError as exc:
+        raise BuildOutputError(str(exc)) from exc
     outputs = {
-        suffix: str(build_dir / f"retrosoc_fw.{suffix}")
-        for suffix in ("elf", "bin", "txt", "hex", "map", "size")
-        if (build_dir / f"retrosoc_fw.{suffix}").is_file()
+        name: str(root / item["path"])
+        for name, item in artifact_manifest["files"].items()
     }
-    compile_commands = build_dir / "compile_commands.json"
-    if compile_commands.is_file():
-        outputs["compile_commands"] = str(compile_commands)
-    if not clean:
-        missing = sorted(
-            {"elf", "bin", "txt", "map", "size", "compile_commands"}.difference(outputs)
-        )
-        if missing:
-            raise BuildOutputError(
-                f"Target build did not produce required outputs: {', '.join(missing)}"
-            )
+    outputs["artifacts"] = artifact_manifest["manifest"]
     return {
         "path": str(root),
         "board": board,
@@ -216,4 +216,7 @@ def build_project(
         "clean": clean,
         "host_tools": host_tools,
         "outputs": outputs,
+        "source_fingerprint": resolved["source_fingerprint"],
+        "configuration_fingerprint": resolved["configuration"]["fingerprint"],
+        "reconfigured": configured.data["changed"],
     }

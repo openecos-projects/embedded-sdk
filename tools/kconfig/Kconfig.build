@@ -1,0 +1,114 @@
+menu "Build Configuration"
+    menu "Library Configuration"
+        config LINK_LIBC
+            bool "link libc"
+            default y
+
+        config LINK_LIBGCC
+            bool "link libgcc"
+            default y
+
+        config COMPONENT_TIMMOLOG
+            bool "TimmoLog Support"
+            default y
+
+        config COMPONENT_SPI_SOFTWARE
+            bool "Spi Software Support"
+            default n
+
+        config COMPONENT_SFUD
+            bool "Serial Flash Universal Driver Support"
+            depends on DRIVER_QSPI
+            default n
+
+        config COMPONENT_FLASH_FS
+            bool "FileSystem Support"
+            depends on COMPONENT_SFUD
+            default n
+
+        menu "Shell Support"
+            config COMPONENT_SHELL
+                bool "Shell Support"
+                default n
+
+            config COMPONENT_FILE_EDITOR
+                bool "File Editor Support"
+                depends on COMPONENT_SHELL && COMPONENT_FLASH_FS
+                default n
+
+            config COMPONENT_C_COMPILER
+                bool "C Compiler Support"
+                depends on COMPONENT_SHELL && COMPONENT_FLASH_FS
+                default n
+        endmenu
+
+        menu "LightCoroutine Support"
+            config COMPONENT_COROUTINE
+                bool "LightCoroutine Support"
+                default n
+
+            config COMPONENT_COROUTINE_USE_IDLE_TASK
+                bool "USE_IDLE_TASK"
+                default y
+                depends on COMPONENT_COROUTINE
+
+            config COMPONENT_COROUTINE_MAX_TASK_NUM
+                int "MAX_TASK_NUM"
+                default 10
+                depends on COMPONENT_COROUTINE
+
+            config COMPONENT_COROUTINE_USE_CTX
+                bool "USE_CTX"
+                default y
+                depends on COMPONENT_COROUTINE
+
+            config COMPONENT_COROUTINE_TASK_CTX_SIZE
+                int "TASK_CTX_SIZE"
+                default 64
+                depends on COMPONENT_COROUTINE && COMPONENT_COROUTINE_USE_CTX
+        endmenu
+    endmenu
+
+    choice
+        bool "Optimization Level"
+        default BUILD_OPT_NONE if STARRYSKY_L4
+        default BUILD_OPT_SIZE
+
+        config BUILD_OPT_NONE
+            bool "No optimization (-O0)"
+
+        config BUILD_OPT_SIZE
+            bool "Optimize for size (-Os)"
+
+        config BUILD_OPT_SPEED
+            bool "Optimize for speed (-O2)"
+
+        config BUILD_OPT_MAX
+            bool "Maximum optimization (-O3)"
+    endchoice
+
+    config BUILD_OPT_FLAGS
+        string
+        default "-O0" if BUILD_OPT_NONE
+        default "-Os" if BUILD_OPT_SIZE
+        default "-O2" if BUILD_OPT_SPEED
+        default "-O3" if BUILD_OPT_MAX
+
+    config BUILD_DEBUG
+        bool "Enable debug information"
+        default y
+
+    config BUILD_VERBOSE
+        bool "Verbose build output"
+        default n
+endmenu
+
+menu "Firmware Configuration"
+    config FIRMWARE_NAME
+        string "Firmware name"
+        default "retrosoc_fw"
+
+    config FIRMWARE_VERSION
+        string "Firmware version"
+        default "1.0.0"
+endmenu

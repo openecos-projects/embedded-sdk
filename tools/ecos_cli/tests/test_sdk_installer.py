@@ -687,6 +687,12 @@ class SdkInstallerTest(unittest.TestCase):
                 (package / "__init__.py").write_text(
                     "__version__ = '6.0.3'\n", encoding="utf-8"
                 )
+                (destination / "kconfiglib.py").write_text("", encoding="utf-8")
+                serial_package = destination / "serial"
+                serial_package.mkdir()
+                (serial_package / "__init__.py").write_text(
+                    "__version__ = '3.5'\n", encoding="utf-8"
+                )
 
             with patch.object(
                 installer,

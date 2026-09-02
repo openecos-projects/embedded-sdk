@@ -8,6 +8,7 @@ cpu:
   abi: ilp32e
 toolchain:
   prefix: riscv-none-elf-
+  triple: riscv-none-elf
 memory:
   flash:
     origin: 0x30000000
@@ -22,6 +23,25 @@ build:
   linker_script: linker/sections.lds
   startup: startup/start.S
   loader: startup/loader.c
+  sources:
+    - startup/start.S
+    - startup/loader.c
+  include_dirs:
+    - include
+  capability_sources:
+    console:
+      - hal/sys_uart/sys_uart.c
+  capability_include_dirs:
+    console:
+      - ../../../hal/sys_uart
+  outputs:
+    - elf
+    - bin
+    - hex
+    - txt
+    - map
+    - size
+    - compile_commands
 capabilities:
   - console
   - gpio

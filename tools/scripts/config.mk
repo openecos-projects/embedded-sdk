@@ -74,6 +74,12 @@ endif
 endif
 endif
 
+ifeq ($(ECOS_ISOLATED_BUILD),1)
+export BuildExport := $(LOCAL_KCONFIG_PATH)/Kconfig.build
+else
+export BuildExport := $(ECOS_SDK_HOME)/tools/kconfig/Kconfig.build
+endif
+
 $(CONF):
 	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=conf
 

@@ -50,6 +50,10 @@ def create_sdk(root: Path) -> Path:
     (hello_world / "main.c").write_text(
         '#include "main.h"\n\nvoid main(void) {}\n', encoding="utf-8"
     )
+    (hello_world / "ecos-example.yml").write_text(
+        "schema: 1\nname: hello_world\nsources:\n  - main.c\n",
+        encoding="utf-8",
+    )
     (hello_world / "retrosoc_fw.bin").write_bytes(b"firmware")
     nested = root / "example" / "get-started" / "hello"
     nested.mkdir(parents=True)
@@ -62,7 +66,10 @@ def create_sdk(root: Path) -> Path:
         target_root = root / "components" / "soc" / target
         target_root.mkdir(parents=True)
         (target_root / "ecos-soc.yml").write_text(
-            f"schema: 1\nid: {target}\narch: riscv\n",
+            f"schema: 1\nid: {target}\narch: riscv\n"
+            "cpu:\n  march: rv32e\n  abi: ilp32e\n"
+            "build:\n  cmake: CMakeLists.txt\n"
+            "  toolchain_file: toolchain.cmake\n",
             encoding="utf-8",
         )
         (target_root / "CMakeLists.txt").write_text(
@@ -335,7 +342,13 @@ class ProjectCreateTest(unittest.TestCase):
                 return_value={"state": "installed", "active_root": str(active_toolchain)},
             ) as installation_status, mock.patch(
                 "ecos_cli.build.subprocess.run", side_effect=fake_cmake
-            ) as run, redirect_stdout(output), redirect_stderr(output):
+            ) as run, mock.patch(
+                "ecos_cli.build.artifacts.create_manifest",
+                return_value={
+                    "files": {},
+                    "manifest": str(project / "build/artifacts.json"),
+                },
+            ), redirect_stdout(output), redirect_stderr(output):
                 result = main(
                     ["--sdk", str(sdk), "build", "--project", str(project)]
                 )
@@ -347,7 +360,11 @@ class ProjectCreateTest(unittest.TestCase):
                 Path(command[2]),
                 sdk / "components/soc/ysyx-2512",
             )
-            self.assertIn(f"-DPROJECT_DIR={project.as_posix()}", command)
+            self.assertIn(
+                "-DECOS_PROJECT_CONFIG="
+                f"{(project / '.ecos/generated/resolved-project.cmake').as_posix()}",
+                command,
+            )
             self.assertEqual(installation_status.call_args.args[1], active_toolchain)
 
     def test_cmake_path_uses_forward_slashes_for_windows_paths(self):
@@ -407,7 +424,13 @@ class ProjectCreateTest(unittest.TestCase):
                 return_value={"state": "installed", "active_root": str(active_toolchain)},
             ), mock.patch(
                 "ecos_cli.build.subprocess.run", side_effect=fake_cmake
-            ) as run, redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            ) as run, mock.patch(
+                "ecos_cli.build.artifacts.create_manifest",
+                return_value={
+                    "files": {},
+                    "manifest": str(project / "build/artifacts.json"),
+                },
+            ), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 result = main(
                     ["--sdk", str(sdk), "build", "--project", str(project)]
                 )

@@ -15,6 +15,16 @@ resources:
     driver: sys-uart
     instance: 0
 
+flash:
+  provider: mass-storage
+  artifact: bin
+  volume_label: YSYX-HFPLnk
+  copy_count: 2
+  settle_seconds: 0.5
+
+monitor:
+  baudrate: 115200
+
 files:
   # 2.x compatibility entry; 3.0 ordinary projects use the Target CMake files.
   makefile: Makefile
