@@ -19,6 +19,7 @@ python3 tools/ecos.py project set-board starrysky-l4 --project ~/workspace/hello
 python3 tools/ecos.py project set-target ysyx-2512 --project ~/workspace/hello
 python3 tools/ecos.py validate --project ~/workspace/hello
 python3 tools/ecos.py configure --project ~/workspace/hello
+python3 tools/ecos.py menuconfig --project ~/workspace/hello
 python3 tools/ecos.py build --project ~/workspace/hello
 python3 tools/ecos.py flash --project ~/workspace/hello
 python3 tools/ecos.py monitor --project ~/workspace/hello --port /dev/ttyUSB0

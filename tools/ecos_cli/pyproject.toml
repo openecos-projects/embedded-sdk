@@ -10,7 +10,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [{ name = "ECOS Embedded SDK contributors" }]
-dependencies = ["PyYAML==6.0.3", "kconfiglib==14.1.0", "pyserial==3.5"]
+dependencies = [
+  "PyYAML==6.0.3",
+  "kconfiglib==14.1.0",
+  "pyserial==3.5",
+  "windows-curses==2.4.2; sys_platform == 'win32'",
+]
 
 [project.scripts]
 ecos = "ecos_cli.cli:main"

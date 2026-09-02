@@ -19,6 +19,7 @@ PYTHON_DEPENDENCIES = (
     "PyYAML==6.0.3",
     "kconfiglib==14.1.0",
     "pyserial==3.5",
+    "windows-curses==2.4.2; sys_platform == 'win32'",
 )
 HOST_TOOL_DEPENDENCIES: tuple[dict[str, str], ...] = (
     {

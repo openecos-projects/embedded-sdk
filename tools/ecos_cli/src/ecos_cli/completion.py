@@ -19,6 +19,7 @@ ROOT_COMMANDS = (
     "project",
     "validate",
     "configure",
+    "menuconfig",
     "build",
     "flash",
     "monitor",
@@ -58,6 +59,8 @@ _ecos_complete() {{
         candidates="--project --format --help"
     elif [[ "$cmd" == "configure" && "$cur" == -* ]]; then
         candidates="--project --dry-run --format --help"
+    elif [[ "$cmd" == "menuconfig" && "$cur" == -* ]]; then
+        candidates="--project --help"
     elif [[ "$cmd" == "flash" && "$cur" == -* ]]; then
         candidates="--project --device --format --help"
     elif [[ "$cmd" == "monitor" && "$cur" == -* ]]; then
@@ -114,6 +117,8 @@ _ecos() {{
         candidates=(--project --format --help)
     elif [[ "$words[2]" == "configure" && "$PREFIX" == -* ]]; then
         candidates=(--project --dry-run --format --help)
+    elif [[ "$words[2]" == "menuconfig" && "$PREFIX" == -* ]]; then
+        candidates=(--project --help)
     elif [[ "$words[2]" == "flash" && "$PREFIX" == -* ]]; then
         candidates=(--project --device --format --help)
     elif [[ "$words[2]" == "monitor" && "$PREFIX" == -* ]]; then
@@ -194,6 +199,7 @@ complete -c ecos -f -n '__fish_seen_subcommand_from build' -l clean
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from menuconfig' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from configure' -l dry-run
 complete -c ecos -f -n '__fish_seen_subcommand_from flash' -l device -r
 complete -c ecos -f -n '__fish_seen_subcommand_from monitor' -l port -r
@@ -240,6 +246,8 @@ Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
         $candidates = @('--project', '--format', '--help')
     }} elseif ($command -eq 'configure' -and $wordToComplete.StartsWith('-')) {{
         $candidates = @('--project', '--dry-run', '--format', '--help')
+    }} elseif ($command -eq 'menuconfig' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--help')
     }} elseif ($command -eq 'flash' -and $wordToComplete.StartsWith('-')) {{
         $candidates = @('--project', '--device', '--format', '--help')
     }} elseif ($command -eq 'monitor' -and $wordToComplete.StartsWith('-')) {{

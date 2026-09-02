@@ -23,6 +23,7 @@ class CompletionTest(unittest.TestCase):
                 self.assertIn("toolchain", generated)
                 self.assertIn("project", generated)
                 self.assertIn("build", generated)
+                self.assertIn("menuconfig", generated)
                 self.assertIn("create", generated)
                 self.assertIn("set-board", generated)
                 self.assertIn("set-target", generated)

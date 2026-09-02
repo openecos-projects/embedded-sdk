@@ -206,13 +206,14 @@ tools/sdk-manifest.json
 安装器还会在版本目录中生成受管的主机依赖：
 
 ```text
-lib/ecos/python/                 # CLI 的 PyYAML、Kconfiglib 和 PySerial 依赖
+lib/ecos/python/                 # CLI 的 PyYAML、Kconfiglib、PySerial 和终端界面依赖
 lib/ecos/host/bin/ninja          # Ninja（Windows 为 Scripts/ninja.exe）
 lib/ecos/host/cmake/data/bin/    # CMake 原生可执行文件
 ```
 
 当前锁定版本为 `PyYAML==6.0.3`、`kconfiglib==14.1.0`、`pyserial==3.5`、
-`cmake==3.31.10` 和 `ninja==1.11.1.4`。CMake/Ninja
+`cmake==3.31.10` 和 `ninja==1.11.1.4`；Windows 还会安装
+`windows-curses==2.4.2`。CMake/Ninja
 使用 Python wheel 安装，不写入系统 Python 或系统级程序目录。
 
 安装器不会复制源码 `bin/`。版本目录中的 `bin/` 会重新生成，并且只包含：

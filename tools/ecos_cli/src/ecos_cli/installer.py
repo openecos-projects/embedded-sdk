@@ -357,7 +357,7 @@ def _validate_python_dependencies(root: Path) -> bool:
     command = (
         "import sys; "
         "sys.path.insert(0, sys.argv[1]); "
-        "import kconfiglib, serial, yaml; "
+        "import kconfiglib, menuconfig, serial, yaml; "
         "raise SystemExit(0 if "
         "yaml.__version__ == '6.0.3' and serial.__version__ == '3.5' else 1)"
     )

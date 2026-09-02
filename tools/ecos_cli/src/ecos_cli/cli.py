@@ -601,6 +601,10 @@ def _project_error(
         code = "ECOS_PROJECT_COMPONENT_INVALID"
     elif isinstance(exc, project_model.ToolchainResolutionError):
         code = "ECOS_PROJECT_TOOLCHAIN_INVALID"
+    elif isinstance(exc, configuration.ConfigurationDependencyError):
+        code = "ECOS_CONFIG_DEPENDENCY_MISSING"
+    elif isinstance(exc, configuration.ConfigurationTerminalError):
+        code = "ECOS_CONFIG_TERMINAL_REQUIRED"
     else:
         code = "ECOS_PROJECT_MODEL_INVALID"
     return emit_error(command, output_format, code, str(exc), ExitCode.CONFIG)
@@ -686,6 +690,42 @@ def run_configure(argv: Sequence[str], sdk_context: SdkContext) -> int:
         configuration.ConfigurationError,
     ) as exc:
         return _project_error("configure", args.output_format, exc)
+
+
+def run_menuconfig(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos menuconfig",
+        description="Interactively configure an ECOS project.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "menuconfig",
+            "text",
+            "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc),
+            ExitCode.USAGE,
+        )
+    try:
+        result = configuration.menuconfig_project(
+            sdk_context, project_root=args.project
+        )
+        data = result.data
+        console = ConsoleProgress()
+        project_config = Path(data["path"]) / configuration.PROJECT_CONFIG_FILE
+        if project_config.is_file():
+            console.info(f"User configuration: {project_config}")
+        console.info(f"Generated directory: {data['generated']['directory']}")
+        console.info(f"Fingerprint: {data['configuration_fingerprint']}")
+        return int(ExitCode.OK)
+    except (
+        project.ProjectError,
+        project_model.ProjectModelError,
+        configuration.ConfigurationError,
+    ) as exc:
+        return _project_error("menuconfig", "text", exc)
 
 
 def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
@@ -1232,6 +1272,7 @@ def print_help() -> None:
     print("  project set-target TARGET        Select a Target and clear the Board")
     print("  validate                          Validate project manifests and capabilities")
     print("  configure                         Generate CMake and Kconfig project state")
+    print("  menuconfig                        Interactively configure the current project")
     print("  build                             Build the selected project Target")
     print("  flash                             Flash the validated firmware artifact")
     print("  monitor                           Monitor and assert Board serial output")
@@ -1324,7 +1365,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 suggestion="Run 'ecos sdk current' to inspect SDK selection.",
             )
         return run_project(command_args, context)
-    if command in {"validate", "configure", "build", "flash", "monitor"}:
+    if command in {"validate", "configure", "menuconfig", "build", "flash", "monitor"}:
         try:
             context = SdkResolver(
                 checkout_hint=Path(__file__).resolve().parents[4]
@@ -1341,6 +1382,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         handlers = {
             "validate": run_validate,
             "configure": run_configure,
+            "menuconfig": run_menuconfig,
             "build": run_build,
             "flash": run_flash,
             "monitor": run_monitor,

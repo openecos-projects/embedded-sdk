@@ -1,6 +1,8 @@
 import json
+import os
 import sys
 import tempfile
+import types
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -90,6 +92,119 @@ def fake_elf() -> dict:
 
 
 class ConfigurationWorkflowTest(unittest.TestCase):
+    def test_menuconfig_rejects_non_interactive_streams(self):
+        with (
+            mock.patch.object(configuration.sys, "stdin", StringIO()),
+            mock.patch.object(configuration.sys, "stdout", StringIO()),
+            self.assertRaises(configuration.ConfigurationTerminalError),
+        ):
+            configuration._require_interactive_terminal()
+
+    def test_menuconfig_persists_user_config_and_regenerates_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            target_root = sdk / "components" / "soc" / "ysyx-2512"
+            manifest = target_root / "ecos-soc.yml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8") + "  kconfig: Kconfig\n",
+                encoding="utf-8",
+            )
+            (target_root / "Kconfig").write_text(
+                'config FEATURE\n    bool "Feature"\n    default n\n',
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            class FakeKconfigError(Exception):
+                pass
+
+            class FakeKconfig:
+                def __init__(self, *_: object, **__: object) -> None:
+                    self.config_content = "# CONFIG_FEATURE is not set\n"
+                    self.unique_defined_syms = [
+                        types.SimpleNamespace(name="FEATURE", str_value="y")
+                    ]
+
+                def load_config(self, path: str, replace: bool = True) -> None:
+                    self.config_content = Path(path).read_text(encoding="utf-8")
+
+                def write_config(self, path: str) -> None:
+                    Path(path).write_text(self.config_content, encoding="utf-8")
+
+                def write_autoconf(self, path: str) -> None:
+                    Path(path).write_text(
+                        "#define CONFIG_FEATURE 1\n", encoding="utf-8"
+                    )
+
+            fake_kconfiglib = types.ModuleType("kconfiglib")
+            fake_kconfiglib.Kconfig = FakeKconfig
+            fake_kconfiglib.KconfigError = FakeKconfigError
+            fake_menuconfig = types.ModuleType("menuconfig")
+
+            def save_menuconfig(_: FakeKconfig) -> None:
+                Path(os.environ["KCONFIG_CONFIG"]).write_text(
+                    "CONFIG_FEATURE=y\n", encoding="utf-8"
+                )
+
+            fake_menuconfig.menuconfig = save_menuconfig
+            output = StringIO()
+            errors = StringIO()
+            with (
+                mock.patch.dict(
+                    sys.modules,
+                    {"kconfiglib": fake_kconfiglib, "menuconfig": fake_menuconfig},
+                ),
+                mock.patch.object(configuration, "_require_interactive_terminal"),
+                mock.patch.dict(os.environ, {"KCONFIG_CONFIG": "outer.config"}),
+                redirect_stdout(output),
+                redirect_stderr(errors),
+            ):
+                result = main(
+                    [
+                        "--sdk",
+                        str(sdk),
+                        "menuconfig",
+                        "--project",
+                        str(project),
+                    ]
+                )
+                self.assertEqual(os.environ["KCONFIG_CONFIG"], "outer.config")
+
+            self.assertEqual(result, ExitCode.OK)
+            self.assertEqual(
+                (project / ".ecos/project.config").read_text(encoding="utf-8"),
+                "CONFIG_FEATURE=y\n",
+            )
+            generated = project / ".ecos/generated"
+            self.assertEqual(
+                (generated / ".config").read_text(encoding="utf-8"),
+                "CONFIG_FEATURE=y\n",
+            )
+            self.assertEqual(
+                (generated / "sdkconfig.h").read_text(encoding="utf-8"),
+                "#define CONFIG_FEATURE 1\n",
+            )
+            self.assertIn("User configuration:", errors.getvalue())
+
+    def test_menuconfig_requires_kconfig_options(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            with self.assertRaisesRegex(
+                configuration.ConfigurationError,
+                "no Kconfig options",
+            ):
+                configuration.menuconfig_project(
+                    sdk_context(sdk), project_root=project
+                )
+
     def test_project_create_rejects_invalid_component_without_installing_project(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

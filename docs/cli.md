@@ -259,7 +259,8 @@ StarrySky L4 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`
 4. 验证 Board、Target、Component 和 Example 的能力及依赖关系。
 5. 仅在 `build/` 或 `.ecos/generated/` 中生成本机派生配置。
 
-当前统一解析器已经接入 `validate`、`configure`、`build`、`flash` 和 `monitor`。它负责
+当前统一解析器已经接入 `validate`、`configure`、`menuconfig`、`build`、`flash` 和
+`monitor`。它负责
 校验 Project、Example、Board、Target 和 Component 清单，递归解析 Component 依赖，检查
 Board 到 Target 映射、profile、能力、源码、头文件、内存、产物和工具链声明，并产生唯一
 的 resolved project model。CMake 不再自行选择 Board、Component 或应用源码。
@@ -277,6 +278,7 @@ Board 到 Target 映射、profile、能力、源码、头文件、内存、产�
 ```bash
 ecos validate [--project PATH] [--format text|json]
 ecos configure [--project PATH] [--dry-run] [--format text|json]
+ecos menuconfig [--project PATH]
 ecos build [--project PATH] [--clean] [--format text|json]
 ecos flash [--project PATH] [--device DIRECTORY] [--format text|json]
 ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
@@ -290,6 +292,10 @@ ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
 - `Kconfig`、`.config`、`sdkconfig.h`：Kconfig 输入和输出。
 - `configuration.fingerprint`：当前解析和 Kconfig 配置指纹。
 
+`ecos menuconfig` 使用 Kconfiglib 的 curses 终端界面，将用户选择持久化到
+`.ecos/project.config`，退出界面后自动执行与 `ecos configure` 相同的派生配置生成流程。
+该命令必须在交互式终端中运行；Windows 安装包会额外安装 `windows-curses`。
+
 `ecos build` 每次先检查并按需更新上述配置，然后从磁盘重新读取
 `resolved-project.json`。构建成功后写入 `build/artifacts.json`，记录 ELF、BIN、HEX 等
 文件的路径、大小和 SHA-256，以及架构、ISA、ABI、入口、段布局、SDK、Board、Target、
@@ -300,7 +306,7 @@ StarrySky L4 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上由 
 卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
 模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
 
-以下命令仍处于计划状态：`menuconfig`、独立的 `clean` 和工程级 `doctor`。当前清理入口为
+以下命令仍处于计划状态：独立的 `clean` 和工程级 `doctor`。当前清理入口为
 `ecos build --clean`。
 
 工程命令遵循以下语义：
