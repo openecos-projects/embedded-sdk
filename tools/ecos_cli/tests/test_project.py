@@ -12,7 +12,7 @@ from unittest import mock
 SOURCE_ROOT = Path(__file__).parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from ecos_cli import dependencies  # noqa: E402
+from ecos_cli import build, dependencies  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
 from ecos_cli.sdk_registry import SdkRegistry  # noqa: E402
 
@@ -317,7 +317,12 @@ class ProjectCreateTest(unittest.TestCase):
 
             active_toolchain = root / "toolchain"
             (active_toolchain / "bin").mkdir(parents=True)
-            (active_toolchain / "bin" / "riscv-none-elf-gcc").write_bytes(b"")
+            compiler = (
+                "riscv-none-elf-gcc.exe"
+                if os.name == "nt"
+                else "riscv-none-elf-gcc"
+            )
+            (active_toolchain / "bin" / compiler).write_bytes(b"")
             output = StringIO()
             with mock.patch(
                 "ecos_cli.build.shutil.which",
@@ -342,8 +347,14 @@ class ProjectCreateTest(unittest.TestCase):
                 Path(command[2]),
                 sdk / "components/soc/ysyx-2512",
             )
-            self.assertIn(f"-DPROJECT_DIR={project}", command)
+            self.assertIn(f"-DPROJECT_DIR={project.as_posix()}", command)
             self.assertEqual(installation_status.call_args.args[1], active_toolchain)
+
+    def test_cmake_path_uses_forward_slashes_for_windows_paths(self):
+        self.assertEqual(
+            build._cmake_path(r"C:\Users\developer\project"),
+            "C:/Users/developer/project",
+        )
 
     def test_build_prefers_sdk_local_cmake_and_ninja(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -380,7 +391,12 @@ class ProjectCreateTest(unittest.TestCase):
 
             active_toolchain = root / "toolchain"
             (active_toolchain / "bin").mkdir(parents=True)
-            (active_toolchain / "bin" / "riscv-none-elf-gcc").write_bytes(b"")
+            compiler = (
+                "riscv-none-elf-gcc.exe"
+                if os.name == "nt"
+                else "riscv-none-elf-gcc"
+            )
+            (active_toolchain / "bin" / compiler).write_bytes(b"")
             with mock.patch(
                 "ecos_cli.build.shutil.which", return_value=None
             ), mock.patch(
@@ -399,7 +415,9 @@ class ProjectCreateTest(unittest.TestCase):
             self.assertEqual(result, ExitCode.OK)
             configure = run.call_args_list[0].args[0]
             self.assertEqual(configure[0], str(cmake.resolve()))
-            self.assertIn(f"-DCMAKE_MAKE_PROGRAM={ninja.resolve()}", configure)
+            self.assertIn(
+                f"-DCMAKE_MAKE_PROGRAM={ninja.resolve().as_posix()}", configure
+            )
 
     def test_clean_does_not_require_host_build_tools(self):
         with tempfile.TemporaryDirectory() as directory:

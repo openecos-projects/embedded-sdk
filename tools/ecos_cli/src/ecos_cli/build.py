@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from . import dependencies
 from . import project
@@ -36,6 +36,11 @@ class BuildCommandError(BuildError):
 
 class BuildOutputError(BuildError):
     """The Target build did not produce its required firmware outputs."""
+
+
+def _cmake_path(value: Union[str, Path]) -> str:
+    """Return a path safe for use in a CMake cache definition."""
+    return str(value).replace("\\", "/")
 
 
 def _resolve_host_tool(context: SdkContext, item: dict[str, str]) -> str:
@@ -165,11 +170,11 @@ def build_project(
         str(build_dir),
         "-G",
         "Ninja",
-        f"-DCMAKE_MAKE_PROGRAM={ninja}",
-        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file}",
-        f"-DECOS_TOOLCHAIN_ROOT={toolchain_root}",
-        f"-DECOS_TARGET_DIR={target_root}",
-        f"-DPROJECT_DIR={root}",
+        f"-DCMAKE_MAKE_PROGRAM={_cmake_path(ninja)}",
+        f"-DCMAKE_TOOLCHAIN_FILE={_cmake_path(toolchain_file)}",
+        f"-DECOS_TOOLCHAIN_ROOT={_cmake_path(toolchain_root)}",
+        f"-DECOS_TARGET_DIR={_cmake_path(target_root)}",
+        f"-DPROJECT_DIR={_cmake_path(root)}",
         "-DFIRMWARE_NAME=retrosoc_fw",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     ]
