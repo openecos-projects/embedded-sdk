@@ -187,6 +187,10 @@ BSP 可以依赖 Device Driver 和公共 Driver。普通 Example 不得绕过 BS
 Component 是可独立声明源码、公开头文件、配置和依赖的功能单元。组件依赖必须是
 有向无环关系，构建系统只加入项目实际需要的组件及其递归依赖。
 
+Component 是逻辑构建单元，不等同于 `components/` 物理目录。HAL、Driver、Device
+Driver 和 BSP 可以各自形成独立构建单元，但仍放在表达其职责的一级目录中。构建单元的
+身份来自正式清单中的稳定 ID，不得从目录名或目录深度推断。
+
 3.0 首版只要求支持本地 SDK 组件，不要求在线下载或语义化版本求解。
 
 ### 4.8 Example、Template、Test 和 Artifact
@@ -216,6 +220,20 @@ Example/Application
 
 Build System ---> Target + Board + Component manifests
 ```
+
+StarrySky L4 `hello` 的 3.0 最小纵向链路固定为：
+
+```text
+hello/main.c
+    `---> BSP Console                 绑定板级默认控制台并处理 CRLF
+              `---> UART Driver      校验公共配置、实例状态和参数
+                        `---> UART HAL  执行原始字节收发过程
+                                  `---> ysyx-2512 UART0 registers
+```
+
+该链路中，应用只能包含 BSP Console 头文件；UART Driver 仍作为独立公共接口，供明确需要
+直接控制 UART0 的应用选择。BSP 对 Driver、Driver 对 HAL 都是私有实现依赖，不得把 HAL
+头文件或 SoC 寄存器 include 路径传播到应用编译环境。
 
 禁止以下反向依赖：
 
@@ -251,6 +269,74 @@ docs/
 目录名只表达职责，不要求一次提交完成全部改名。目录迁移必须和构建解析、文档及测试
 一起完成，禁止只移动文件而保留原有耦合。
 
+### 6.1 目录分类决策
+
+SDK 3.0 采用“物理目录按职责分层，逻辑构建单元按稳定 ID 管理”的源码组织方式，
+不把 HAL、Driver、Device Driver、BSP 和普通软件组件全部平铺在一个 `components/`
+目录中。
+
+ESP-IDF 式扁平组件根适合以组件发现、同名覆盖和独立发布为核心的生态；目录名前缀和
+依赖图可以承担分类作用。ECOS 3.0 首要解决的是 HAL、Driver、BSP 和应用之间的边界，
+且不在首版建立在线组件注册表，因此一级目录直接表达职责更有利于代码导航、所有权划分、
+依赖审查和迁移验收。该选择不要求兼容 ESP-IDF 的目录布局或组件命名。
+
+各目录的归属规则如下：
+
+- `hal/` 只保存内部硬件适配接口及实现，普通应用不得包含其头文件。
+- `drivers/` 保存面向应用的稳定外设 API，不包含具体 Board 资源绑定。
+- `devices/` 保存外部芯片驱动，通过公共 Driver 使用总线和 GPIO。
+- `boards/` 保存 Board 清单、资源绑定和 BSP 实现，不承载 SoC 通用实现。
+- `components/` 保存不属于上述硬件职责的公共软件组件；`components/soc/` 是 Target/SoC
+  的固定命名空间，不得继续扩展为任意硬件驱动的收纳目录。
+- `examples/`、`tests/` 和 `templates/` 分别保存示例、验证程序和生成骨架，三者不得
+  因源码相似而混用。
+
+分类深度必须保持克制。默认结构是“职责根目录/构建单元”，例如 `drivers/uart/`；只有
+Example 类别、SoC 内部目标差异或一组模块确有共同策略时才增加一层。不得为了视觉整齐
+引入没有依赖规则、所有权或构建含义的 `common/`、`base/`、`misc/` 等中间目录。
+
+典型目标布局如下：
+
+```text
+hal/uart/                       UART 内部 HAL
+drivers/uart/                   UART 公共 Driver
+devices/st7735/                 ST7735 外部器件 Driver
+boards/starrysky-l4/            StarrySky L4 BSP 和资源绑定
+components/libc/                公共软件组件
+components/soc/ysyx-2512/       ysyx-2512 Target/SoC
+examples/get-started/hello/     使用 BSP Console 的应用
+```
+
+### 6.2 路径、ID 和构建目标
+
+物理路径用于表达代码职责和方便仓库导航，但不属于构建单元的身份或应用接口。每个可独立
+参与依赖解析的 HAL、Driver、Device Driver、BSP 和 Component 必须在适用的正式清单中
+声明显式 ID。ID 在 SDK 构建命名空间内必须唯一且不随目录移动而改变，建议使用职责前缀，
+例如：
+
+```text
+hal-uart
+driver-uart
+device-st7735
+bsp-starrysky-l4
+```
+
+构建系统和清单必须遵循以下规则：
+
+- 依赖只引用稳定 ID，不引用 `../../drivers/uart` 等物理路径。
+- 移动目录但不改变逻辑职责时必须保留 ID，使用方清单和应用构建文件不应随之修改。
+- 统一解析器从 `tools/sdk-manifest.json` 声明的各类资源根发现正式清单；允许在资源根内
+  递归发现构建单元，但不得仅以叶子目录名自动生成 ID。
+- 同一 ID 出现多个定义时必须在配置阶段报告冲突，不采用目录顺序或递归顺序静默覆盖。
+- 清单必须显式声明源码、公开 include、编译定义、依赖和能力要求，不用递归源码 glob
+  代替组件边界。
+- CMake target 使用确定的命名空间别名，例如内部的 `ecos::hal::uart`，以及面向应用的
+  `ecos::driver::uart`、`ecos::device::st7735` 和 `ecos::bsp::starrysky_l4`。生成的内部
+  target 名可以不同，但 ID 到命名空间 target 的映射必须确定，并拒绝规范化后的名称冲突。
+- 目录路径调整不构成 API 兼容承诺。公共 Driver、Device、BSP、Component 的稳定 ID、
+  公开头文件、正式 schema 和应用可见 CMake target 的变更必须遵守第 10 节的兼容策略；
+  HAL/LL 的 ID 和 target 仍是 SDK 内部构建契约，不因此成为应用 API。
+
 ## 7. 清单和能力模型
 
 ### 7.1 Board 清单
@@ -264,6 +350,8 @@ target: example-soc
 
 build:
   default_profile: flash-xip
+  components:
+    - bsp-example-board
 
 resources:
   console:
@@ -297,7 +385,34 @@ requires:
 面向某个器件本身的验证可以要求 `display.controller.st7735`；普通显示应用只能要求
 `display`，不得把控制器型号写死在应用代码中。
 
-### 7.3 能力的三个层次
+### 7.3 构建单元清单
+
+可复用构建单元使用正式清单声明稳定 ID、源码、公开 include、依赖和硬件能力要求。
+例如 `drivers/uart/ecos-component.yml` 可以表达为：
+
+```yaml
+schema: 1
+id: driver-uart
+name: UART Driver
+cmake_target: ecos::driver::uart
+sources:
+  - src/uart.c
+include_dirs:
+  - include
+private_dependencies:
+  - hal-uart
+requires:
+  - uart
+```
+
+`dependencies` 表示会向使用方传播头文件和编译属性的公开依赖；`private_dependencies`
+表示只用于当前构建单元实现的依赖。BSP 使用 UART Driver、UART Driver 使用 HAL 时必须
+声明为私有依赖。`requires` 表示所选 Target 或 Board 必须提供的能力，不表示链接依赖。
+三者不得混用。清单文件路径只决定相对源码和 include 的解析根，不参与 ID 或依赖名称
+生成。HAL、Driver、Device Driver 和 BSP 是否复用同一清单 schema，可以按资源类型扩展
+字段，但必须由统一解析器生成同一份经过校验的 target 图。
+
+### 7.4 能力的三个层次
 
 - Target/SoC capability：是否有 GPIO/QSPI、控制器数量、DMA 和中断能力。
 - Board resource：板上是否绑定 Display/LED/Button，以及它们使用的硬件资源。
@@ -347,6 +462,8 @@ CMake 是 SDK 3.0 唯一正式的核心构建描述系统。Ninja 是开发、CI
   CMake 消费的解析结果；CLI 和 CMake 不得各自实现一套依赖选择逻辑。
 - Driver、Device、BSP、Component 和 Application 映射为有明确名称和依赖的 CMake
   target，依赖通过 `target_link_libraries` 表达。
+- CMake target 从清单中的稳定 ID 生成，不从源码目录路径生成；对外暴露的命名空间别名
+  在 3.x 内遵守兼容策略，内部 target 名不得成为应用依赖。
 - include 路径、宏定义和编译选项使用 `target_*` 及正确的 `PRIVATE`、`PUBLIC`、
   `INTERFACE` 传播范围，禁止依赖全局目录状态拼接所有参数。
 - 源文件列表来自正式 Component/Example 清单或组件声明，禁止通过递归 glob 隐式加入
@@ -431,8 +548,8 @@ Kconfig 可以继续作为 3.0 的用户配置模型，但必须从 Make 构建�
 SDK 必须通过 `tools/sdk-manifest.json` 声明自身身份。清单至少包含：
 
 - `schema_version`、稳定 `sdk_id`、`sdk_version` 和发布通道 `channel`。
-- SDK 资源布局，包括 Board、Target、Component、Example、Template 和文档入口，以及
-  可使用该 SDK 的 Python CLI/schema 兼容范围。
+- SDK 资源布局，包括 HAL、Driver、Device、Board/BSP、Target/SoC、Component、Example、
+  Template 和文档入口，以及可使用该 SDK 的 Python CLI/schema 兼容范围。
 - 所需工具链 ID、Release 和兼容范围；具体宿主资产和 SHA-256 仍由独立工具链清单提供。
 - 正式发布制品的内容摘要或可关联的发布摘要；签名和 SBOM 按发布供应链策略记录。
 
@@ -524,9 +641,9 @@ ecos sdk doctor
 5. 仅在从 SDK checkout 源码入口运行时，根据入口位置识别当前 checkout。
 
 解析成功必须生成可注入、可测试的 `SdkContext`，统一提供 SDK 根目录、版本、类型及
-Board、Target、Component、Example、Template、工具链要求等资源路径。路径包含空格、
-非 ASCII 字符、Windows 盘符或符号链接时必须保持相同语义。高优先级选择存在但无效时
-必须报告选择来源和修复建议，不得悄悄尝试低优先级 SDK。
+Board、Target、HAL、Driver、Device、Component、Example、Template、工具链要求等资源
+路径。路径包含空格、非 ASCII 字符、Windows 盘符或符号链接时必须保持相同语义。
+高优先级选择存在但无效时必须报告选择来源和修复建议，不得悄悄尝试低优先级 SDK。
 
 多版本管理由注册表负责，项目固定版本优先于全局 active 版本，`--sdk` 只覆盖单次命令。
 不同 SDK 可以引用相同工具链 Release；工具链解析由 SDK 清单要求和工具链安装状态共同
@@ -580,7 +697,8 @@ Linux 版 Kconfig/fixdep 构建产物不得进入 3.0 发布包。
 3.0 CLI 至少要覆盖以下工作流；具体命令名在阶段 A 固化，旧命令可以作为带弃用提示
 的兼容别名：
 
-- 发现：列出 Board、Target、Example 和 Component。
+- 发现：列出 Board、Target、Driver、Device、Example 和 Component；HAL 作为内部资源
+  只需在诊断和依赖图中可见。
 - 检查：查看资源的清单、能力、依赖、schema 和兼容关系。
 - 工程：创建工程、查看当前解析状态和切换 Board/profile。
 - 验证：在不编译的情况下检查 schema、依赖、能力、工具链和工程状态。
@@ -695,6 +813,9 @@ SoC 寄存器、HAL、LL、生成文件、私有 CMake 模块和构建内部变�
 ### 阶段 A：契约和构建骨架
 
 - 固化 Target、Board、Component、Example schema。
+- 固化按职责划分的资源根、构建单元 ID 命名和公开 CMake target 映射；统一解析器必须
+  能从 SDK 清单声明的资源根发现 HAL、Driver、Device、BSP 和普通 Component，并在
+  配置阶段拒绝重复 ID、依赖环和 CMake 名称规范化冲突。
 - 固化 `tools/sdk-manifest.json` schema 和 SDK 版本唯一来源，建立 Git tag、Python CLI
   兼容版本及发布元数据的一致性检查。
 - 实现 SDK 注册表、统一 `SdkContext` 和固定解析优先级，提供 register/list/current/use/
@@ -776,6 +897,8 @@ SDK 3.0 发布前必须满足：
 - 同一工程可以通过修改 Board 元数据为至少两个兼容板卡构建，不修改应用源码。
 - Example 不直接访问寄存器、PinMux 或具体板卡 GPIO 编号。
 - Board/Target/Component/Example 清单全部经过 schema 校验。
+- HAL、Driver、Device、BSP 和普通 Component 的物理路径与稳定 ID 解耦；依赖解析不使用
+  相对目录路径，重复 ID 和 CMake target 名称冲突在配置阶段明确失败。
 - 不支持的能力组合在编译前失败，并指出缺少的资源。
 - 默认工具链在 Windows、GNU/Linux 和 macOS 的声明宿主架构上可以从工具链清单完成
   安装和校验，解析结果均为 xPack `15.2.0-1`；安装过程不依赖系统已有 xpm。
@@ -830,6 +953,8 @@ SDK 3.0 发布前必须满足：
     active SDK 和 checkout 识别的固定优先级？
 17. 安装变化是否分别覆盖 development 注册与 release 部署，且没有复制 Git 工作区、
     覆盖其他 SDK 版本、把用户数据写入 SDK 或重复安装共享工具链？
+18. 新构建单元是否放入正确的职责根目录，并通过正式清单声明稳定 ID，而不是从目录名、
+    相对路径或扫描顺序推断身份和依赖？
 
 不满足这些边界的改动应先调整设计，而不是通过增加 Board 条件宏或复制目录绕过。
 

@@ -23,6 +23,9 @@
 !hal
 !hal/**
 
+!drivers
+!drivers/**
+
 !components
 !components/**
 

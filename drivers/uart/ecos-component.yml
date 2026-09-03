@@ -1,0 +1,10 @@
+schema: 1
+id: driver-uart
+name: UART Driver
+cmake_target: ecos::driver::uart
+sources:
+  - src/uart.c
+include_dirs:
+  - include
+private_dependencies:
+  - hal-uart

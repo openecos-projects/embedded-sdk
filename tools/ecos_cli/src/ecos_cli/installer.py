@@ -38,6 +38,7 @@ HOST_TOOL_PACKAGES = dependencies.HOST_TOOL_PACKAGES
 
 SDK_DIRECTORIES = (
     "components",
+    "drivers",
     "hal",
     "templates",
     "environments",

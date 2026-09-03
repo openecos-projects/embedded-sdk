@@ -21,6 +21,7 @@ def create_sdk(root: Path) -> Path:
     layout = {
         "boards": "board",
         "components": "components",
+        "drivers": "drivers",
         "devices": "devices",
         "docs": "docs",
         "examples": "example",

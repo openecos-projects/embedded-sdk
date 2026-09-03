@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+/*
+ * Legacy 2.x compatibility API. SDK 3.0 applications use BSP Console or the
+ * public UART Driver; this header is not part of the 3.0 application API.
+ */
+
 /**
  * @brief 初始化系统串口
  * 

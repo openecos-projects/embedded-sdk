@@ -368,6 +368,129 @@ class ConfigurationWorkflowTest(unittest.TestCase):
             )
             self.assertEqual(resolved["requirements"]["requested"], ["console"])
 
+    def test_board_selects_bsp_with_private_driver_and_hal_dependencies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            target_manifest = sdk / "components" / "soc" / "ysyx-2512" / "ecos-soc.yml"
+            target_manifest.write_text(
+                target_manifest.read_text(encoding="utf-8")
+                + "capabilities:\n  - uart\n",
+                encoding="utf-8",
+            )
+            board_root = sdk / "board" / "StarrySkyL4"
+            board_manifest = board_root / "ecos-board.yml"
+            board_manifest.write_text(
+                board_manifest.read_text(encoding="utf-8")
+                + "build:\n"
+                + "  components:\n"
+                + "    - bsp-starrysky-l4\n"
+                + "resources:\n"
+                + "  console:\n"
+                + "    driver: driver-uart\n"
+                + "    instance: 0\n",
+                encoding="utf-8",
+            )
+            component_definitions = (
+                (sdk / "hal" / "uart", "hal-uart", None, "uart"),
+                (sdk / "drivers" / "uart", "driver-uart", "hal-uart", None),
+                (board_root, "bsp-starrysky-l4", "driver-uart", None),
+            )
+            for component_root, component_id, dependency, requirement in component_definitions:
+                component_root.mkdir(parents=True, exist_ok=True)
+                manifest = f"schema: 1\nid: {component_id}\n"
+                if dependency is not None:
+                    manifest += f"private_dependencies:\n  - {dependency}\n"
+                if requirement is not None:
+                    manifest += f"requires:\n  - {requirement}\n"
+                (component_root / "ecos-component.yml").write_text(
+                    manifest, encoding="utf-8"
+                )
+            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest.write_text(
+                example_manifest.read_text(encoding="utf-8")
+                + "requires:\n  - console\n",
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            configured = configuration.configure_project(
+                sdk_context(sdk), project_root=project
+            )
+            resolved = configured.resolved
+
+            self.assertEqual(resolved["component_roots"], ["bsp-starrysky-l4"])
+            self.assertEqual(
+                [item["id"] for item in resolved["components"]],
+                ["hal-uart", "driver-uart", "bsp-starrysky-l4"],
+            )
+            self.assertEqual(
+                resolved["components"][1]["private_dependencies"], ["hal-uart"]
+            )
+            self.assertEqual(
+                resolved["components"][2]["private_dependencies"], ["driver-uart"]
+            )
+            self.assertEqual(
+                resolved["requirements"]["requested"], ["console", "uart"]
+            )
+            generated_cmake = (
+                project / ".ecos/generated/resolved-project.cmake"
+            ).read_text(encoding="utf-8")
+            self.assertIn("ECOS_COMPONENT_ROOT_KEYS", generated_cmake)
+            self.assertIn(
+                "ECOS_COMPONENT_BSP_STARRYSKY_L4_PRIVATE_DEPENDENCIES",
+                generated_cmake,
+            )
+
+    def test_rejects_duplicate_component_ids_across_resource_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            for component_root in (
+                sdk / "components" / "duplicate",
+                sdk / "drivers" / "duplicate",
+            ):
+                component_root.mkdir(parents=True)
+                (component_root / "ecos-component.yml").write_text(
+                    "schema: 1\nid: duplicate\n", encoding="utf-8"
+                )
+            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest.write_text(
+                example_manifest.read_text(encoding="utf-8")
+                + "components:\n  - duplicate\n",
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            output = StringIO()
+
+            with redirect_stdout(output), redirect_stderr(StringIO()):
+                result = main(
+                    [
+                        "--sdk",
+                        str(sdk),
+                        "project",
+                        "create",
+                        "hello_world",
+                        "--path",
+                        str(workspace),
+                        "--board",
+                        "starrysky-l4",
+                        "--format",
+                        "json",
+                    ]
+                )
+
+            payload = json.loads(output.getvalue())
+            self.assertEqual(result, ExitCode.CONFIG)
+            self.assertEqual(
+                payload["diagnostics"][0]["code"],
+                "ECOS_PROJECT_COMPONENT_INVALID",
+            )
+            self.assertIn("ambiguous", payload["diagnostics"][0]["message"])
+
     def test_rejects_unsupported_board_profile(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

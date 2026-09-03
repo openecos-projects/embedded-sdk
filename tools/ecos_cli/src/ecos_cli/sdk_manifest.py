@@ -19,6 +19,7 @@ SDK_VERSION_PATTERN = re.compile(
 REQUIRED_LAYOUT = {
     "boards",
     "components",
+    "drivers",
     "devices",
     "docs",
     "examples",

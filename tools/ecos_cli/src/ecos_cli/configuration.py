@@ -206,6 +206,12 @@ def _resolved_cmake(resolved: dict[str, Any], generated_dir: Path) -> str:
     )
     lines.extend(_cmake_set("ECOS_TARGET_INCLUDE_DIRS", build["target_include_dirs"]))
     lines.extend(
+        _cmake_set(
+            "ECOS_TARGET_CAPABILITY_INCLUDE_DIRS",
+            build["target_capability_include_dirs"],
+        )
+    )
+    lines.extend(
         _cmake_set("ECOS_REQUIREMENTS", resolved["requirements"]["requested"])
     )
     linker_script = build.get("linker_script") or ""
@@ -227,6 +233,10 @@ def _resolved_cmake(resolved: dict[str, Any], generated_dir: Path) -> str:
         used_keys.add(key)
         component_keys.append(key)
         lines.append(f'set(ECOS_COMPONENT_{key}_ID "{_cmake_quote(component["id"])}")')
+        lines.append(
+            f'set(ECOS_COMPONENT_{key}_CMAKE_TARGET '
+            f'"{_cmake_quote(component["cmake_target"] or "")}")'
+        )
         lines.extend(
             _cmake_set(f"ECOS_COMPONENT_{key}_SOURCES", component["sources"])
         )
@@ -242,7 +252,22 @@ def _resolved_cmake(resolved: dict[str, Any], generated_dir: Path) -> str:
         lines.extend(
             _cmake_set(f"ECOS_COMPONENT_{key}_DEPENDENCIES", dependency_keys)
         )
+        private_dependency_keys = [
+            _component_key(item) for item in component["private_dependencies"]
+        ]
+        lines.extend(
+            _cmake_set(
+                f"ECOS_COMPONENT_{key}_PRIVATE_DEPENDENCIES",
+                private_dependency_keys,
+            )
+        )
     lines.extend(_cmake_set("ECOS_COMPONENT_KEYS", component_keys))
+    lines.extend(
+        _cmake_set(
+            "ECOS_COMPONENT_ROOT_KEYS",
+            [_component_key(item) for item in resolved["component_roots"]],
+        )
+    )
     lines.append("")
     return "\n".join(lines)
 

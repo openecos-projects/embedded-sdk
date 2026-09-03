@@ -1,0 +1,8 @@
+schema: 1
+id: hal-uart
+name: UART HAL Contract
+cmake_target: ecos::hal::uart
+include_dirs:
+  - include
+requires:
+  - uart

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -25,6 +26,8 @@ SUPPORTED_BUILD_OUTPUTS = {
     "compile_commands",
 }
 REQUIRED_BUILD_OUTPUTS = {"elf", "bin", "hex", "map", "size", "compile_commands"}
+COMPONENT_RESOURCE_NAMES = ("components", "hal", "drivers", "devices", "boards")
+CMAKE_TARGET_PATTERN = re.compile(r"^ecos(?:::[a-z][a-z0-9_]*){2,}$")
 
 
 class ProjectModelError(RuntimeError):
@@ -310,10 +313,13 @@ def _resolve_board(
     build = _mapping(value.get("build"), "Board.build", path)
     _check_keys(
         build,
-        {"default_profile", "profiles"},
+        {"default_profile", "profiles", "components"},
         kind="Board build",
         path=path,
     )
+    components = _string_list(build.get("components"), "Board.build.components", path)
+    for component_id in components:
+        project.validate_selection("Board build component", component_id)
     default_profile = build.get("default_profile")
     if default_profile is not None:
         default_profile = _string(default_profile, "Board.build.default_profile", path)
@@ -435,6 +441,7 @@ def _resolve_board(
         "default_profile": default_profile,
         "profiles": profiles,
         "profile_names": profile_names,
+        "components": components,
         "resources": resources,
         "kconfig": [str(item) for item in kconfig_paths],
         "legacy_kconfig": [str(item) for item in legacy_kconfig_paths],
@@ -801,11 +808,15 @@ def _resolve_toolchain_requirement(
 
 def _component_candidates(context: SdkContext) -> dict[str, list[tuple[Path, dict[str, Any]]]]:
     candidates: dict[str, list[tuple[Path, dict[str, Any]]]] = {}
-    for path in sorted(context.resource("components").rglob("ecos-component.yml")):
-        value = _read_manifest(path, "Component")
-        component_id = value.get("id")
-        if isinstance(component_id, str) and component_id:
-            candidates.setdefault(component_id, []).append((path.resolve(), value))
+    for resource_name in COMPONENT_RESOURCE_NAMES:
+        if resource_name not in context.manifest["layout"]:
+            continue
+        resource_root = context.resource(resource_name)
+        for path in sorted(resource_root.rglob("ecos-component.yml")):
+            value = _read_manifest(path, "Component")
+            component_id = value.get("id")
+            if isinstance(component_id, str) and component_id:
+                candidates.setdefault(component_id, []).append((path.resolve(), value))
     return candidates
 
 
@@ -817,6 +828,7 @@ def _resolve_components(
         return []
     candidates = _component_candidates(context)
     resolved: dict[str, dict[str, Any]] = {}
+    cmake_targets: dict[str, str] = {}
     visiting: list[str] = []
     sdk_root = context.root.resolve()
 
@@ -844,7 +856,9 @@ def _resolve_components(
                 "sources",
                 "include_dirs",
                 "defines",
+                "cmake_target",
                 "dependencies",
+                "private_dependencies",
                 "requires",
             },
             kind="Component",
@@ -853,14 +867,38 @@ def _resolve_components(
         if value.get("schema") != 1 or value.get("id") != component_id:
             raise ManifestValidationError(f"Component schema or ID is invalid: {path}")
         name = _string(value.get("name", component_id), "Component.name", path)
+        cmake_target = _string(
+            value.get("cmake_target"), "Component.cmake_target", path, optional=True
+        )
+        if cmake_target is not None:
+            if not CMAKE_TARGET_PATTERN.fullmatch(cmake_target):
+                raise ManifestValidationError(
+                    f"Component.cmake_target is invalid in {path}: {cmake_target!r}"
+                )
+            existing_component = cmake_targets.get(cmake_target)
+            if existing_component is not None and existing_component != component_id:
+                raise ComponentResolutionError(
+                    f"Component CMake target is ambiguous: {cmake_target} "
+                    f"({existing_component}, {component_id})"
+                )
+            cmake_targets[cmake_target] = component_id
         dependencies = _string_list(
             value.get("dependencies"), "Component.dependencies", path
         )
+        private_dependencies = _string_list(
+            value.get("private_dependencies"), "Component.private_dependencies", path
+        )
         requirements = _string_list(value.get("requires"), "Component.requires", path)
-        for item in [*dependencies, *requirements]:
+        overlapping_dependencies = sorted(set(dependencies).intersection(private_dependencies))
+        if overlapping_dependencies:
+            raise ManifestValidationError(
+                f"Component dependencies cannot be both public and private in {path}: "
+                + ", ".join(overlapping_dependencies)
+            )
+        for item in [*dependencies, *private_dependencies, *requirements]:
             project.validate_selection("Component dependency", item)
         visiting.append(component_id)
-        for dependency in dependencies:
+        for dependency in [*dependencies, *private_dependencies]:
             visit(dependency)
         visiting.pop()
         root = path.parent
@@ -887,11 +925,13 @@ def _resolve_components(
         resolved[component_id] = {
             "id": component_id,
             "name": name,
+            "cmake_target": cmake_target,
             "manifest": str(path),
             "sources": [str(item) for item in sources],
             "include_dirs": [str(item) for item in include_dirs],
             "defines": _string_list(value.get("defines"), "Component.defines", path),
             "dependencies": dependencies,
+            "private_dependencies": private_dependencies,
             "requires": requirements,
         }
 
@@ -980,7 +1020,11 @@ def resolve_project(
     if not isinstance(example_name, str) or not example_name:
         raise ManifestValidationError("project Example must be a non-empty string")
     example = _resolve_example(root, example_name, inputs)
-    components = _resolve_components(context, example["components"], inputs)
+    requested_components = list(example["components"])
+    if board is not None:
+        requested_components.extend(board["components"])
+    component_roots = list(dict.fromkeys(requested_components))
+    components = _resolve_components(context, component_roots, inputs)
 
     requested_capabilities = set(example["requires"])
     for component in components:
@@ -998,17 +1042,19 @@ def resolve_project(
     target_core_sources = list(target["build"]["sources"])
     target_capability_sources: list[str] = []
     target_includes = list(target["build"]["include_dirs"])
+    target_capability_includes: list[str] = []
     for capability in sorted(requested_capabilities):
         target_capability_sources.extend(
             target["build"]["capability_sources"].get(capability, [])
         )
-        target_includes.extend(
+        target_capability_includes.extend(
             target["build"]["capability_include_dirs"].get(capability, [])
         )
     target_core_sources = list(dict.fromkeys(target_core_sources))
     target_capability_sources = list(dict.fromkeys(target_capability_sources))
     target_sources = [*target_core_sources, *target_capability_sources]
     target_includes = list(dict.fromkeys(target_includes))
+    target_capability_includes = list(dict.fromkeys(target_capability_includes))
     for source in target_sources:
         inputs.add(Path(source))
 
@@ -1079,6 +1125,7 @@ def resolve_project(
         "target": target,
         "toolchain": toolchain_requirement,
         "components": components,
+        "component_roots": component_roots,
         "requirements": {
             "requested": sorted(requested_capabilities),
             "available": sorted(available_capabilities),
@@ -1090,6 +1137,7 @@ def resolve_project(
             "target_sources": target_core_sources,
             "target_capability_sources": target_capability_sources,
             "target_include_dirs": target_includes,
+            "target_capability_include_dirs": target_capability_includes,
             "linker_script": target["build"]["linker_script"],
             "cmake": str(selected_cmake.resolve()),
             "toolchain_file": target["build"]["toolchain_file"],

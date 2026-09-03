@@ -9,11 +9,34 @@ target: ysyx-2512
 
 build:
   default_profile: memory
+  components:
+    - bsp-starrysky-l4
 
 resources:
+  button:
+    driver: driver-gpio
+    active_level: low
+    idle_level: high
+    instances:
+      - id: 0
+        controller: 1
+        pin: 7
+      - id: 1
+        controller: 1
+        pin: 8
   console:
-    driver: sys-uart
+    driver: driver-uart
     instance: 0
+  led:
+    driver: driver-gpio
+    active_level: low
+    instances:
+      - id: 0
+        controller: 1
+        pin: 5
+      - id: 1
+        controller: 1
+        pin: 6
 
 flash:
   provider: mass-storage

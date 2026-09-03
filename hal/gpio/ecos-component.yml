@@ -1,0 +1,8 @@
+schema: 1
+id: hal-gpio
+name: GPIO HAL Contract
+cmake_target: ecos::hal::gpio
+include_dirs:
+  - include
+requires:
+  - gpio

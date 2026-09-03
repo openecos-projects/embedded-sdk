@@ -66,6 +66,24 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 
 L4 QSPI 使用经板上验证的 FIFO-first MMIO 顺序，驱动对象固定以 `-O0` 编译。
 
+## 板载按键
+
+- Button 0：GPIO1[7]
+- Button 1：GPIO1[8]
+
+两个按键默认上拉为高电平，按下时为低电平。SDK 3.0 应用通过
+`ecos/bsp/button.h` 使用逻辑 Button 0/1，BSP 将低电平转换为 `BSP_BUTTON_PRESSED`，
+将高电平转换为 `BSP_BUTTON_RELEASED`。
+
+## 板载 LED
+
+- LED 0：GPIO1[5]
+- LED 1：GPIO1[6]
+
+两个 LED 均为低电平点亮。SDK 3.0 应用通过 `ecos/bsp/led.h` 使用逻辑 LED 0/1，
+BSP 将 `BSP_LED_ON` 转换为低电平，将 `BSP_LED_OFF` 转换为高电平；初始化完成后 LED
+保持熄灭。
+
 ## 单一来源
 
 以下文件是普通 CMake 工程的权威来源；isolated/AbstractMachine 仍属于兼容适配层：

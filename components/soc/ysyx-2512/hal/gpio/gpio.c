@@ -1,187 +1,186 @@
-#include "hal_gpio.h"
-#include "hal_gpio_type.h"
+#include "ecos/hal/gpio.h"
 #include "ysyx_2512_soc.h"
-#include "stdio.h"
-#include <stdint.h>
-#include "generated/autoconf.h"
 
-static uint32_t gpio_bit(uint8_t gpio_num)
+#include <stddef.h>
+
+static int gpio_port_is_valid(hal_gpio_port_t port)
 {
-    return (uint32_t)1u << (gpio_num % 32u);
+    return port >= HAL_GPIO_PORT_0 && port < HAL_GPIO_PORT_COUNT;
 }
 
-void gpio_hal_input_enable(uint8_t gpio_id, uint8_t gpio_num){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            REG_GPIO_0_PADDIR &= ~bit;
-            break;
-#ifdef GPIO_GROUP_1
-        case 1:
-            REG_GPIO_1_PADDIR &= ~bit;
-            break;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            REG_GPIO_2_PADDIR &= ~bit;
-            break;
-#endif
-        default:
-            break;
+static int gpio_pin_is_valid(uint8_t pin)
+{
+    return pin < 32u;
+}
+
+static volatile uint32_t *gpio_direction_register(hal_gpio_port_t port)
+{
+    switch (port) {
+    case HAL_GPIO_PORT_0:
+        return &REG_GPIO_0_PADDIR;
+    case HAL_GPIO_PORT_1:
+        return &REG_GPIO_1_PADDIR;
+    case HAL_GPIO_PORT_2:
+        return &REG_GPIO_2_PADDIR;
+    default:
+        return NULL;
     }
 }
 
-void gpio_hal_output_enable(uint8_t gpio_id, uint8_t gpio_num){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            REG_GPIO_0_PADDIR |= bit;
-            break;
-#ifdef GPIO_GROUP_1
-        case 1:
-            REG_GPIO_1_PADDIR |= bit;
-            break;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            REG_GPIO_2_PADDIR |= bit;
-            break;
-#endif
-        default:
-            break;
+static volatile uint32_t *gpio_input_register(hal_gpio_port_t port)
+{
+    switch (port) {
+    case HAL_GPIO_PORT_0:
+        return &REG_GPIO_0_PADIN;
+    case HAL_GPIO_PORT_1:
+        return &REG_GPIO_1_PADIN;
+    case HAL_GPIO_PORT_2:
+        return &REG_GPIO_2_PADIN;
+    default:
+        return NULL;
     }
 }
 
-void gpio_hal_set_level(uint8_t gpio_id, uint8_t gpio_num, uint8_t level){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            if (level == GPIO_LEVEL_HIGH){
-                REG_GPIO_0_PADOUT |= bit;
-            }
-            else{
-                REG_GPIO_0_PADOUT &= ~bit;
-            }
-            break;
-#ifdef GPIO_GROUP_1
-        case 1:
-            if (level == GPIO_LEVEL_HIGH){
-                REG_GPIO_1_PADOUT |= bit;
-            }
-            else{
-                REG_GPIO_1_PADOUT &= ~bit;
-            }
-            break;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            if (level == GPIO_LEVEL_HIGH){
-                REG_GPIO_2_PADOUT |= bit;
-            }
-            else{
-                REG_GPIO_2_PADOUT &= ~bit;
-            }
-            break;
-#endif
-        default:
-            break;
+static volatile uint32_t *gpio_output_register(hal_gpio_port_t port)
+{
+    switch (port) {
+    case HAL_GPIO_PORT_0:
+        return &REG_GPIO_0_PADOUT;
+    case HAL_GPIO_PORT_1:
+        return &REG_GPIO_1_PADOUT;
+    case HAL_GPIO_PORT_2:
+        return &REG_GPIO_2_PADOUT;
+    default:
+        return NULL;
     }
 }
 
-uint8_t gpio_hal_get_level(uint8_t gpio_id, uint8_t gpio_num){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            return (REG_GPIO_0_PADIN & bit) ? 1u : 0u;
-#ifdef GPIO_GROUP_1
-        case 1:
-            return (REG_GPIO_1_PADIN & bit) ? 1u : 0u;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            return (REG_GPIO_2_PADIN & bit) ? 1u : 0u;
-#endif
-        default:
-            return 0;
+static volatile uint32_t *gpio_function_register(hal_gpio_port_t port)
+{
+    switch (port) {
+    case HAL_GPIO_PORT_0:
+        return &REG_GPIO_0_IOFCFG;
+    case HAL_GPIO_PORT_1:
+        return &REG_GPIO_1_IOFCFG;
+    case HAL_GPIO_PORT_2:
+        return &REG_GPIO_2_IOFCFG;
+    default:
+        return NULL;
     }
 }
 
-void gpio_hal_set_fcfg(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            if(val == 1){
-                REG_GPIO_0_IOFCFG |= bit;
-            }else{
-                REG_GPIO_0_IOFCFG &= ~bit;
-            }
-            break;
-#ifdef GPIO_GROUP_1
-        case 1:
-            if(val == 1){
-                REG_GPIO_1_IOFCFG |= bit;
-            }else{
-                REG_GPIO_1_IOFCFG &= ~bit;
-            }
-            break;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            if(val == 1){
-                REG_GPIO_2_IOFCFG |= bit;
-            }else{
-                REG_GPIO_2_IOFCFG &= ~bit;
-            }
-            break;
-#endif
-        default:
-            break;
+static volatile uint32_t *gpio_mux_register(hal_gpio_port_t port)
+{
+    switch (port) {
+    case HAL_GPIO_PORT_0:
+        return &REG_GPIO_0_PINMUX;
+    case HAL_GPIO_PORT_1:
+        return &REG_GPIO_1_PINMUX;
+    case HAL_GPIO_PORT_2:
+        return &REG_GPIO_2_PINMUX;
+    default:
+        return NULL;
     }
 }
 
-void gpio_hal_set_mux(uint8_t gpio_id, uint8_t gpio_num, uint8_t val){
-    uint8_t io_group = gpio_id;
-    uint32_t bit = gpio_bit(gpio_num);
-    switch (io_group){
-        case 0:
-            if(val == 1){
-                REG_GPIO_0_PINMUX |= bit;
-            }else{
-                REG_GPIO_0_PINMUX &= ~bit;
-            }
-            break;
-#ifdef GPIO_GROUP_1
-        case 1:
-            if(val == 1){
-                REG_GPIO_1_PINMUX |= bit;
-            }else{
-                REG_GPIO_1_PINMUX &= ~bit;
-            }
-            break;
-#endif
-#ifdef GPIO_GROUP_2
-        case 2:
-            if(val == 1){
-                REG_GPIO_2_PINMUX |= bit;
-            }else{
-                REG_GPIO_2_PINMUX &= ~bit;
-            }
-            break;
-#endif
-        default:
-            break;
+int hal_gpio_set_direction(hal_gpio_port_t port,
+                           uint8_t pin,
+                           hal_gpio_direction_t direction)
+{
+    volatile uint32_t *direction_register;
+    uint32_t bit;
+
+    if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin) ||
+        (direction != HAL_GPIO_DIRECTION_INPUT &&
+         direction != HAL_GPIO_DIRECTION_OUTPUT))
+        return HAL_GPIO_ERROR_INVALID_ARGUMENT;
+
+    direction_register = gpio_direction_register(port);
+    bit = (uint32_t)1u << pin;
+    if (direction == HAL_GPIO_DIRECTION_OUTPUT)
+        *direction_register |= bit;
+    else
+        *direction_register &= ~bit;
+    return HAL_GPIO_OK;
+}
+
+int hal_gpio_set_level(hal_gpio_port_t port,
+                       uint8_t pin,
+                       hal_gpio_level_t level)
+{
+    volatile uint32_t *output_register;
+    uint32_t bit;
+
+    if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin) ||
+        (level != HAL_GPIO_LEVEL_LOW && level != HAL_GPIO_LEVEL_HIGH))
+        return HAL_GPIO_ERROR_INVALID_ARGUMENT;
+
+    output_register = gpio_output_register(port);
+    bit = (uint32_t)1u << pin;
+    if (level == HAL_GPIO_LEVEL_HIGH)
+        *output_register |= bit;
+    else
+        *output_register &= ~bit;
+    return HAL_GPIO_OK;
+}
+
+int hal_gpio_get_level(hal_gpio_port_t port, uint8_t pin)
+{
+    volatile uint32_t *input_register;
+    uint32_t bit;
+
+    if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin))
+        return HAL_GPIO_ERROR_INVALID_ARGUMENT;
+
+    input_register = gpio_input_register(port);
+    bit = (uint32_t)1u << pin;
+    return (*input_register & bit) != 0u ?
+           HAL_GPIO_LEVEL_HIGH : HAL_GPIO_LEVEL_LOW;
+}
+
+int hal_gpio_set_function(hal_gpio_port_t port,
+                          uint8_t pin,
+                          hal_gpio_function_t function)
+{
+    volatile uint32_t *function_register;
+    volatile uint32_t *mux_register;
+    uint32_t bit;
+
+    if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin) ||
+        function < HAL_GPIO_FUNCTION_GPIO ||
+        function > HAL_GPIO_FUNCTION_ALT_1)
+        return HAL_GPIO_ERROR_INVALID_ARGUMENT;
+
+    function_register = gpio_function_register(port);
+    mux_register = gpio_mux_register(port);
+    bit = (uint32_t)1u << pin;
+    if (function == HAL_GPIO_FUNCTION_GPIO) {
+        *function_register &= ~bit;
+    } else {
+        if (function == HAL_GPIO_FUNCTION_ALT_1)
+            *mux_register |= bit;
+        else
+            *mux_register &= ~bit;
+        *function_register |= bit;
     }
+    return HAL_GPIO_OK;
 }
 
-void gpio_hal_read_update(){
+int hal_gpio_configure(hal_gpio_port_t port,
+                       uint8_t pin,
+                       const hal_gpio_config_t *config)
+{
+    int result;
 
-}
+    if (config == NULL ||
+        (config->direction != HAL_GPIO_DIRECTION_INPUT &&
+         config->direction != HAL_GPIO_DIRECTION_OUTPUT) ||
+        config->function < HAL_GPIO_FUNCTION_GPIO ||
+        config->function > HAL_GPIO_FUNCTION_ALT_1)
+        return HAL_GPIO_ERROR_INVALID_ARGUMENT;
 
-void gpio_hal_write_update(){
-
+    result = hal_gpio_set_direction(port, pin, config->direction);
+    if (result != HAL_GPIO_OK)
+        return result;
+    return hal_gpio_set_function(port, pin, config->function);
 }

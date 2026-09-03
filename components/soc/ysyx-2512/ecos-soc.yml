@@ -29,11 +29,15 @@ build:
   include_dirs:
     - include
   capability_sources:
-    console:
-      - hal/sys_uart/sys_uart.c
+    gpio:
+      - hal/gpio/gpio.c
+    uart:
+      - hal/uart/uart.c
   capability_include_dirs:
-    console:
-      - ../../../hal/sys_uart
+    gpio:
+      - ../../../hal/gpio/include
+    uart:
+      - ../../../hal/uart/include
   outputs:
     - elf
     - bin
@@ -43,7 +47,7 @@ build:
     - size
     - compile_commands
 capabilities:
-  - console
+  - uart
   - gpio
   - hp-uart
   - pwm

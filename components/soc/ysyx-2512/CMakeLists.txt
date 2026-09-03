@@ -36,9 +36,6 @@ if(NOT ECOS_LINKER_SCRIPT OR NOT EXISTS "${ECOS_LINKER_SCRIPT}")
 endif()
 
 add_library(ecos_build_options INTERFACE)
-target_include_directories(ecos_build_options INTERFACE
-    ${ECOS_TARGET_INCLUDE_DIRS}
-)
 target_compile_features(ecos_build_options INTERFACE c_std_11)
 target_compile_options(ecos_build_options INTERFACE
     -Wall
@@ -62,10 +59,19 @@ target_compile_options(ecos_build_options INTERFACE
 )
 target_compile_definitions(ecos_build_options INTERFACE CONFIG_LINK_TARGET_MEM)
 
-add_executable(firmware
+add_library(ecos_target_objects OBJECT
     ${ECOS_TARGET_SOURCES}
-    ${ECOS_APP_SOURCES}
     ${ECOS_TARGET_CAPABILITY_SOURCES}
+)
+target_include_directories(ecos_target_objects PRIVATE
+    ${ECOS_TARGET_INCLUDE_DIRS}
+    ${ECOS_TARGET_CAPABILITY_INCLUDE_DIRS}
+)
+target_link_libraries(ecos_target_objects PRIVATE ecos_build_options)
+
+add_executable(firmware
+    ${ECOS_APP_SOURCES}
+    $<TARGET_OBJECTS:ecos_target_objects>
 )
 set_target_properties(firmware PROPERTIES
     OUTPUT_NAME "${FIRMWARE_NAME}"
@@ -89,7 +95,7 @@ foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)
         target_compile_definitions(${_ecos_component_target} PUBLIC
             ${ECOS_COMPONENT_${_ecos_component_key}_DEFINES}
         )
-        target_link_libraries(${_ecos_component_target} PUBLIC ecos_build_options)
+        target_link_libraries(${_ecos_component_target} PRIVATE ecos_build_options)
     else()
         add_library(${_ecos_component_target} INTERFACE)
         target_include_directories(${_ecos_component_target} INTERFACE
@@ -98,7 +104,13 @@ foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)
         target_compile_definitions(${_ecos_component_target} INTERFACE
             ${ECOS_COMPONENT_${_ecos_component_key}_DEFINES}
         )
-        target_link_libraries(${_ecos_component_target} INTERFACE ecos_build_options)
+    endif()
+    if(ECOS_COMPONENT_${_ecos_component_key}_CMAKE_TARGET)
+        add_library(
+            "${ECOS_COMPONENT_${_ecos_component_key}_CMAKE_TARGET}"
+            ALIAS
+            ${_ecos_component_target}
+        )
     endif()
 endforeach()
 foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)
@@ -113,7 +125,19 @@ foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)
             "ecos_component_${_ecos_dependency_key}"
         )
     endforeach()
-    target_link_libraries(firmware PRIVATE ${_ecos_component_target})
+    foreach(_ecos_dependency_key IN LISTS ECOS_COMPONENT_${_ecos_component_key}_PRIVATE_DEPENDENCIES)
+        if(ECOS_COMPONENT_${_ecos_component_key}_SOURCES)
+            set(_ecos_private_scope PRIVATE)
+        else()
+            set(_ecos_private_scope INTERFACE)
+        endif()
+        target_link_libraries(${_ecos_component_target} ${_ecos_private_scope}
+            "ecos_component_${_ecos_dependency_key}"
+        )
+    endforeach()
+endforeach()
+foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_ROOT_KEYS)
+    target_link_libraries(firmware PRIVATE "ecos_component_${_ecos_component_key}")
 endforeach()
 
 # The FSBL must not call code that is still stored in Flash.

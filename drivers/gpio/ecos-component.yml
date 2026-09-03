@@ -1,0 +1,10 @@
+schema: 1
+id: driver-gpio
+name: GPIO Driver
+cmake_target: ecos::driver::gpio
+sources:
+  - src/gpio.c
+include_dirs:
+  - include
+private_dependencies:
+  - hal-gpio

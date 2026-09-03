@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import shutil
 import sys
 import tempfile
@@ -55,6 +56,51 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
+    def test_blink_build_links_bsp_gpio_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "project",
+                        "create",
+                        "blink",
+                        "--path",
+                        directory,
+                        "--board",
+                        "starrysky-l4",
+                    ]
+                )
+                project_root = Path(directory) / "blink"
+                build_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "build",
+                        "--project",
+                        str(project_root),
+                    ]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            firmware = project_root / "build" / "retrosoc_fw"
+            self.assertEqual(firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF")
+            self.assertGreater(firmware.with_suffix(".bin").stat().st_size, 0)
+            text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
+            for symbol in (
+                "<main>",
+                "<bsp_led_init>",
+                "<bsp_led_set_state>",
+                "<ecos_gpio_configure>",
+                "<ecos_gpio_set_level>",
+                "<hal_gpio_configure>",
+                "<hal_gpio_set_level>",
+            ):
+                self.assertIn(symbol, text)
+
     def test_hello_build_produces_executable_bin_and_disassembly(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
@@ -95,9 +141,29 @@ class StarrySkyL4BuildTest(unittest.TestCase):
             self.assertGreater(binary.stat().st_size, 0)
             self.assertTrue(memory_map.is_file())
             self.assertTrue(size_report.is_file())
-            self.assertTrue((project_root / "build" / "compile_commands.json").is_file())
+            compile_commands = project_root / "build" / "compile_commands.json"
+            self.assertTrue(compile_commands.is_file())
+            compiled_sources = {
+                Path(item["file"]).resolve()
+                for item in json.loads(compile_commands.read_text(encoding="utf-8"))
+            }
+            self.assertIn(
+                (SDK_ROOT / "drivers/gpio/src/gpio.c").resolve(), compiled_sources
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/soc/ysyx-2512/hal/gpio/gpio.c").resolve(),
+                compiled_sources,
+            )
+            self.assertIn(
+                (SDK_ROOT / "board/StarrySkyL4/bsp/button.c").resolve(),
+                compiled_sources,
+            )
+            self.assertIn(
+                (SDK_ROOT / "board/StarrySkyL4/bsp/led.c").resolve(),
+                compiled_sources,
+            )
             text = disassembly.read_text(encoding="utf-8")
-            for symbol in ("<_start>", "<main>", "<hal_sys_uart_init>"):
+            for symbol in ("<_start>", "<main>", "<hal_uart_init>"):
                 self.assertIn(symbol, text)
 
 

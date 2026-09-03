@@ -47,6 +47,7 @@ def create_sdk_fixture(root: Path, version: str = "3.0.0") -> None:
         "layout": {
             "boards": "board",
             "components": "components",
+            "drivers": "drivers",
             "devices": "devices",
             "docs": "docs",
             "examples": "example",

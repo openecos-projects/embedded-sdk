@@ -1,0 +1,6 @@
+schema: 1
+name: blink
+sources:
+  - main.c
+requires:
+  - led
