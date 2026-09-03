@@ -20,12 +20,13 @@ enum {
     HAL_TIMER_ERROR_NOT_INITIALIZED = -3
 };
 
-/* Timer 周期和计数值均使用一微秒计数单位。 */
+/* Timer 周期使用一微秒计数单位；部分 Target 不支持读取当前计数值。 */
 int hal_timer_get_instance_count(void);
 int hal_timer_init(hal_timer_id_t timer, const hal_timer_config_t *config);
 int hal_timer_deinit(hal_timer_id_t timer);
 int hal_timer_start(hal_timer_id_t timer);
 int hal_timer_stop(hal_timer_id_t timer);
+/* 未接出计数值的 Target 返回 HAL_TIMER_ERROR_UNSUPPORTED。 */
 int hal_timer_get_count(hal_timer_id_t timer, uint32_t *count);
 
 /* 到期返回 1，未到期返回 0，失败返回负错误码。 */

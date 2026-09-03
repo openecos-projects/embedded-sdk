@@ -11,11 +11,11 @@
 #define TIMER_CONTROL_STOP  0x00u
 #define TIMER_CONTROL_START 0x0Du
 #define YSYX_2512_TIMER_COUNT 4u
+#define TIMER_MAX_DELAY_MS 4294967u
 
 typedef struct {
     volatile uint32_t *control;
     volatile uint32_t *prescaler;
-    volatile uint32_t *count;
     volatile uint32_t *compare;
     volatile uint32_t *status;
 } timer_registers_t;
@@ -37,28 +37,24 @@ static int timer_get_registers(hal_timer_id_t timer,
     case 0u:
         registers->control = &REG_TIMER_0_CTRL;
         registers->prescaler = &REG_TIMER_0_PSCR;
-        registers->count = &REG_TIMER_0_CNT;
         registers->compare = &REG_TIMER_0_CMP;
         registers->status = &REG_TIMER_0_STAT;
         break;
     case 1u:
         registers->control = &REG_TIMER_1_CTRL;
         registers->prescaler = &REG_TIMER_1_PSCR;
-        registers->count = &REG_TIMER_1_CNT;
         registers->compare = &REG_TIMER_1_CMP;
         registers->status = &REG_TIMER_1_STAT;
         break;
     case 2u:
         registers->control = &REG_TIMER_2_CTRL;
         registers->prescaler = &REG_TIMER_2_PSCR;
-        registers->count = &REG_TIMER_2_CNT;
         registers->compare = &REG_TIMER_2_CMP;
         registers->status = &REG_TIMER_2_STAT;
         break;
     case 3u:
         registers->control = &REG_TIMER_3_CTRL;
         registers->prescaler = &REG_TIMER_3_PSCR;
-        registers->count = &REG_TIMER_3_CNT;
         registers->compare = &REG_TIMER_3_CMP;
         registers->status = &REG_TIMER_3_STAT;
         break;
@@ -77,6 +73,7 @@ static void timer_stop_and_clear(const timer_registers_t *registers)
 {
     *registers->control = TIMER_CONTROL_STOP;
     timer_memory_fence();
+    /* L4 clears the latched overflow flag when STAT is read while stopped. */
     while (*registers->status != 0u)
         ;
 }
@@ -164,19 +161,9 @@ int hal_timer_stop(hal_timer_id_t timer)
 
 int hal_timer_get_count(hal_timer_id_t timer, uint32_t *count)
 {
-    timer_registers_t registers;
-    int result;
-
     if (!timer_id_is_valid(timer) || count == NULL)
         return HAL_TIMER_ERROR_INVALID_ARGUMENT;
-    if (timer_initialized[timer] == 0u)
-        return HAL_TIMER_ERROR_NOT_INITIALIZED;
-
-    result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
-        return result;
-    *count = *registers.count;
-    return HAL_TIMER_OK;
+    return HAL_TIMER_ERROR_UNSUPPORTED;
 }
 
 int hal_timer_is_expired(hal_timer_id_t timer)
@@ -230,10 +217,21 @@ uint8_t hal_delay_us(uint8_t timer_id, uint32_t value)
 
 uint8_t hal_delay_ms(uint8_t timer_id, uint32_t value)
 {
+    hal_timer_id_t timer = (hal_timer_id_t)timer_id;
+
+    if (!timer_id_is_valid(timer))
+        return 1u;
+
     while (value != 0u) {
-        if (hal_delay_us(timer_id, 1000u) != 0u)
+        uint32_t current = value;
+
+        if (current > TIMER_MAX_DELAY_MS)
+            current = TIMER_MAX_DELAY_MS;
+        if (hal_timer_delay_us(timer,
+                               (current << 10) - (current << 4) -
+                               (current << 3)) != HAL_TIMER_OK)
             return 1u;
-        --value;
+        value -= current;
     }
     return 0u;
 }

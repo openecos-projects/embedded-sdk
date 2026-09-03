@@ -15,12 +15,13 @@
 
 ## 时间单位与控制接口
 
-Timer Driver 使用微秒作为周期配置和计数单位：
+Timer Driver 使用微秒作为周期配置单位；支持读取计数值的 Target 也以微秒为单位：
 
 - `ecos_timer_init()`：配置周期，但不启动计数。
 - `ecos_timer_start()`：从零重新启动已配置的周期。
 - `ecos_timer_stop()`：停止计数并清除到期状态，保留周期配置。
-- `ecos_timer_get_count()`：读取当前原始计数值。
+- `ecos_timer_get_count()`：读取当前原始计数值；不支持读取的 Target 返回
+  `ECOS_TIMER_ERROR_UNSUPPORTED`。
 - `ecos_timer_is_expired()`：查询当前周期是否到期。
 - `ecos_timer_deinit()`：停止定时器并释放配置。
 - `ecos_timer_delay_us/ms/s()`：使用指定实例执行阻塞式轮询延时。
@@ -32,6 +33,9 @@ Timer Driver 使用微秒作为周期配置和计数单位：
 
 ysyx-2512 提供 Timer0 至 Timer3，共四个实例。L4 默认使用 25 MHz Timer 输入时钟，
 HAL 将其预分频为 1 MHz，因此一个计数对应一微秒。
+
+该 Timer IP 未接出 CNT 读值，因此 ysyx-2512 的 `ecos_timer_get_count()` 返回
+`ECOS_TIMER_ERROR_UNSUPPORTED`；轮询延时仅通过 STAT 到期标志判断结果。
 
 当前只支持基础控制和轮询模式。Timer 中断需要先完成 ysyx-2512 中断控制器适配，
 在此之前公共 Driver 不提供 callback 接口。

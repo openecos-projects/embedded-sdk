@@ -37,7 +37,7 @@ int ecos_timer_deinit(ecos_timer_id_t timer);
 int ecos_timer_start(ecos_timer_id_t timer);
 int ecos_timer_stop(ecos_timer_id_t timer);
 
-/* 读取原始计数值，一个计数对应一微秒。 */
+/* 读取原始计数值；未接出计数值的 Target 返回 UNSUPPORTED。 */
 int ecos_timer_get_count(ecos_timer_id_t timer, uint32_t *count);
 
 /* 到期返回 1，未到期返回 0，失败返回负错误码。 */

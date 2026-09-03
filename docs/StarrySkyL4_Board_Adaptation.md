@@ -89,8 +89,9 @@ BSP 将 `BSP_LED_ON` 转换为低电平，将 `BSP_LED_OFF` 转换为高电平�
 ysyx-2512 提供 Timer0 至 Timer3，L4 HAL 向公共 Timer Driver 报告四个可用实例。
 通用应用只使用 `ECOS_TIMER_DEFAULT`；需要使用其他实例时，先调用
 `ecos_timer_get_instance_count()` 查询当前 Target 的实例数量。L4 HAL 将 25 MHz 输入时钟
-预分频为 1 MHz，因此周期、计数值和轮询延时均以微秒为单位。当前支持初始化、启动、
-停止、计数/到期查询和轮询延时；中断 callback 需要等待 ysyx-2512 中断控制器完成适配。
+预分频为 1 MHz，因此周期和轮询延时均以微秒为单位。当前支持初始化、启动、停止、
+到期查询和轮询延时；该 Timer IP 未接出 CNT 读值，`ecos_timer_get_count()` 返回
+`ECOS_TIMER_ERROR_UNSUPPORTED`。中断 callback 需要等待 ysyx-2512 中断控制器完成适配。
 
 ## 单一来源
 
