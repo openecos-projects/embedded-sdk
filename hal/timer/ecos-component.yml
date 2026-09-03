@@ -1,0 +1,8 @@
+schema: 1
+id: hal-timer
+name: Timer HAL Contract
+cmake_target: ecos::hal::timer
+include_dirs:
+  - include
+requires:
+  - timer

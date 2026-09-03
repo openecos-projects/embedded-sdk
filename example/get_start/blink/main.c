@@ -1,29 +1,26 @@
 #include "ecos/bsp/led.h"
+#include "ecos/driver/timer.h"
 
-#include <stdint.h>
-
-#define BLINK_DELAY_ITERATIONS 5000000u
-
-static void blink_delay(void)
-{
-    volatile uint32_t count;
-
-    for (count = 0u; count < BLINK_DELAY_ITERATIONS; ++count)
-        __asm__ volatile("nop");
-}
+#define BLINK_DELAY_MS 500u
 
 int main(void)
 {
+    if (ecos_timer_get_instance_count() < 1)
+        goto failed;
     if (bsp_led_init() != BSP_LED_OK)
         goto failed;
 
     for (;;) {
         if (bsp_led_set_state(BSP_LED_0, BSP_LED_ON) != BSP_LED_OK)
             break;
-        blink_delay();
+        if (ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS) !=
+            ECOS_TIMER_OK)
+            break;
         if (bsp_led_set_state(BSP_LED_0, BSP_LED_OFF) != BSP_LED_OK)
             break;
-        blink_delay();
+        if (ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS) !=
+            ECOS_TIMER_OK)
+            break;
     }
 
 failed:

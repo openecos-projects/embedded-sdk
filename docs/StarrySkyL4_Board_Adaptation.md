@@ -84,6 +84,14 @@ L4 QSPI 使用经板上验证的 FIFO-first MMIO 顺序，驱动对象固定以 
 BSP 将 `BSP_LED_ON` 转换为低电平，将 `BSP_LED_OFF` 转换为高电平；初始化完成后 LED
 保持熄灭。
 
+## Timer
+
+ysyx-2512 提供 Timer0 至 Timer3，L4 HAL 向公共 Timer Driver 报告四个可用实例。
+通用应用只使用 `ECOS_TIMER_DEFAULT`；需要使用其他实例时，先调用
+`ecos_timer_get_instance_count()` 查询当前 Target 的实例数量。L4 HAL 将 25 MHz 输入时钟
+预分频为 1 MHz，因此周期、计数值和轮询延时均以微秒为单位。当前支持初始化、启动、
+停止、计数/到期查询和轮询延时；中断 callback 需要等待 ysyx-2512 中断控制器完成适配。
+
 ## 单一来源
 
 以下文件是普通 CMake 工程的权威来源；isolated/AbstractMachine 仍属于兼容适配层：

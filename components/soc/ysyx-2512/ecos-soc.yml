@@ -31,11 +31,15 @@ build:
   capability_sources:
     gpio:
       - hal/gpio/gpio.c
+    timer:
+      - hal/timer/timer.c
     uart:
       - hal/uart/uart.c
   capability_include_dirs:
     gpio:
       - ../../../hal/gpio/include
+    timer:
+      - ../../../hal/timer/include
     uart:
       - ../../../hal/uart/include
   outputs:

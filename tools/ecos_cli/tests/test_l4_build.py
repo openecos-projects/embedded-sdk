@@ -56,7 +56,7 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
-    def test_blink_build_links_bsp_gpio_stack(self):
+    def test_blink_build_links_bsp_gpio_and_timer_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
             with redirect_stdout(output), redirect_stderr(output):
@@ -89,6 +89,18 @@ class StarrySkyL4BuildTest(unittest.TestCase):
             firmware = project_root / "build" / "retrosoc_fw"
             self.assertEqual(firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF")
             self.assertGreater(firmware.with_suffix(".bin").stat().st_size, 0)
+            compile_commands = project_root / "build" / "compile_commands.json"
+            compiled_sources = {
+                Path(item["file"]).resolve()
+                for item in json.loads(compile_commands.read_text(encoding="utf-8"))
+            }
+            self.assertIn(
+                (SDK_ROOT / "drivers/timer/src/timer.c").resolve(), compiled_sources
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/soc/ysyx-2512/hal/timer/timer.c").resolve(),
+                compiled_sources,
+            )
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
             for symbol in (
                 "<main>",
@@ -96,8 +108,12 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 "<bsp_led_set_state>",
                 "<ecos_gpio_configure>",
                 "<ecos_gpio_set_level>",
+                "<ecos_timer_get_instance_count>",
+                "<ecos_timer_delay_ms>",
                 "<hal_gpio_configure>",
                 "<hal_gpio_set_level>",
+                "<hal_timer_get_instance_count>",
+                "<hal_timer_delay_us>",
             ):
                 self.assertIn(symbol, text)
 

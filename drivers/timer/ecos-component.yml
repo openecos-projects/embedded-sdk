@@ -1,0 +1,10 @@
+schema: 1
+id: driver-timer
+name: Timer Driver
+cmake_target: ecos::driver::timer
+sources:
+  - src/timer.c
+include_dirs:
+  - include
+private_dependencies:
+  - hal-timer

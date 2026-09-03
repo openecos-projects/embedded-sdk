@@ -2,5 +2,7 @@ schema: 1
 name: blink
 sources:
   - main.c
+components:
+  - driver-timer
 requires:
   - led
