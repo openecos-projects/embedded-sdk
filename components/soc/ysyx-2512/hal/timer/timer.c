@@ -64,15 +64,9 @@ static int timer_get_registers(hal_timer_id_t timer,
     return HAL_TIMER_OK;
 }
 
-static void timer_memory_fence(void)
-{
-    __asm__ volatile("fence iorw, iorw" : : : "memory");
-}
-
 static void timer_stop_and_clear(const timer_registers_t *registers)
 {
     *registers->control = TIMER_CONTROL_STOP;
-    timer_memory_fence();
     /* L4 clears the latched overflow flag when STAT is read while stopped. */
     while (*registers->status != 0u)
         ;
@@ -99,7 +93,6 @@ int hal_timer_init(hal_timer_id_t timer, const hal_timer_config_t *config)
     timer_stop_and_clear(&registers);
     *registers.prescaler = (uint32_t)CONFIG_TIMER_FREQ_MHZ - 1u;
     *registers.compare = config->period_ticks - 1u;
-    timer_memory_fence();
     timer_initialized[timer] = 1u;
     return HAL_TIMER_OK;
 }
@@ -118,7 +111,6 @@ int hal_timer_deinit(hal_timer_id_t timer)
     timer_stop_and_clear(&registers);
     *registers.prescaler = 0u;
     *registers.compare = 0u;
-    timer_memory_fence();
     timer_initialized[timer] = 0u;
     return HAL_TIMER_OK;
 }
@@ -138,7 +130,6 @@ int hal_timer_start(hal_timer_id_t timer)
         return result;
     timer_stop_and_clear(&registers);
     *registers.control = TIMER_CONTROL_START;
-    timer_memory_fence();
     return HAL_TIMER_OK;
 }
 
