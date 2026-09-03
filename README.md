@@ -2,60 +2,22 @@
 
 [English](README_EN.md) | 中文
 
-SDK 基于 HAL 提供的 StarrySkyL4 AbstractMachine 开发环境见
-[docs/abstract-machine.md](docs/abstract-machine.md)。
+**ECOS 嵌入式 SDK** 目前是专为ECOS 芯片及Starry Sky板卡（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的开发套件，未来也会考虑兼容市面上的RV芯片。
 
-SDK 3.0 的架构目标、非目标和迁移验收边界见
-[docs/sdk-3.0-development-boundary.md](docs/sdk-3.0-development-boundary.md)。
-
-**ECOS 嵌入式 SDK** 是专为 StarrySky 系列 RISC-V 芯片及微控制器（如 `StarrySkyC1`, `StarrySkyC2`, `StarrySkyL3`, `StarrySkyL3_1`）打造的生产级、模块化裸机固件开发套件。
-
-本 SDK 围绕全新的 **HAL V2** 硬件抽象层重构，采用 Kconfig 图形化配置与 CMake/Ninja
-构建系统，致力于提供高效、安全的嵌入式开发体验。
+SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户更加自由的进行配置。采用python构建kconfig 图形化配置与 CMake/Ninja 构建系统，致力于提供高效、安全的嵌入式开发体验。同时替换默认工具链为Xpack 多平台交叉编译工具链，使得SDK可以在多平台进行工作（目前主要支持Windows和Linux）
 
 ---
 
 ## 目录
-1. [核心架构与特性](#核心架构与特性)
-2. [工程目录结构](#工程目录结构)
-3. [环境依赖与安装](#环境依赖与安装)
-4. [标准开发与测试流程 (必读)](#标准开发与测试流程-必读)
-5. [HAL V2 API 迁移指南](#hal-v2-api-迁移指南)
-6. [第三方组件支持](#第三方组件支持)
-7. [分支管理](#分支管理)
-8. [致谢](#致谢)
+1. [环境依赖与安装](#环境依赖与安装)
+2. [标准开发与测试流程 (必读)](#标准开发与测试流程-必读)
+3. [第三方组件支持](#第三方组件支持)
+4. [分支管理](#分支管理)
+5. [致谢](#致谢)
 
 ---
 
-### 1. 核心架构与特性
-- **HAL V2 硬件抽象层**：摒弃了旧版直接读写底层寄存器（如 `REG_UART_0_RX`）和魔数配置的 Legacy API。采用全套标准化 `hal_*` 接口，支持统一的 GPIO MUX（复用）与 FCFG（功能）配置。
-- **Kconfig 模块化构建**：集成 Linux 内核风格的 Kconfig 工具。支持按需裁剪外设驱动（I2C, SPI, RTC 等）和系统组件（libc, libgcc, TimmoLog 等），自动生成配置宏。
-- **严格分离的源码树**：提供 `ecos init_project` 工具，支持用户在**操作系统的任意位置**创建独立的项目目录进行开发，杜绝直接在 SDK `templates/` 内修改源码的污染行为。（SDK 开发者可利用专用的 `testdir/` 目录进行内部快速测试验证）
-- **XIP (Execute-In-Place) 支持**：支持代码在 Flash 中就地执行，配合 `ld` 链接脚本自动优化内存映射，极大节省 SRAM 空间。
-- **丰富的外部设备支持**：原生支持外接外设，如 ST7735 / ST7789 屏幕驱动、PCF8563 外部 RTC 时钟芯片、SGP30 气体传感器等。
-
----
-
-### 2. 工程目录结构
-```text
-ecos/embedded-sdk/
-├── board/          # 板级支持包 (BSP)，包含各板卡的引脚定义、时钟配置和链接脚本
-│   ├── StarrySkyC1/
-│   ├── StarrySkyC2/
-│   ├── StarrySkyL3/
-│   └── StarrySkyL3_1/
-├── components/     # 系统级中间件与静态库 (如 libc, libgcc, TimmoLog 日志系统)
-├── devices/        # 外部设备驱动组件 (如 st7735, st7789, sgp30, pcf8563)
-├── hal/            # 核心硬件抽象层 V2 接口定义 (hal_uart, hal_timer, hal_gpio 等)
-├── scripts/        # Make 编译脚本及构建规则
-├── templates/      # 官方提供的基础/外设裸机示例模板 (按外设划分，内部再区分具体板卡)
-├── testdir/        # (仅供 SDK 开发者使用) 内部专用的快速模板测试与验证环境
-└── tools/          # Python 安装器/CLI、工具链清单及构建辅助工具
-```
-
----
-
-### 3. 环境依赖与安装
+### 1. 环境依赖与安装
 
 #### 依赖项
 - SDK 锁定的 xPack GNU RISC-V Embedded GCC 15.2.0-1
@@ -129,7 +91,7 @@ checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 ch
 
 ---
 
-### 4. 标准开发与测试流程 (必读)
+### 2. 标准开发与测试流程 (必读)
 
 > ⚠️ **警告 (CRITICAL RULES)**：
 > 绝对禁止直接在 SDK 安装路径下的 `templates/` 目录内修改并执行 `make` 编译！所有的开发与测试必须在 SDK 外部新建的工程目录中进行，以保证原始模板代码不被污染。
@@ -175,45 +137,32 @@ make -j$(nproc)
 
 ---
 
-### 5. HAL V2 API 迁移指南
-SDK 已全面废弃旧版（C1/C2 时期）的底层寄存器直接操作代码。在编写新代码或迁移老工程时，请严格遵循以下接口映射关系：
+### 3. 第三方组件支持
 
-- **串口初始化**: `sys_uart_init()` -> `hal_sys_uart_init()`
-- **I2C总线**: `i2c_init(...)` -> `hal_i2c_init(...)`
-- **定时器与延时**: 废弃硬件死循环 `delay_s() / delay_ms()`，改用基于硬件 Timer 的 `hal_delay_ms(timer_id, ms)`。
-- **系统滴答时钟**: 废弃 `sys_tick_init()`，改用标准的 `hal_sys_tick_init(0)` 与 `hal_get_sys_tick(0)`。
-- **GPIO 引脚配置**: 不再使用位掩码拼接直接写 `PADDIR` / `PADOUT`，必须使用封装好的 `gpio_hal_set_mux(port, pin, func)` 及 `gpio_hal_set_fcfg(port, pin, mode)` 来设定引脚的功能与复用模式。
+#### ECOS Core Runtime（错误与日志）
+Core Runtime 是 SDK 3.0 工程的默认组件，提供统一的 `ECOS_ERR_*` 错误语义和无堆内存日志服务。BSP Console 初始化成功后自动成为日志输出后端；默认输出 ASCII、CRLF 且不启用 ANSI 颜色。
 
----
-
-### 6. 第三方组件支持
-
-#### TimmoLog (智能日志系统)
-本 SDK 深度集成了支持 ANSI 色彩的高级日志系统 [TimmoLog](https://github.com/XHTimmo/TimmoLog)，并专门针对 RISC-V Bare-metal (裸机) 环境进行了 `printf` 串口输出映射，非常适合供开发者与 AI 读取结构化日志。
-
-- **启用方式**：在 `make menuconfig` 的 `Build Configuration -> Library Configuration` 中开启 `TimmoLog Support` 选项。
 - **代码使用示例**：
   ```c
-  #include "log.h"
+  #include "ecos/bsp/console.h"
+  #include "ecos/log.h"
 
-  int main() {
-      hal_sys_uart_init();
-      
-      // 初始化日志系统，设置最低打印等级为 DEBUG
-      log_init(LOG_DEBUG, NULL);
-      
-      // 打印带有等级前缀、时间和 ANSI 颜色的日志
-      log_info("[SYSTEM] 设备启动成功");
-      log_warn("检测到异常输入，自动跳过...");
-      log_error("硬件初始化失败！");
-      
-      return 0;
+  int main(void) {
+      ecos_err_t result = bsp_console_init();
+
+      if (ecos_result_failed(result))
+          return result;
+      ecos_log_set_level(ECOS_LOG_DEBUG);
+      ECOS_LOGI("app", "设备启动成功");
+      ECOS_LOGW("app", "检测到异常输入");
+      ECOS_LOG_ERR("app", ECOS_ERR_IO, "初始化外设");
+      return ECOS_OK;
   }
   ```
 
 ---
 
-### 7. 分支管理
+### 4. 分支管理
 
 仓库当前采用“版本分支 + 产品分支”的方式管理长期演进：
 
@@ -225,7 +174,7 @@ SDK 已全面废弃旧版（C1/C2 时期）的底层寄存器直接操作代码�
 
 ---
 
-### 8. 致谢
+### 5. 致谢
 感谢以下开发者对 ECOS 嵌入式 SDK 的代码贡献：
 
 - [XHTimmo](https://github.com/XHTimmo)
