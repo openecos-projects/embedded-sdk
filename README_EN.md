@@ -21,7 +21,7 @@ Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kc
 
 ### 1. Core Architecture and Features
 - **HAL V2 Hardware Abstraction Layer**: Abandons legacy APIs that directly read/write low-level registers (e.g., `REG_UART_0_RX`) and use magic number configurations. It adopts a comprehensive set of standardized `hal_*` interfaces, supporting unified GPIO MUX (multiplexing) and FCFG (function) configurations.
-- **Modular Build with Kconfig**: Integrates a Linux kernel-style Kconfig tool. It supports on-demand pruning of peripheral drivers (I2C, SPI, RTC, etc.) and system components (libc, libgcc, TimmoLog, etc.), automatically generating configuration macros.
+- **Modular Build with Kconfig**: Integrates a Linux kernel-style Kconfig tool. It supports on-demand pruning of peripheral drivers (I2C, SPI, RTC, etc.) and system components (libc, libgcc, etc.), while the Core Runtime supplies error and logging services by default.
 - **Strictly Separated Source Tree**: Provides the `ecos init_project` tool, allowing users to create independent project directories **anywhere in the OS** for development, eliminating source code pollution caused by directly modifying the SDK's `templates/`. (SDK developers can use the dedicated `testdir/` directory for internal rapid testing and verification).
 - **XIP (Execute-In-Place) Support**: Supports executing code directly from Flash. Combined with `ld` linker script optimizations for memory mapping, it significantly saves SRAM space.
 - **Rich External Device Support**: Natively supports external peripherals, such as ST7735 / ST7789 screen drivers, PCF8563 external RTC clock chips, SGP30 gas sensors, etc.
@@ -36,7 +36,7 @@ ecos/embedded-sdk/
 │   ├── StarrySkyC2/
 │   ├── StarrySkyL3/
 │   └── StarrySkyL3_1/
-├── components/     # System-level middleware and static libraries (e.g., libc, libgcc, TimmoLog)
+├── components/     # Core Runtime, middleware, and static libraries (e.g., libc, libgcc)
 ├── devices/        # External device driver components (e.g., st7735, st7789, sgp30, pcf8563)
 ├── hal/            # Core Hardware Abstraction Layer V2 interface definitions (hal_uart, hal_timer, hal_gpio, etc.)
 ├── scripts/        # Make build scripts and rules
@@ -184,26 +184,24 @@ The SDK has completely deprecated the low-level register direct operation code f
 
 ### 6. Third-Party Component Support
 
-#### TimmoLog (Smart Logging System)
-This SDK deeply integrates [TimmoLog](https://github.com/XHTimmo/TimmoLog), an advanced logging system supporting ANSI colors, and has specially mapped `printf` serial output for the RISC-V Bare-metal environment, making it very suitable for developers and AI to read structured logs.
+#### ECOS Core Runtime (Errors and Logging)
+The Core Runtime is included by default in SDK 3.0 projects. It provides shared `ECOS_ERR_*` error semantics and a heap-free logging service. A successfully initialized BSP Console installs itself as the log writer; output defaults to ASCII with CRLF line endings and no ANSI color.
 
-- **How to enable**: Turn on the `TimmoLog Support` option in `Build Configuration -> Library Configuration` of `make menuconfig`.
 - **Code Usage Example**:
   ```c
-  #include "log.h"
+  #include "ecos/bsp/console.h"
+  #include "ecos/log.h"
 
-  int main() {
-      hal_sys_uart_init();
-      
-      // Initialize the logging system, set the minimum print level to DEBUG
-      log_init(LOG_DEBUG, NULL);
-      
-      // Print logs with level prefixes, time, and ANSI colors
-      log_info("[SYSTEM] Device booted successfully");
-      log_warn("Abnormal input detected, automatically skipping...");
-      log_error("Hardware initialization failed!");
-      
-      return 0;
+  int main(void) {
+      ecos_err_t result = bsp_console_init();
+
+      if (ecos_result_failed(result))
+          return result;
+      ecos_log_set_level(ECOS_LOG_DEBUG);
+      ECOS_LOGI("app", "Device booted successfully");
+      ECOS_LOGW("app", "Abnormal input detected");
+      ECOS_LOG_ERR("app", ECOS_ERR_IO, "initialize peripheral");
+      return ECOS_OK;
   }
   ```
 

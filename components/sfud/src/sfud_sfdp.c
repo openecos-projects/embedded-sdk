@@ -66,10 +66,6 @@ static bool read_sfdp_header(sfud_flash *flash);
 static bool read_basic_header(const sfud_flash *flash, sfdp_para_header *basic_header);
 static bool read_basic_table(sfud_flash *flash, sfdp_para_header *basic_header);
 
-/* ../port/sfup_port.c */
-extern void sfud_log_debug(const char *file, const long line, const char *format, ...);
-extern void sfud_log_info(const char *format, ...);
-
 /**
  * Read SFDP parameter information
  *
@@ -82,7 +78,6 @@ bool sfud_read_sfdp(sfud_flash *flash) {
 
     /* JEDEC basic flash parameter header */
     sfdp_para_header basic_header;
-    // printf("LOG=%x,%x\r\n",read_sfdp_header(flash),read_basic_header(flash, &basic_header));
     if (read_sfdp_header(flash) && read_basic_header(flash, &basic_header)) {
         return read_basic_table(flash, &basic_header);
     } else {

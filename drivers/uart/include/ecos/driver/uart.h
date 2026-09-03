@@ -1,6 +1,8 @@
 #ifndef ECOS_DRIVER_UART_H
 #define ECOS_DRIVER_UART_H
 
+#include "ecos/error.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -29,16 +31,9 @@ typedef struct {
 #define ECOS_UART_CONFIG_DEFAULT \
     { 115200u, 8u, 1u, ECOS_UART_PARITY_NONE }
 
-enum {
-    ECOS_UART_OK = 0,
-    ECOS_UART_ERROR_INVALID_ARGUMENT = -1,
-    ECOS_UART_ERROR_UNSUPPORTED = -2,
-    ECOS_UART_ERROR_NOT_INITIALIZED = -3,
-    ECOS_UART_ERROR_IO = -4
-};
-
-/* Initialize a UART instance. Returns ECOS_UART_OK or a negative error code. */
-int ecos_uart_init(ecos_uart_port_t port, const ecos_uart_config_t *config);
+/* Initialize a UART instance. Returns ECOS_OK or a negative error code. */
+ecos_err_t ecos_uart_init(ecos_uart_port_t port,
+                          const ecos_uart_config_t *config);
 
 /* Raw UART access: returns bytes transferred or a negative error code. */
 int ecos_uart_write(ecos_uart_port_t port, const void *data, size_t size);

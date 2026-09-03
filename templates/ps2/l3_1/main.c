@@ -1,7 +1,7 @@
 #include "main.h"
 #include "hal_sys_uart.h"
 #include "hal_ps2.h"
-#include "log.h"
+#include "ecos/log.h"
 #include "hal_timer.h"
 #include "hal_gpio.h"
 
@@ -10,8 +10,8 @@ void delay_ms(uint32_t val) {
 }
 
 void ps2_test(){
-  log_info("[TEST_START] ps2_test");
-    log_info("ESC to exit");
+  ECOS_LOGI("ps2", "[TEST_START] ps2_test");
+    ECOS_LOGI("ps2", "ESC to exit");
   
   gpio_hal_set_fcfg(1, 12, 1);
   gpio_hal_set_fcfg(1, 13, 1);
@@ -23,7 +23,7 @@ void ps2_test(){
   while (1) {
     kdb_code = hal_ps2_get_data();
     if (kdb_code != 0) {
-      log_info("[%d] dat: %x", i++, kdb_code);
+      ECOS_LOGI("ps2", "[%d] dat: %x", i++, (unsigned)kdb_code);
     }
     if (kdb_code == 0x76) {
       break;
@@ -33,7 +33,7 @@ void ps2_test(){
 
 int main() {
   hal_sys_uart_init();
-  log_init(LOG_DEBUG, NULL);
+  (void)ecos_log_set_level(ECOS_LOG_DEBUG);
   hal_sys_tick_init(0);
   ps2_test();
   while(1);

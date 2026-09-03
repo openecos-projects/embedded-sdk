@@ -30,14 +30,10 @@ static int led_map_gpio_result(int result)
 {
     if (result >= 0)
         return result;
-    if (result == ECOS_GPIO_ERROR_INVALID_ARGUMENT)
-        return BSP_LED_ERROR_INVALID_ARGUMENT;
-    if (result == ECOS_GPIO_ERROR_UNSUPPORTED)
-        return BSP_LED_ERROR_UNSUPPORTED;
-    return BSP_LED_ERROR_IO;
+    return ecos_err_is_known(result) ? result : ECOS_ERR_IO;
 }
 
-int bsp_led_init(void)
+ecos_err_t bsp_led_init(void)
 {
     const ecos_gpio_config_t config = {
         ECOS_GPIO_DIRECTION_OUTPUT,
@@ -52,25 +48,25 @@ int bsp_led_init(void)
             gpio->port, gpio->pin, ECOS_GPIO_LEVEL_HIGH
         );
 
-        if (result != ECOS_GPIO_OK)
+        if (result != ECOS_OK)
             return led_map_gpio_result(result);
         result = ecos_gpio_configure(gpio->port, gpio->pin, &config);
-        if (result != ECOS_GPIO_OK)
+        if (result != ECOS_OK)
             return led_map_gpio_result(result);
     }
     leds_initialized = 1u;
-    return BSP_LED_OK;
+    return ECOS_OK;
 }
 
-int bsp_led_set_state(bsp_led_t led, bsp_led_state_t state)
+ecos_err_t bsp_led_set_state(bsp_led_t led, bsp_led_state_t state)
 {
     const led_gpio_t *gpio;
     ecos_gpio_level_t level;
 
     if (!led_is_valid(led) || !led_state_is_valid(state))
-        return BSP_LED_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (leds_initialized == 0u)
-        return BSP_LED_ERROR_NOT_INITIALIZED;
+        return ECOS_ERR_NOT_INITIALIZED;
 
     gpio = &led_gpios[led];
     level = state == BSP_LED_ON ?

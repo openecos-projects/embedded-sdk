@@ -1,6 +1,8 @@
 #ifndef ECOS_DRIVER_GPIO_H
 #define ECOS_DRIVER_GPIO_H
 
+#include "ecos/error.h"
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -38,31 +40,24 @@ typedef struct {
 #define ECOS_GPIO_CONFIG_DEFAULT \
     { ECOS_GPIO_DIRECTION_INPUT, ECOS_GPIO_FUNCTION_GPIO }
 
-enum {
-    ECOS_GPIO_OK = 0,
-    ECOS_GPIO_ERROR_INVALID_ARGUMENT = -1,
-    ECOS_GPIO_ERROR_UNSUPPORTED = -2,
-    ECOS_GPIO_ERROR_IO = -3
-};
-
 /* Configure one pin. Each declared GPIO port contains pins 0 through 31. */
-int ecos_gpio_configure(ecos_gpio_port_t port,
-                        uint8_t pin,
-                        const ecos_gpio_config_t *config);
+ecos_err_t ecos_gpio_configure(ecos_gpio_port_t port,
+                               uint8_t pin,
+                               const ecos_gpio_config_t *config);
 
-int ecos_gpio_set_direction(ecos_gpio_port_t port,
-                            uint8_t pin,
-                            ecos_gpio_direction_t direction);
-int ecos_gpio_set_level(ecos_gpio_port_t port,
-                        uint8_t pin,
-                        ecos_gpio_level_t level);
+ecos_err_t ecos_gpio_set_direction(ecos_gpio_port_t port,
+                                   uint8_t pin,
+                                   ecos_gpio_direction_t direction);
+ecos_err_t ecos_gpio_set_level(ecos_gpio_port_t port,
+                               uint8_t pin,
+                               ecos_gpio_level_t level);
 
 /* Returns ECOS_GPIO_LEVEL_LOW/HIGH or a negative error code. */
 int ecos_gpio_get_level(ecos_gpio_port_t port, uint8_t pin);
 
-int ecos_gpio_set_function(ecos_gpio_port_t port,
-                           uint8_t pin,
-                           ecos_gpio_function_t function);
+ecos_err_t ecos_gpio_set_function(ecos_gpio_port_t port,
+                                  uint8_t pin,
+                                  ecos_gpio_function_t function);
 
 #ifdef __cplusplus
 }

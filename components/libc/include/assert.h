@@ -12,12 +12,12 @@
 #else
 
 
-#include "log.h"
+#include "ecos/log.h"
 #define assert(expr, fmt, ...) \
     ({ \
         typeof(expr) _assert_result = (expr); \
         if (!(_assert_result)) { \
-            log_fatal(fmt, ##__VA_ARGS__); \
+            ECOS_PANIC("assert", fmt, ##__VA_ARGS__); \
         } \
         _assert_result; \
     })

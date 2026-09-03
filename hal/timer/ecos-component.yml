@@ -4,5 +4,7 @@ name: Timer HAL Contract
 cmake_target: ecos::hal::timer
 include_dirs:
   - include
+dependencies:
+  - core-runtime
 requires:
   - timer

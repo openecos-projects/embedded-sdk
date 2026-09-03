@@ -1,11 +1,12 @@
 #include "ecos/bsp/console.h"
+#include "ecos/log.h"
 
 int main(void)
 {
-    static const char message[] = "Hello, World!\n";
+    ecos_err_t result = bsp_console_init();
 
-    if (bsp_console_init() == 0)
-        (void)bsp_console_write(message, sizeof(message) - 1u);
+    if (ecos_result_succeeded(result))
+        (void)ECOS_LOGI("hello", "Hello, World!");
 
     for (;;)
         __asm__ volatile("nop");

@@ -59,6 +59,14 @@ target_compile_options(ecos_build_options INTERFACE
 )
 target_compile_definitions(ecos_build_options INTERFACE CONFIG_LINK_TARGET_MEM)
 
+set(_ecos_component_include_dirs)
+foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)
+    list(APPEND _ecos_component_include_dirs
+        ${ECOS_COMPONENT_${_ecos_component_key}_INCLUDE_DIRS}
+    )
+endforeach()
+list(REMOVE_DUPLICATES _ecos_component_include_dirs)
+
 add_library(ecos_target_objects OBJECT
     ${ECOS_TARGET_SOURCES}
     ${ECOS_TARGET_CAPABILITY_SOURCES}
@@ -66,6 +74,7 @@ add_library(ecos_target_objects OBJECT
 target_include_directories(ecos_target_objects PRIVATE
     ${ECOS_TARGET_INCLUDE_DIRS}
     ${ECOS_TARGET_CAPABILITY_INCLUDE_DIRS}
+    ${_ecos_component_include_dirs}
 )
 target_link_libraries(ecos_target_objects PRIVATE ecos_build_options)
 

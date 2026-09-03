@@ -10,19 +10,18 @@ void load_shell(){
     ShellFs shellfs;
     Shell shell;
 
-    printf("\r\n");
-    printf("Waiting for filesystem booting...\r\n");
+    (void)ECOS_LOGI("shell", "Waiting for file system startup");
 
     load_filesystem();
 
-    printf("Waiting for shell_fs booting...\r\n");  
+    (void)ECOS_LOGI("shell", "Waiting for shell file system startup");
     shellfs.chdir = chdir;
     shellfs.getcwd = getcwd;
     shellfs.listdir = listdir;
     shellfs.createfile = createfile;
     shellFsInit(&shellfs, shellPathBuffer, 1024);
 
-    printf("Waiting for shell booting...\r\n");
+    (void)ECOS_LOGI("shell", "Waiting for shell startup");
     shell.read = shellRead;
     shell.write = shellWrite;
     shellSetPath(&shell,shellPathBuffer);
@@ -31,8 +30,7 @@ void load_shell(){
 #else
     Shell shell;
 
-    printf("\r\n");
-    printf("Waiting for shell booting...\r\n");
+    (void)ECOS_LOGI("shell", "Waiting for shell startup");
     shell.read = shellRead;
     shell.write = shellWrite;
     shellSetPath(&shell,shellPathBuffer);

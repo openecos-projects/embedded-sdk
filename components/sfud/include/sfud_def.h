@@ -34,8 +34,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sfud_cfg.h>
+#include "ecos/log.h"
 #include "sfud_flash_def.h"
-#include "log.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,14 +44,14 @@ extern "C" {
 /* debug print function. Must be implement by user. */
 #ifdef SFUD_DEBUG_MODE
 #ifndef SFUD_DEBUG
-#define SFUD_DEBUG(...) log_debug(__VA_ARGS__)
+#define SFUD_DEBUG(...) ((void)ECOS_LOGD("sfud", __VA_ARGS__))
 #endif /* SFUD_DEBUG */
 #else
 #define SFUD_DEBUG(...)
 #endif /* SFUD_DEBUG_MODE */
 
 #ifndef SFUD_INFO
-#define SFUD_INFO(...)  log_info(__VA_ARGS__)
+#define SFUD_INFO(...)  ((void)ECOS_LOGI("sfud", __VA_ARGS__))
 #endif
 
 /* assert for developer. */

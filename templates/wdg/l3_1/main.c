@@ -1,7 +1,7 @@
 #include "main.h"
 #include "hal_sys_uart.h"
 #include "hal_wdg.h"
-#include "log.h"
+#include "ecos/log.h"
 #include "hal_timer.h"
 #include "hal_gpio.h"
 
@@ -10,7 +10,7 @@ void delay_ms(uint32_t val) {
 }
 
 void wdg_test(){
-  log_info("[TEST_START] wdg_test");
+  ECOS_LOGI("wdg", "[TEST_START] wdg_test");
   
   hal_wdg_set_key(0x5F3759DF);
   hal_wdg_set_ctrl(0x0);
@@ -32,14 +32,14 @@ void wdg_test(){
   
   for(int i = 0; i < 3; ++i){
       while(hal_wdg_get_stat() == 0); 
-      log_info("%d wdg reset trigger", i);
+      ECOS_LOGI("wdg", "%d wdg reset trigger", i);
   }
 
   }
 
 int main() {
   hal_sys_uart_init();
-  log_init(LOG_DEBUG, NULL);
+  (void)ecos_log_set_level(ECOS_LOG_DEBUG);
   hal_sys_tick_init(0);
   wdg_test();
   while(1);

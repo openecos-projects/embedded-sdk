@@ -11,12 +11,12 @@ func_node flist[16];
 
 void __attribute__((optimize("O0"))) exec_func(uint8_t id, uint32_t param, uint8_t use_default_param){
     if(!(id >= 0 && id <= 15)){
-        log_error("The fnode id must between 0 and 15.");
+        (void)ECOS_LOGE("shell", "The fnode id must be between 0 and 15");
         return;
     }
 
     if(flist[id].func == NULL){
-        log_error("The function is NULL.");
+        (void)ECOS_LOGE("shell", "The function is NULL");
         return;
     }
     
@@ -52,22 +52,24 @@ short shellWrite(char* str, unsigned short len){
 size_t getcwd(char* dir, size_t dirLen){
     char fullpath[256];
     snprintf(fullpath, sizeof(fullpath), "0:%s%s", dir, "");
-    log_info("dir=%s\r\n",dir);
-    log_info("full=%s\r\n",fullpath);
+    (void)ECOS_LOGI("shell", "dir=%s", dir);
+    (void)ECOS_LOGI("shell", "full=%s", fullpath);
 
     FRESULT res = f_getcwd(fullpath,sizeof(fullpath));
-    if (res != FR_OK) log_fatal("f_getcwd failed: %d\r\n", res);
+    if (res != FR_OK)
+        (void)ECOS_LOGE("shell", "f_getcwd failed: %d", res);
     return res;
 }
 
 size_t chdir(char * dir){
     char fullpath[256];
     snprintf(fullpath, sizeof(fullpath), "0:%s%s", dir, "");
-    log_info("dir=%s\r\n",dir);
-    log_info("full=%s\r\n",fullpath);
+    (void)ECOS_LOGI("shell", "dir=%s", dir);
+    (void)ECOS_LOGI("shell", "full=%s", fullpath);
 
     FRESULT res = f_chdir(fullpath);
-    if (res != FR_OK) log_info("f_chdir failed: %d\r\n", res);
+    if (res != FR_OK)
+        (void)ECOS_LOGE("shell", "f_chdir failed: %d", res);
     return res;
 }
 
@@ -90,12 +92,12 @@ size_t listdir(char *dir, char *buffer, size_t maxLen){
     // 1. 打开目录
     char fullpath[256];
     snprintf(fullpath, sizeof(fullpath), "0:%s%s", dir, "");
-    log_info("dir=%s\r\n",dir);
-    log_info("full=%s\r\n",fullpath);
+    (void)ECOS_LOGI("shell", "dir=%s", dir);
+    (void)ECOS_LOGI("shell", "full=%s", fullpath);
     res = f_opendir(&dir_obj, fullpath);
     if (res != FR_OK) {
         // 打开失败，写入错误信息
-        log_fatal("f_opendir failed: %d\r\n", res);
+        (void)ECOS_LOGE("shell", "f_opendir failed: %d", res);
         return strlen(buffer);
     }
     
@@ -152,13 +154,14 @@ size_t createfile(char *dir, char *filename){
     
     char fullpath[256];
     snprintf(fullpath, sizeof(fullpath), "0:%s%s", dir, filename);
-    log_info("dir=%s\r\n",dir);
-    log_info("full=%s\r\n",fullpath);
+    (void)ECOS_LOGI("shell", "dir=%s", dir);
+    (void)ECOS_LOGI("shell", "full=%s", fullpath);
     
     // 创建文件（如果存在则截断，不存在则新建）
     res = f_open(&file, fullpath, FA_CREATE_ALWAYS);
     if (res == FR_OK) f_close(&file);
-    else log_fatal("f_open failed: %d\r\n", res);
+    else
+        (void)ECOS_LOGE("shell", "f_open failed: %d", res);
     
     return written;
 }

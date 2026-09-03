@@ -6,5 +6,7 @@ sources:
   - src/gpio.c
 include_dirs:
   - include
+dependencies:
+  - core-runtime
 private_dependencies:
   - hal-gpio

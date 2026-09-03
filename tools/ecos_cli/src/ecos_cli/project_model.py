@@ -948,7 +948,15 @@ def validate_example_source(
     root = example_root.resolve()
     inputs = _Inputs(root, context.root)
     example = _resolve_example(root, expected_name, inputs)
-    components = _resolve_components(context, example["components"], inputs)
+    component_roots = list(
+        dict.fromkeys(
+            [
+                *context.manifest.get("build", {}).get("core_components", []),
+                *example["components"],
+            ]
+        )
+    )
+    components = _resolve_components(context, component_roots, inputs)
     return {
         "example": example,
         "components": components,
@@ -1020,7 +1028,10 @@ def resolve_project(
     if not isinstance(example_name, str) or not example_name:
         raise ManifestValidationError("project Example must be a non-empty string")
     example = _resolve_example(root, example_name, inputs)
-    requested_components = list(example["components"])
+    requested_components = list(
+        context.manifest.get("build", {}).get("core_components", [])
+    )
+    requested_components.extend(example["components"])
     if board is not None:
         requested_components.extend(board["components"])
     component_roots = list(dict.fromkeys(requested_components))

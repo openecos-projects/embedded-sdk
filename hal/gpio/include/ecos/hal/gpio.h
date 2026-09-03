@@ -1,6 +1,8 @@
 #ifndef ECOS_HAL_GPIO_H
 #define ECOS_HAL_GPIO_H
 
+#include "ecos/error.h"
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -35,25 +37,19 @@ typedef struct {
     hal_gpio_function_t function;
 } hal_gpio_config_t;
 
-enum {
-    HAL_GPIO_OK = 0,
-    HAL_GPIO_ERROR_INVALID_ARGUMENT = -1,
-    HAL_GPIO_ERROR_UNSUPPORTED = -2
-};
-
-int hal_gpio_configure(hal_gpio_port_t port,
-                       uint8_t pin,
-                       const hal_gpio_config_t *config);
-int hal_gpio_set_direction(hal_gpio_port_t port,
-                           uint8_t pin,
-                           hal_gpio_direction_t direction);
-int hal_gpio_set_level(hal_gpio_port_t port,
-                       uint8_t pin,
-                       hal_gpio_level_t level);
+ecos_err_t hal_gpio_configure(hal_gpio_port_t port,
+                              uint8_t pin,
+                              const hal_gpio_config_t *config);
+ecos_err_t hal_gpio_set_direction(hal_gpio_port_t port,
+                                  uint8_t pin,
+                                  hal_gpio_direction_t direction);
+ecos_err_t hal_gpio_set_level(hal_gpio_port_t port,
+                              uint8_t pin,
+                              hal_gpio_level_t level);
 int hal_gpio_get_level(hal_gpio_port_t port, uint8_t pin);
-int hal_gpio_set_function(hal_gpio_port_t port,
-                          uint8_t pin,
-                          hal_gpio_function_t function);
+ecos_err_t hal_gpio_set_function(hal_gpio_port_t port,
+                                 uint8_t pin,
+                                 hal_gpio_function_t function);
 
 #ifdef __cplusplus
 }

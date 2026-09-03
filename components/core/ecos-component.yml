@@ -1,0 +1,10 @@
+schema: 1
+id: core-runtime
+name: ECOS Core Runtime
+cmake_target: ecos::core::runtime
+sources:
+  - src/error.c
+  - src/log.c
+  - src/log_compat.c
+include_dirs:
+  - include

@@ -17,7 +17,7 @@ static void write_uart0(void)
     static const char message[] = "raw uart0\n";
     const ecos_uart_config_t config = ECOS_UART_CONFIG_DEFAULT;
 
-    if (ecos_uart_init(ECOS_UART_PORT_0, &config) == ECOS_UART_OK)
+    if (ecos_uart_init(ECOS_UART_PORT_0, &config) == ECOS_OK)
         (void)ecos_uart_write(ECOS_UART_PORT_0, message, sizeof(message) - 1u);
 }
 ```

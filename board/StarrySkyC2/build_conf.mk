@@ -59,9 +59,23 @@ SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
 CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
 endif
 
-ifdef CONFIG_COMPONENT_TIMMOLOG
-SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/TimmoLog/src -name "*.[cS]")
-CFLAGS += -I$(ECOS_SDK_HOME)/components/TimmoLog/include
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/core/src -name "*.[cS]")
+SRC_PATH += $(ECOS_SDK_HOME)/components/core/ports/legacy_sys_uart.c
+CFLAGS += -I$(ECOS_SDK_HOME)/components/core/include
+ifneq ($(CONFIG_ECOS_LOG_LEVEL),)
+CFLAGS += -DCONFIG_ECOS_LOG_LEVEL=$(CONFIG_ECOS_LOG_LEVEL)
+endif
+ifneq ($(CONFIG_ECOS_LOG_BUFFER_SIZE),)
+CFLAGS += -DCONFIG_ECOS_LOG_BUFFER_SIZE=$(CONFIG_ECOS_LOG_BUFFER_SIZE)
+endif
+ifeq ($(CONFIG_ECOS_LOG_COLOR),y)
+CFLAGS += -DCONFIG_ECOS_LOG_COLOR=1
+endif
+ifeq ($(CONFIG_ECOS_LOG_SOURCE_LOCATION),y)
+CFLAGS += -DCONFIG_ECOS_LOG_SOURCE_LOCATION=1
+endif
+ifneq ($(CONFIG_ECOS_ERROR_DESCRIPTIONS),)
+CFLAGS += -DCONFIG_ECOS_ERROR_DESCRIPTIONS=$(CONFIG_ECOS_ERROR_DESCRIPTIONS)
 endif
 
 ifdef CONFIG_COMPONENT_SPI_SOFTWARE

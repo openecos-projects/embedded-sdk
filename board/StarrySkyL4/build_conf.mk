@@ -43,9 +43,23 @@ $(foreach subdir,$(DRIVER_SUBDIRS), \
 )
 
 # 可选的链接库列表
-ifdef CONFIG_COMPONENT_TIMMOLOG
-SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/TimmoLog/src -name "*.[cS]")
-CFLAGS += -I$(ECOS_SDK_HOME)/components/TimmoLog/include
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/core/src -name "*.[cS]")
+SDK_SRC_PATH += $(ECOS_SDK_HOME)/components/core/ports/legacy_sys_uart.c
+CFLAGS += -I$(ECOS_SDK_HOME)/components/core/include
+ifneq ($(CONFIG_ECOS_LOG_LEVEL),)
+CFLAGS += -DCONFIG_ECOS_LOG_LEVEL=$(CONFIG_ECOS_LOG_LEVEL)
+endif
+ifneq ($(CONFIG_ECOS_LOG_BUFFER_SIZE),)
+CFLAGS += -DCONFIG_ECOS_LOG_BUFFER_SIZE=$(CONFIG_ECOS_LOG_BUFFER_SIZE)
+endif
+ifeq ($(CONFIG_ECOS_LOG_COLOR),y)
+CFLAGS += -DCONFIG_ECOS_LOG_COLOR=1
+endif
+ifeq ($(CONFIG_ECOS_LOG_SOURCE_LOCATION),y)
+CFLAGS += -DCONFIG_ECOS_LOG_SOURCE_LOCATION=1
+endif
+ifneq ($(CONFIG_ECOS_ERROR_DESCRIPTIONS),)
+CFLAGS += -DCONFIG_ECOS_ERROR_DESCRIPTIONS=$(CONFIG_ECOS_ERROR_DESCRIPTIONS)
 endif
 
 ifdef CONFIG_COMPONENT_SPI_SOFTWARE

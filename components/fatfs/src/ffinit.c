@@ -1,4 +1,5 @@
 #include "ffinit.h"
+#include "ecos/log.h"
 
 FATFS fs_Flash;   //FatFs文件系统对象
 FRESULT res_Flash;//文件操作结果
@@ -18,26 +19,27 @@ bool load_filesystem(){
 
     for(uint8_t i = 0; i<=3; i++){
         if(i==3){
-            log_fatal("Exceed the maximum number of retries, exit :(\r\n");
+            (void)ECOS_LOGF("fatfs", "Exceed the maximum number of retries");
         }
 
-        printf("Mounting FileSystem... (fs_Flash=%p)\r\n", (void*)&fs_Flash);
+        (void)ECOS_LOGI("fatfs", "Mounting file system (fs_Flash=%p)",
+                        (void *)&fs_Flash);
         res_Flash = f_mount(&fs_Flash,"0:",1);
         if(res_Flash == FR_NO_FILESYSTEM){
-            log_error("Do not find a FileSystem...\n");
-            printf("Make a new FileSystem...\n");
+            (void)ECOS_LOGE("fatfs", "File system not found");
+            (void)ECOS_LOGI("fatfs", "Creating a new file system");
             res_Flash = f_mkfs("0:", &opt, work_buf, sizeof(work_buf));
             if(res_Flash == FR_MKFS_ABORTED){
-                log_fatal("Fail in making a new FileSystem, abort.\r\n");
+                (void)ECOS_LOGF("fatfs", "Failed to create a new file system");
                 isMount = false;
                 break;
             }else{
-                printf("Make a new FileSystem success, go ahead.\r\n");
+                (void)ECOS_LOGI("fatfs", "File system created");
                 continue;
             }
         }else{
             isMount = true;
-            printf("Mount FileSystem success!\r\n");
+            (void)ECOS_LOGI("fatfs", "File system mounted");
             return isMount;
         }
     }

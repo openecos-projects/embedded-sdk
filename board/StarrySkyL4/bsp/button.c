@@ -25,14 +25,10 @@ static int button_map_gpio_result(int result)
 {
     if (result >= 0)
         return result;
-    if (result == ECOS_GPIO_ERROR_INVALID_ARGUMENT)
-        return BSP_BUTTON_ERROR_INVALID_ARGUMENT;
-    if (result == ECOS_GPIO_ERROR_UNSUPPORTED)
-        return BSP_BUTTON_ERROR_UNSUPPORTED;
-    return BSP_BUTTON_ERROR_IO;
+    return ecos_err_is_known(result) ? result : ECOS_ERR_IO;
 }
 
-int bsp_button_init(void)
+ecos_err_t bsp_button_init(void)
 {
     const ecos_gpio_config_t config = {
         ECOS_GPIO_DIRECTION_INPUT,
@@ -45,11 +41,11 @@ int bsp_button_init(void)
         const button_gpio_t *gpio = &button_gpios[button];
         int result = ecos_gpio_configure(gpio->port, gpio->pin, &config);
 
-        if (result != ECOS_GPIO_OK)
+        if (result != ECOS_OK)
             return button_map_gpio_result(result);
     }
     buttons_initialized = 1u;
-    return BSP_BUTTON_OK;
+    return ECOS_OK;
 }
 
 int bsp_button_get_state(bsp_button_t button)
@@ -58,9 +54,9 @@ int bsp_button_get_state(bsp_button_t button)
     int level;
 
     if (!button_is_valid(button))
-        return BSP_BUTTON_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (buttons_initialized == 0u)
-        return BSP_BUTTON_ERROR_NOT_INITIALIZED;
+        return ECOS_ERR_NOT_INITIALIZED;
 
     gpio = &button_gpios[button];
     level = button_map_gpio_result(ecos_gpio_get_level(gpio->port, gpio->pin));

@@ -333,7 +333,11 @@ init_project_isolated() {
     cp -r "$SDK_ROOT/components/sfud" "$SystemDir"
     cp -r "$SDK_ROOT/components/fatfs" "$SystemDir"
     cp -r "$SDK_ROOT/components/letter-shell" "$SystemDir"
-    cp -r "$SDK_ROOT/components/TimmoLog" "$SystemDir"
+    mkdir -p "$SystemDir/core"
+    cp -r "$SDK_ROOT/components/core/include" "$SystemDir/core"
+    cp -r "$SDK_ROOT/components/core/src" "$SystemDir/core"
+    cp -r "$SDK_ROOT/components/core/ports" "$SystemDir/core"
+    cp "$SDK_ROOT/components/core/ecos-component.yml" "$SystemDir/core"
     cp -r "$SDK_ROOT/components/fcc" "$SystemDir"
     cp -r "$SDK_ROOT/components/text_editor" "$SystemDir"
 

@@ -5,4 +5,5 @@ sources:
 components:
   - driver-timer
 requires:
+  - console
   - led

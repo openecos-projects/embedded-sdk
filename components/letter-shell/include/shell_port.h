@@ -2,7 +2,7 @@
 #define __SHELL_PORT_H__
 
 #include "stdio.h"
-#include "log.h"
+#include "ecos/log.h"
 #include "stdint.h"
 #include "string.h"
 #include "generated/autoconf.h"

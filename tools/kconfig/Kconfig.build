@@ -8,9 +8,33 @@ menu "Build Configuration"
             bool "link libgcc"
             default y
 
-        config COMPONENT_TIMMOLOG
-            bool "TimmoLog Support"
-            default y
+        menu "Core Runtime"
+            config ECOS_LOG_LEVEL
+                int "Minimum compiled log level"
+                range 0 5
+                default 1
+                help
+                    0=Debug, 1=Info, 2=Warn, 3=Error, 4=Fatal, 5=Off.
+
+            config ECOS_LOG_BUFFER_SIZE
+                int "Log formatting buffer size"
+                range 64 1024
+                default 256
+
+            config ECOS_LOG_COLOR
+                bool "Enable ANSI log colors"
+                default n
+
+            config ECOS_LOG_SOURCE_LOCATION
+                bool "Include source location in logs"
+                default y if BUILD_DEBUG
+                default n
+
+            config ECOS_ERROR_DESCRIPTIONS
+                int "Include error descriptions"
+                range 0 1
+                default 1
+        endmenu
 
         config COMPONENT_SPI_SOFTWARE
             bool "Spi Software Support"

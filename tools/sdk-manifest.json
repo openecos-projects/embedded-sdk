@@ -18,6 +18,11 @@
     "templates": "templates",
     "cli": "tools/ecos_cli/src"
   },
+  "build": {
+    "core_components": [
+      "core-runtime"
+    ]
+  },
   "toolchain": {
     "id": "xpack-riscv-none-elf-gcc",
     "release": "15.2.0-1"

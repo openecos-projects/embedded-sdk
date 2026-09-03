@@ -16,6 +16,7 @@ SDK_VERSION_PATTERN = re.compile(
     r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
     r"(?:[-+][0-9A-Za-z.-]+)?$"
 )
+COMPONENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REQUIRED_LAYOUT = {
     "boards",
     "components",
@@ -111,6 +112,30 @@ def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
     manifest["layout"] = {
         name: _validate_relative_path(name, value) for name, value in layout.items()
     }
+    build = manifest.get("build", {})
+    if not isinstance(build, dict):
+        raise SdkManifestError("SDK manifest build must be an object")
+    unknown_build_keys = sorted(set(build).difference({"core_components"}))
+    if unknown_build_keys:
+        raise SdkManifestError(
+            "SDK manifest build contains unsupported fields: "
+            + ", ".join(unknown_build_keys)
+        )
+    core_components = build.get("core_components", [])
+    if not isinstance(core_components, list) or not all(
+        isinstance(item, str)
+        and COMPONENT_ID_PATTERN.fullmatch(item)
+        and item not in {".", ".."}
+        for item in core_components
+    ):
+        raise SdkManifestError(
+            "SDK manifest build.core_components must be a component ID list"
+        )
+    if len(core_components) != len(set(core_components)):
+        raise SdkManifestError(
+            "SDK manifest build.core_components contains duplicate values"
+        )
+    manifest["build"] = {"core_components": list(core_components)}
     toolchain = manifest["toolchain"]
     if not isinstance(toolchain, dict) or not all(
         isinstance(toolchain.get(field), str) and toolchain[field]

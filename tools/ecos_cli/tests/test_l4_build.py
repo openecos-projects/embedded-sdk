@@ -101,11 +101,23 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "components/soc/ysyx-2512/hal/timer/timer.c").resolve(),
                 compiled_sources,
             )
+            self.assertIn(
+                (SDK_ROOT / "components/core/src/error.c").resolve(),
+                compiled_sources,
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/core/src/log.c").resolve(),
+                compiled_sources,
+            )
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
             for symbol in (
                 "<main>",
+                "<bsp_console_init>",
                 "<bsp_led_init>",
                 "<bsp_led_set_state>",
+                "<ecos_log_set_writer>",
+                "<ecos_log_write>",
+                "<ecos_log_error>",
                 "<ecos_gpio_configure>",
                 "<ecos_gpio_set_level>",
                 "<ecos_timer_get_instance_count>",
@@ -178,8 +190,24 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "board/StarrySkyL4/bsp/led.c").resolve(),
                 compiled_sources,
             )
+            self.assertIn(
+                (SDK_ROOT / "components/core/src/error.c").resolve(),
+                compiled_sources,
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/core/src/log.c").resolve(),
+                compiled_sources,
+            )
             text = disassembly.read_text(encoding="utf-8")
-            for symbol in ("<_start>", "<main>", "<hal_uart_init>"):
+            for symbol in (
+                "<_start>",
+                "<main>",
+                "<bsp_console_init>",
+                "<ecos_log_set_writer>",
+                "<ecos_log_write>",
+                "<ecos_result_succeeded>",
+                "<hal_uart_init>",
+            ):
                 self.assertIn(symbol, text)
 
 

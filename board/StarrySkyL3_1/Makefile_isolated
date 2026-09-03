@@ -65,6 +65,21 @@ CFLAGS += -I./configs
 CFLAGS += $(addprefix -I,$(shell find $(INCLUDE_DIRS) -type d))
 CFLAGS += $(addprefix -I,$(shell find User -type d))
 CFLAGS += $(addprefix -I,$(shell find Startup -type d))
+ifneq ($(CONFIG_ECOS_LOG_LEVEL),)
+CFLAGS += -DCONFIG_ECOS_LOG_LEVEL=$(CONFIG_ECOS_LOG_LEVEL)
+endif
+ifneq ($(CONFIG_ECOS_LOG_BUFFER_SIZE),)
+CFLAGS += -DCONFIG_ECOS_LOG_BUFFER_SIZE=$(CONFIG_ECOS_LOG_BUFFER_SIZE)
+endif
+ifeq ($(CONFIG_ECOS_LOG_COLOR),y)
+CFLAGS += -DCONFIG_ECOS_LOG_COLOR=1
+endif
+ifeq ($(CONFIG_ECOS_LOG_SOURCE_LOCATION),y)
+CFLAGS += -DCONFIG_ECOS_LOG_SOURCE_LOCATION=1
+endif
+ifneq ($(CONFIG_ECOS_ERROR_DESCRIPTIONS),)
+CFLAGS += -DCONFIG_ECOS_ERROR_DESCRIPTIONS=$(CONFIG_ECOS_ERROR_DESCRIPTIONS)
+endif
 		
 # 链接脚本路径
 FIRMWARE_LDS_PATH := $(shell find Startup -type f -name "sections.lds")

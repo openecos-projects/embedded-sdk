@@ -1,6 +1,8 @@
 #ifndef ECOS_HAL_TIMER_H
 #define ECOS_HAL_TIMER_H
 
+#include "ecos/error.h"
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -13,27 +15,21 @@ typedef struct {
     uint32_t period_ticks;
 } hal_timer_config_t;
 
-enum {
-    HAL_TIMER_OK = 0,
-    HAL_TIMER_ERROR_INVALID_ARGUMENT = -1,
-    HAL_TIMER_ERROR_UNSUPPORTED = -2,
-    HAL_TIMER_ERROR_NOT_INITIALIZED = -3
-};
-
 /* Timer 周期使用一微秒计数单位；部分 Target 不支持读取当前计数值。 */
 int hal_timer_get_instance_count(void);
-int hal_timer_init(hal_timer_id_t timer, const hal_timer_config_t *config);
-int hal_timer_deinit(hal_timer_id_t timer);
-int hal_timer_start(hal_timer_id_t timer);
-int hal_timer_stop(hal_timer_id_t timer);
-/* 未接出计数值的 Target 返回 HAL_TIMER_ERROR_UNSUPPORTED。 */
-int hal_timer_get_count(hal_timer_id_t timer, uint32_t *count);
+ecos_err_t hal_timer_init(hal_timer_id_t timer,
+                          const hal_timer_config_t *config);
+ecos_err_t hal_timer_deinit(hal_timer_id_t timer);
+ecos_err_t hal_timer_start(hal_timer_id_t timer);
+ecos_err_t hal_timer_stop(hal_timer_id_t timer);
+/* 未接出计数值的 Target 返回 ECOS_ERR_UNSUPPORTED。 */
+ecos_err_t hal_timer_get_count(hal_timer_id_t timer, uint32_t *count);
 
 /* 到期返回 1，未到期返回 0，失败返回负错误码。 */
 int hal_timer_is_expired(hal_timer_id_t timer);
 
 /* 单次轮询延时，返回前停止并释放所选 Timer。 */
-int hal_timer_delay_us(hal_timer_id_t timer, uint32_t duration_us);
+ecos_err_t hal_timer_delay_us(hal_timer_id_t timer, uint32_t duration_us);
 
 #ifdef __cplusplus
 }

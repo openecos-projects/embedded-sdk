@@ -12,6 +12,7 @@
 
 /* Example: Declarations of the platform and disk functions in the project */
 #include "sfud.h"
+#include "ecos/log.h"
 
 /* Example: Mapping of physical drive number for each drive */
 #define DEV_FLASH	0	/* Map FTL to physical drive 0 */
@@ -26,7 +27,7 @@ DSTATUS disk_status (
 )
 {
 	DSTATUS status = STA_NOINIT;
-    log_debug("[FATFS]EnterStatus, waiting...\r\n");
+    (void)ECOS_LOGD("fatfs", "EnterStatus, waiting...");
 	switch (pdrv) {
         case DEV_FLASH:
             if (flash != NULL && flash->init_ok) {
@@ -38,7 +39,7 @@ DSTATUS disk_status (
             }
             break;
 	}
-    log_debug("[FATFS]ExitStatus, return:%x\r\n",status);
+    (void)ECOS_LOGD("fatfs", "ExitStatus, return:%x", (unsigned)status);
 	return status;
 }
 
@@ -53,7 +54,7 @@ DSTATUS disk_initialize (
 )
 {
 	DSTATUS status = STA_NOINIT;
-    log_debug("[FATFS]EnterInit, waiting...\r\n");
+    (void)ECOS_LOGD("fatfs", "EnterInit, waiting...");
 
 	switch (pdrv) {
         case DEV_FLASH:
@@ -67,7 +68,7 @@ DSTATUS disk_initialize (
             }
 		    break;
 	}
-    log_debug("[FATFS]ExitInit, return:%x\r\n",status);
+    (void)ECOS_LOGD("fatfs", "ExitInit, return:%x", (unsigned)status);
 	return status;
 }
 
@@ -85,7 +86,7 @@ DRESULT disk_read (
 )
 {
 	DRESULT status = RES_PARERR;
-    log_debug("[FATFS]EnterRead, waiting...\r\n");
+    (void)ECOS_LOGD("fatfs", "EnterRead, waiting...");
     // sector += 512; // 2MB之后的第一块作为第一个扇区
     uint32_t addr = sector << 12;
     size_t size = count << 12;
@@ -97,7 +98,7 @@ DRESULT disk_read (
             else status = RES_ERROR;
 		    break;
 	}
-    log_debug("[FATFS]ExitRead, return:%x\r\n",status);
+    (void)ECOS_LOGD("fatfs", "ExitRead, return:%x", (unsigned)status);
 	return status;
 }
 
@@ -117,7 +118,7 @@ DRESULT disk_write (
 )
 {
 	DRESULT status = RES_PARERR;
-    log_debug("[FATFS]EnterWrite, waiting...\r\n");
+    (void)ECOS_LOGD("fatfs", "EnterWrite, waiting...");
 
     uint32_t addr = sector << 12;
     size_t size = count << 12;
@@ -128,7 +129,7 @@ DRESULT disk_write (
             else status = RES_ERROR;
 		    break;
 	}
-    log_debug("[FATFS]ExitWrite, return:%x\r\n",status);
+    (void)ECOS_LOGD("fatfs", "ExitWrite, return:%x", (unsigned)status);
 	return status;
 }
 

@@ -20,6 +20,7 @@
 
 
 #include <string.h>
+#include "ecos/log.h"
 #include "ff.h"			/* Basic definitions and declarations of API */
 #include "diskio.h"		/* Declarations of MAI */
 #include "stdio.h"
@@ -531,7 +532,7 @@ static WCHAR LfnBuf[FF_MAX_LFN + 1];		/* LFN working buffer */
     do {                                                                                        \
         FRESULT _res = (res);                                                                   \
         if (_res == FR_MKFS_ABORTED) {                                                          \
-            log_error("FR_MKFS_ABORTED at %s:%d\n", __FILE__, __LINE__);                           \
+            (void)ECOS_LOGE("fatfs", "FR_MKFS_ABORTED at %s:%d", __FILE__, __LINE__);            \
         }                                                                                       \
         return _res;                                                                            \
     } while(0)
@@ -7255,4 +7256,3 @@ FRESULT f_setcp (
 	return FR_OK;
 }
 #endif	/* FF_CODE_PAGE == 0 */
-

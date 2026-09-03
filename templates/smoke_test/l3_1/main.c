@@ -16,17 +16,17 @@
 #include "pcf8563.h"
 // #include "logo.h"
 #include <stdio.h>
-#include "log.h"
+#include "ecos/log.h"
 
 void delay_ms(uint32_t val) {
     hal_delay_ms(0, val);
 }
 
 void archinfo_test(){
-  log_info("[TEST_START] archinfo_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] archinfo_test");
   
   hal_archinfo_info();
-  log_info("write regs");
+  ECOS_LOGI("smoke_test", "write regs");
   hal_archinfo_set_sys(0x4004);
   hal_archinfo_set_idl(0x5F3E);
   hal_archinfo_set_idh(0x6E2);
@@ -35,7 +35,7 @@ void archinfo_test(){
   }
 
 void crc_test(){
-  log_info("[TEST_START] crc_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] crc_test");
   
   hal_crc_set_ctrl(0);
   hal_crc_set_init(0xFFFF);
@@ -45,13 +45,13 @@ void crc_test(){
   for(int i = 0; i < 10; ++i) { // Shortened to 10 for quick test
     hal_crc_set_data(val + i);
     // Add dummy delay/wait for STAT if applicable
-    log_info("i: %d CRC: %x", i, hal_crc_get_val());
+    ECOS_LOGI("smoke_test", "i: %d CRC: %x", i, hal_crc_get_val());
   }
 
   }
 
 void gpio_led_test(){
-  log_info("[TEST_START] gpio_led_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] gpio_led_test");
     
   // Using GPIO0 Pin 26, 27 as output for LED
   gpio_hal_output_enable(0, 26);
@@ -69,7 +69,7 @@ void gpio_led_test(){
   }
 
 void i2c_pcf8563_test(){
-  log_info("[TEST_START] i2c_pcf8563_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] i2c_pcf8563_test");
   
   gpio_hal_set_fcfg(0, 29, 1);
   gpio_hal_set_fcfg(0, 30, 1);
@@ -95,8 +95,8 @@ void i2c_pcf8563_test(){
                                 .date.year = 25};
   pcf8563_write_info(&rtc_dev, &init1_info);
 
-  log_info("Write 2025 05 15 wednesday 14:33:00 into PCF8563B done");
-  log_info("read from PCF8563B");
+  ECOS_LOGI("smoke_test", "Write 2025 05 15 wednesday 14:33:00 into PCF8563B done");
+  ECOS_LOGI("smoke_test", "read from PCF8563B");
 
   pcf8563_info_t rd_info = {0};
 
@@ -118,8 +118,8 @@ void i2c_pcf8563_test(){
 
   pcf8563_write_info(&rtc_dev, &init2_info);
 
-  log_info("Write 2025 05 22 wednesday 14:05:20 into PCF8563B done");
-  log_info("read from PCF8563B");
+  ECOS_LOGI("smoke_test", "Write 2025 05 22 wednesday 14:05:20 into PCF8563B done");
+  ECOS_LOGI("smoke_test", "read from PCF8563B");
 
   for (int i = 0; i < 3; ++i) {
     rd_info = pcf8563_read_info(&rtc_dev);
@@ -132,8 +132,8 @@ void i2c_pcf8563_test(){
   }
 
 void ps2_test(){
-  log_info("[TEST_START] ps2_test");
-    log_info("ESC to exit");
+  ECOS_LOGI("smoke_test", "[TEST_START] ps2_test");
+    ECOS_LOGI("smoke_test", "ESC to exit");
   
   gpio_hal_set_fcfg(1, 12, 1);
   gpio_hal_set_fcfg(1, 13, 1);
@@ -145,7 +145,7 @@ void ps2_test(){
   while (1) {
     kdb_code = hal_ps2_get_data();
     if (kdb_code != 0) {
-      log_info("[%d] dat: %x", i++, kdb_code);
+      ECOS_LOGI("smoke_test", "[%d] dat: %x", i++, (unsigned)kdb_code);
     }
     if (kdb_code == 0x76) {
       break;
@@ -154,7 +154,7 @@ void ps2_test(){
   }
 
 void pwm_led_test(){
-  log_info("[TEST_START] pwm_led_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] pwm_led_test");
   
   gpio_hal_set_fcfg(0, 26, 1);
   gpio_hal_set_fcfg(0, 27, 1);
@@ -183,28 +183,28 @@ void pwm_led_test(){
   }
 
 void rcu_test(){
-  log_info("[TEST_START] rcu_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] rcu_test");
     hal_rcu_set_ctrl(0b1011);
   hal_rcu_set_rdiv(256 - 1);
-  log_info("STAT: %d", hal_rcu_get_stat());
+  ECOS_LOGI("smoke_test", "STAT: %d", hal_rcu_get_stat());
   }
 
 void rng_test(){
-  log_info("[TEST_START] rng_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] rng_test");
     hal_rng_set_ctrl(1);
   hal_rng_set_seed(0xFE1C);
   for(int i = 0; i < 5; ++i) {
-      log_info("[normal]random val: %x", hal_rng_get_val());
+      ECOS_LOGI("smoke_test", "[normal]random val: %x", hal_rng_get_val());
   }
-  log_info("reset the seed");
+  ECOS_LOGI("smoke_test", "reset the seed");
   hal_rng_set_seed(0);
   for(int i = 0; i < 3; ++i) {
-      log_info("[reset]zero val: %x", hal_rng_get_val());
+      ECOS_LOGI("smoke_test", "[reset]zero val: %x", hal_rng_get_val());
   }
   }
 
 void rtc_test(){
-  log_info("[TEST_START] rtc_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] rtc_test");
   
   hal_rtc_set_ctrl(1);
   hal_rtc_set_prescale(48); 
@@ -212,39 +212,39 @@ void rtc_test(){
   for(uint32_t i = 0; i < 3; ++i) {
     hal_rtc_set_cnt(123 * i);
     hal_rtc_set_alrm(hal_rtc_get_cnt() + 10);
-    log_info("[static]CNT: %d", hal_rtc_get_cnt());
+    ECOS_LOGI("smoke_test", "[static]CNT: %d", hal_rtc_get_cnt());
   }
   hal_rtc_set_cnt(0);
   hal_rtc_set_ctrl(0b0010010); // core and inc trg en
   
-  log_info("cnt inc test");
+  ECOS_LOGI("smoke_test", "cnt inc test");
   for(int i = 0; i < 3; ++i) {
     while(hal_rtc_get_ista() != 1); 
-    log_info("RTC_REG_CNT: %d", hal_rtc_get_cnt());
+    ECOS_LOGI("smoke_test", "RTC_REG_CNT: %d", hal_rtc_get_cnt());
   }
-  log_info("cnt inc test done");
+  ECOS_LOGI("smoke_test", "cnt inc test done");
 
   }
 
 void timer_test(){
-  log_info("[TEST_START] timer_test");
-  log_info("==============================================");
-  log_info("              timer test                      "); 
-  log_info("==============================================");
+  ECOS_LOGI("smoke_test", "[TEST_START] timer_test");
+  ECOS_LOGI("smoke_test", "==============================================");
+  ECOS_LOGI("smoke_test", "              timer test                      ");
+  ECOS_LOGI("smoke_test", "==============================================");
 
   hal_sys_tick_init(0);
   
-  log_info("no div test start");
+  ECOS_LOGI("smoke_test", "no div test start");
   for (int i = 1; i <= 3; ++i) {
     hal_delay_ms(0, 1000);
-    log_info("delay 1s");
+    ECOS_LOGI("smoke_test", "delay 1s");
   }
-  log_info("no div test done");
+  ECOS_LOGI("smoke_test", "no div test done");
 
   }
 
 void wdg_test(){
-  log_info("[TEST_START] wdg_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] wdg_test");
   
   hal_wdg_set_key(0x5F3759DF);
   hal_wdg_set_ctrl(0x0);
@@ -266,7 +266,7 @@ void wdg_test(){
   
   for(int i = 0; i < 3; ++i){
       while(hal_wdg_get_stat() == 0); 
-      log_info("%d wdg reset trigger", i);
+      ECOS_LOGI("smoke_test", "%d wdg reset trigger", i);
   }
 
   }
@@ -288,7 +288,7 @@ st7735_device_t tft_dev = {
 };
 
 void spi_tft_init() {
-  log_info("GPIO INIT:");
+  ECOS_LOGI("smoke_test", "GPIO INIT:");
   gpio_hal_set_fcfg(1, 0, 1);
   gpio_hal_set_fcfg(1, 1, 1);
   gpio_hal_set_fcfg(1, 2, 1);
@@ -303,17 +303,17 @@ void spi_tft_init() {
   gpio_hal_set_mux(1, 4, 0);
   gpio_hal_set_mux(1, 5, 0);
   
-  log_info("GPIO INIT DONE");
+  ECOS_LOGI("smoke_test", "GPIO INIT DONE");
   
   hal_qspi_config_t qspi_config = { .clkdiv = 4 };
   hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
   
-  log_info("tft init begin");
+  ECOS_LOGI("smoke_test", "tft init begin");
   st7735_init(&tft_dev);
 }
 
 void st7735_test(){
-  log_info("[TEST_START] st7735_test");
+  ECOS_LOGI("smoke_test", "[TEST_START] st7735_test");
   
   spi_tft_init();
   
@@ -338,8 +338,8 @@ void st7735_test(){
 
 int main() {
   hal_sys_uart_init();
-  log_init(LOG_DEBUG, NULL);
-  log_info("[SYSTEM] StarrySkyL3_1 Smoke Test Start");
+  (void)ecos_log_set_level(ECOS_LOG_DEBUG);
+  ECOS_LOGI("smoke_test", "[SYSTEM] StarrySkyL3_1 Smoke Test Start");
 
   hal_sys_tick_init(0);
 
@@ -354,12 +354,12 @@ int main() {
   i2c_pcf8563_test();
   st7735_test();
   
-  log_warn("[SKIP] PS2 test skipped to prevent blocking.");
-  log_warn("[SKIP] WDG test skipped to prevent system reset.");
+  ECOS_LOGW("smoke_test", "[SKIP] PS2 test skipped to prevent blocking.");
+  ECOS_LOGW("smoke_test", "[SKIP] WDG test skipped to prevent system reset.");
 
   // ps2_test();
   // wdg_test();
 
-  log_info("[SYSTEM] All tests completed successfully");
+  ECOS_LOGI("smoke_test", "[SYSTEM] All tests completed successfully");
   return 0;
 }

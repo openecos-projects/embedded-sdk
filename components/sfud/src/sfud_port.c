@@ -26,14 +26,8 @@
  */
 
 #include <sfud.h>
-#include <stdarg.h>
 #include "hal_qspi.h"
 #include "hal_timer.h"
-#include "log.h"
-
-static char log_buf[256];
-
-void sfud_log_debug(const char *file, const long line, const char *format, ...);
 
 /* ================================================================
  *  spi_write_read — SFUD 核心 SPI 传输函数

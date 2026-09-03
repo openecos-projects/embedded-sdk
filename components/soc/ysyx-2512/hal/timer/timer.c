@@ -31,7 +31,7 @@ static int timer_get_registers(hal_timer_id_t timer,
                                timer_registers_t *registers)
 {
     if (registers == NULL)
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     switch (timer) {
     case 0u:
@@ -59,9 +59,9 @@ static int timer_get_registers(hal_timer_id_t timer,
         registers->status = &REG_TIMER_3_STAT;
         break;
     default:
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     }
-    return HAL_TIMER_OK;
+    return ECOS_OK;
 }
 
 static void timer_stop_and_clear(const timer_registers_t *registers)
@@ -77,84 +77,85 @@ int hal_timer_get_instance_count(void)
     return (int)YSYX_2512_TIMER_COUNT;
 }
 
-int hal_timer_init(hal_timer_id_t timer, const hal_timer_config_t *config)
+ecos_err_t hal_timer_init(hal_timer_id_t timer,
+                          const hal_timer_config_t *config)
 {
     timer_registers_t registers;
     int result;
 
     if (!timer_id_is_valid(timer) || config == NULL ||
         config->period_ticks == 0u || CONFIG_TIMER_FREQ_MHZ == 0u)
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
 
     timer_stop_and_clear(&registers);
     *registers.prescaler = (uint32_t)CONFIG_TIMER_FREQ_MHZ - 1u;
     *registers.compare = config->period_ticks - 1u;
     timer_initialized[timer] = 1u;
-    return HAL_TIMER_OK;
+    return ECOS_OK;
 }
 
-int hal_timer_deinit(hal_timer_id_t timer)
+ecos_err_t hal_timer_deinit(hal_timer_id_t timer)
 {
     timer_registers_t registers;
     int result;
 
     if (!timer_id_is_valid(timer))
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
     timer_stop_and_clear(&registers);
     *registers.prescaler = 0u;
     *registers.compare = 0u;
     timer_initialized[timer] = 0u;
-    return HAL_TIMER_OK;
+    return ECOS_OK;
 }
 
-int hal_timer_start(hal_timer_id_t timer)
+ecos_err_t hal_timer_start(hal_timer_id_t timer)
 {
     timer_registers_t registers;
     int result;
 
     if (!timer_id_is_valid(timer))
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (timer_initialized[timer] == 0u)
-        return HAL_TIMER_ERROR_NOT_INITIALIZED;
+        return ECOS_ERR_NOT_INITIALIZED;
 
     result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
     timer_stop_and_clear(&registers);
     *registers.control = TIMER_CONTROL_START;
-    return HAL_TIMER_OK;
+    return ECOS_OK;
 }
 
-int hal_timer_stop(hal_timer_id_t timer)
+ecos_err_t hal_timer_stop(hal_timer_id_t timer)
 {
     timer_registers_t registers;
     int result;
 
     if (!timer_id_is_valid(timer))
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (timer_initialized[timer] == 0u)
-        return HAL_TIMER_ERROR_NOT_INITIALIZED;
+        return ECOS_ERR_NOT_INITIALIZED;
 
     result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
     timer_stop_and_clear(&registers);
-    return HAL_TIMER_OK;
+    return ECOS_OK;
 }
 
-int hal_timer_get_count(hal_timer_id_t timer, uint32_t *count)
+ecos_err_t hal_timer_get_count(hal_timer_id_t timer, uint32_t *count)
 {
     if (!timer_id_is_valid(timer) || count == NULL)
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
-    return HAL_TIMER_ERROR_UNSUPPORTED;
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return ECOS_ERR_UNSUPPORTED;
 }
 
 int hal_timer_is_expired(hal_timer_id_t timer)
@@ -163,29 +164,29 @@ int hal_timer_is_expired(hal_timer_id_t timer)
     int result;
 
     if (!timer_id_is_valid(timer))
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (timer_initialized[timer] == 0u)
-        return HAL_TIMER_ERROR_NOT_INITIALIZED;
+        return ECOS_ERR_NOT_INITIALIZED;
 
     result = timer_get_registers(timer, &registers);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
     return *registers.status != 0u ? 1 : 0;
 }
 
-int hal_timer_delay_us(hal_timer_id_t timer, uint32_t duration_us)
+ecos_err_t hal_timer_delay_us(hal_timer_id_t timer, uint32_t duration_us)
 {
     const hal_timer_config_t config = { duration_us };
     int result;
 
     if (!timer_id_is_valid(timer) || duration_us == 0u)
-        return HAL_TIMER_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     result = hal_timer_init(timer, &config);
-    if (result != HAL_TIMER_OK)
+    if (result != ECOS_OK)
         return result;
     result = hal_timer_start(timer);
-    if (result != HAL_TIMER_OK) {
+    if (result != ECOS_OK) {
         (void)hal_timer_deinit(timer);
         return result;
     }
@@ -202,7 +203,7 @@ int hal_timer_delay_us(hal_timer_id_t timer, uint32_t duration_us)
 /* SDK 2.x 兼容包装，供现有 L4 模板和 Device Driver 使用。 */
 uint8_t hal_delay_us(uint8_t timer_id, uint32_t value)
 {
-    return hal_timer_delay_us((hal_timer_id_t)timer_id, value) == HAL_TIMER_OK ?
+    return hal_timer_delay_us((hal_timer_id_t)timer_id, value) == ECOS_OK ?
            0u : 1u;
 }
 
@@ -220,7 +221,7 @@ uint8_t hal_delay_ms(uint8_t timer_id, uint32_t value)
             current = TIMER_MAX_DELAY_MS;
         if (hal_timer_delay_us(timer,
                                (current << 10) - (current << 4) -
-                               (current << 3)) != HAL_TIMER_OK)
+                               (current << 3)) != ECOS_OK)
             return 1u;
         value -= current;
     }
@@ -242,23 +243,23 @@ uint8_t hal_sys_tick_init(uint8_t timer_id)
     const hal_timer_config_t config = { UINT32_MAX };
     hal_timer_id_t timer = (hal_timer_id_t)timer_id;
 
-    if (hal_timer_init(timer, &config) != HAL_TIMER_OK)
+    if (hal_timer_init(timer, &config) != ECOS_OK)
         return 1u;
-    return hal_timer_start(timer) == HAL_TIMER_OK ? 0u : 1u;
+    return hal_timer_start(timer) == ECOS_OK ? 0u : 1u;
 }
 
 uint32_t hal_get_sys_tick(uint8_t timer_id)
 {
     uint32_t count;
 
-    if (hal_timer_get_count((hal_timer_id_t)timer_id, &count) != HAL_TIMER_OK)
+    if (hal_timer_get_count((hal_timer_id_t)timer_id, &count) != ECOS_OK)
         return 0u;
     return count;
 }
 
 int hal_timer_clear_interrupt(uint8_t timer_id)
 {
-    return hal_timer_stop((hal_timer_id_t)timer_id) == HAL_TIMER_OK ? 0 : -1;
+    return hal_timer_stop((hal_timer_id_t)timer_id) == ECOS_OK ? 0 : -1;
 }
 
 int hal_timer_register_callback(uint8_t timer_id,
@@ -270,13 +271,13 @@ int hal_timer_register_callback(uint8_t timer_id,
     (void)callback;
     (void)arg;
     (void)priority;
-    return HAL_TIMER_ERROR_UNSUPPORTED;
+    return ECOS_ERR_UNSUPPORTED;
 }
 
 int hal_timer_unregister_callback(uint8_t timer_id)
 {
     (void)timer_id;
-    return HAL_TIMER_ERROR_UNSUPPORTED;
+    return ECOS_ERR_UNSUPPORTED;
 }
 
 __attribute__((weak)) void delay_ms(uint32_t value)

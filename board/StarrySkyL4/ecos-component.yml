@@ -8,6 +8,8 @@ sources:
   - bsp/led.c
 include_dirs:
   - ../include
+dependencies:
+  - core-runtime
 private_dependencies:
   - driver-gpio
   - driver-uart

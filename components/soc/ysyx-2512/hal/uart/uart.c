@@ -24,19 +24,20 @@ static int uart_config_is_supported(const hal_uart_config_t *config)
            config->parity == HAL_UART_PARITY_NONE;
 }
 
-int hal_uart_init(hal_uart_port_t port, const hal_uart_config_t *config)
+ecos_err_t hal_uart_init(hal_uart_port_t port,
+                         const hal_uart_config_t *config)
 {
     if (!uart_port_is_valid(port) || config == NULL)
-        return HAL_UART_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if (!uart_config_is_supported(config))
-        return HAL_UART_ERROR_UNSUPPORTED;
+        return ECOS_ERR_UNSUPPORTED;
 
     REG_UART_0_LC = UART_LCR_DLAB;
     REG_UART_0_TH = UART0_DIVISOR;
     REG_UART_0_IE = 0u;
     REG_UART_0_LC = UART_LCR_8N1;
     REG_UART_0_IE = 0u;
-    return HAL_UART_OK;
+    return ECOS_OK;
 }
 
 int hal_uart_write(hal_uart_port_t port, const uint8_t *data, size_t size)
@@ -44,7 +45,7 @@ int hal_uart_write(hal_uart_port_t port, const uint8_t *data, size_t size)
     size_t index;
 
     if (!uart_port_is_valid(port) || (data == NULL && size != 0u) || size > INT_MAX)
-        return HAL_UART_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     for (index = 0u; index < size; ++index) {
         while ((REG_UART_0_LS & UART_LSR_THR_EMPTY) == 0u)
@@ -59,7 +60,7 @@ int hal_uart_read(hal_uart_port_t port, uint8_t *data, size_t size)
     size_t index;
 
     if (!uart_port_is_valid(port) || (data == NULL && size != 0u) || size > INT_MAX)
-        return HAL_UART_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     for (index = 0u; index < size; ++index) {
         while ((REG_UART_0_LS & UART_LSR_DATA_READY) == 0u)
@@ -72,7 +73,7 @@ int hal_uart_read(hal_uart_port_t port, uint8_t *data, size_t size)
 int hal_uart_try_read(hal_uart_port_t port, uint8_t *data)
 {
     if (!uart_port_is_valid(port) || data == NULL)
-        return HAL_UART_ERROR_INVALID_ARGUMENT;
+        return ECOS_ERR_INVALID_ARGUMENT;
     if ((REG_UART_0_LS & UART_LSR_DATA_READY) == 0u)
         return 0;
 

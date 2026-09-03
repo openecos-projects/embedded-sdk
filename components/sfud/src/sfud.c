@@ -74,10 +74,6 @@ static sfud_err set_write_enabled(const sfud_flash *flash, bool enabled);
 static sfud_err set_4_byte_address_mode(sfud_flash *flash, bool enabled);
 static void make_adress_byte_array(const sfud_flash *flash, uint32_t addr, uint8_t *array);
 
-/* ../port/sfup_port.c */
-extern void sfud_log_debug(const char *file, const long line, const char *format, ...);
-extern void sfud_log_info(const char *format, ...);
-
 /**
  * SFUD initialize by flash device
  *

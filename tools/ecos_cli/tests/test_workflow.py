@@ -368,6 +368,66 @@ class ConfigurationWorkflowTest(unittest.TestCase):
             )
             self.assertEqual(resolved["requirements"]["requested"], ["console"])
 
+    def test_sdk_core_components_are_implicit_project_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            sdk_manifest = sdk / "tools" / "sdk-manifest.json"
+            manifest = json.loads(sdk_manifest.read_text(encoding="utf-8"))
+            manifest["build"] = {"core_components": ["core-runtime"]}
+            sdk_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+            core = sdk / "components" / "core"
+            core.mkdir()
+            (core / "core.c").write_text(
+                "void ecos_core(void) {}\n", encoding="utf-8"
+            )
+            (core / "ecos-component.yml").write_text(
+                "schema: 1\n"
+                "id: core-runtime\n"
+                "sources:\n"
+                "  - core.c\n",
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            resolved = configuration.configure_project(
+                sdk_context(sdk), project_root=project
+            ).resolved
+
+            self.assertEqual(resolved["component_roots"], ["core-runtime"])
+            self.assertEqual(
+                [item["id"] for item in resolved["components"]],
+                ["core-runtime"],
+            )
+
+            target_workspace = root / "target-workspace"
+            target_workspace.mkdir()
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(sdk),
+                        "project",
+                        "create",
+                        "hello_world",
+                        "--path",
+                        str(target_workspace),
+                        "--target",
+                        "ysyx-2512",
+                    ]
+                )
+            self.assertEqual(create_result, ExitCode.OK)
+            target_resolved = configuration.configure_project(
+                sdk_context(sdk),
+                project_root=target_workspace / "hello_world",
+            ).resolved
+            self.assertIsNone(target_resolved["project"]["board"])
+            self.assertEqual(
+                target_resolved["component_roots"], ["core-runtime"]
+            )
+
     def test_board_selects_bsp_with_private_driver_and_hal_dependencies(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

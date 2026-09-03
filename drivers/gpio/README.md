@@ -20,7 +20,7 @@ static int set_gpio0_high(void)
     };
     int result = ecos_gpio_configure(ECOS_GPIO_PORT_0, 0u, &config);
 
-    if (result != ECOS_GPIO_OK)
+    if (result != ECOS_OK)
         return result;
     return ecos_gpio_set_level(
         ECOS_GPIO_PORT_0, 0u, ECOS_GPIO_LEVEL_HIGH
