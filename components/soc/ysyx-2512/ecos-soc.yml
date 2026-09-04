@@ -31,6 +31,8 @@ build:
   capability_sources:
     gpio:
       - hal/gpio/gpio.c
+    pwm:
+      - hal/pwm/pwm.c
     timer:
       - hal/timer/timer.c
     uart:
@@ -38,6 +40,8 @@ build:
   capability_include_dirs:
     gpio:
       - ../../../hal/gpio/include
+    pwm:
+      - ../../../hal/pwm
     timer:
       - ../../../hal/timer/include
     uart:

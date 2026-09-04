@@ -56,6 +56,67 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
+    def test_pwm_basic_build_links_pwm_control_and_timer_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "project",
+                        "create",
+                        "pwm-basic",
+                        "--path",
+                        directory,
+                        "--board",
+                        "starrysky-l4",
+                    ]
+                )
+                project_root = Path(directory) / "pwm-basic"
+                build_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "build",
+                        "--project",
+                        str(project_root),
+                    ]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            firmware = project_root / "build" / "retrosoc_fw"
+            self.assertEqual(
+                firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF"
+            )
+            compile_commands = project_root / "build" / "compile_commands.json"
+            compiled_sources = {
+                Path(item["file"]).resolve()
+                for item in json.loads(compile_commands.read_text(encoding="utf-8"))
+            }
+            self.assertIn(
+                (SDK_ROOT / "drivers/pwm/src/pwm.c").resolve(), compiled_sources
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/soc/ysyx-2512/hal/pwm/pwm.c").resolve(),
+                compiled_sources,
+            )
+            text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
+            for symbol in (
+                "<main>",
+                "<ecos_pwm_init>",
+                "<ecos_pwm_set_duty_cycle>",
+                "<ecos_pwm_start>",
+                "<ecos_pwm_stop>",
+                "<hal_pwm_init>",
+                "<hal_pwm_set_duty_cycle>",
+                "<hal_pwm_start>",
+                "<hal_pwm_stop>",
+                "<ecos_timer_delay_ms>",
+            ):
+                self.assertIn(symbol, text)
+
     def test_gpio_basic_build_links_gpio_input_and_output_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()

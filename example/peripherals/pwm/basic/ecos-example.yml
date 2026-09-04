@@ -1,0 +1,9 @@
+schema: 1
+name: pwm-basic
+sources:
+  - main.c
+components:
+  - driver-pwm
+  - driver-timer
+requires:
+  - console

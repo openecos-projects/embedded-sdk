@@ -1,0 +1,12 @@
+schema: 1
+id: driver-pwm
+name: PWM Driver
+cmake_target: ecos::driver::pwm
+sources:
+  - src/pwm.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-pwm

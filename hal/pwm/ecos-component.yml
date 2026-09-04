@@ -1,0 +1,10 @@
+schema: 1
+id: hal-pwm
+name: PWM HAL Contract
+cmake_target: ecos::hal::pwm
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - pwm
