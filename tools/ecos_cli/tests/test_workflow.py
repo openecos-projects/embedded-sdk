@@ -302,11 +302,18 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                     ".config",
                     "Kconfig",
                     "configuration.fingerprint",
+                    "include",
                     "resolved-project.cmake",
                     "resolved-project.json",
                     "sdkconfig.cmake",
                     "sdkconfig.h",
                 },
+            )
+            self.assertIn(
+                "#define ECOS_BOARD_HAS_GPIO_DEMO 0",
+                (generated / "include/ecos/board_resources.h").read_text(
+                    encoding="utf-8"
+                ),
             )
             loaded = configuration.load_resolved_project(project)
             self.assertEqual(
@@ -316,6 +323,14 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 loaded["configuration"]["fingerprint"],
             )
 
+            stale_directory = generated / "stale"
+            stale_directory.mkdir()
+            cleaned = configuration.configure_project(
+                sdk_context(sdk), project_root=project
+            )
+            self.assertTrue(cleaned.data["changed"])
+            self.assertFalse(stale_directory.exists())
+
             (project / "main.h").write_text("#define APP_VALUE 1\n", encoding="utf-8")
             third = configuration.configure_project(
                 sdk_context(sdk), project_root=project
@@ -324,6 +339,94 @@ class ConfigurationWorkflowTest(unittest.TestCase):
             self.assertNotEqual(
                 first.data["source_fingerprint"], third.data["source_fingerprint"]
             )
+
+    def test_generates_typed_gpio_demo_board_resources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            board_manifest = sdk / "board/StarrySkyL4/ecos-board.yml"
+            board_manifest.write_text(
+                board_manifest.read_text(encoding="utf-8")
+                + "resources:\n"
+                + "  gpio-demo:\n"
+                + "    driver: driver-gpio\n"
+                + "    input:\n"
+                + "      controller: 1\n"
+                + "      pin: 7\n"
+                + "      label: GPIO1[7]\n"
+                + "      idle_level: high\n"
+                + "    output:\n"
+                + "      controller: 1\n"
+                + "      pin: 5\n"
+                + "      label: GPIO1[5]\n"
+                + "      initial_level: high\n",
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            configured = configuration.configure_project(
+                sdk_context(sdk), project_root=project
+            )
+            generated = project / ".ecos/generated"
+            header = (generated / "include/ecos/board_resources.h").read_text(
+                encoding="utf-8"
+            )
+            cmake = (generated / "resolved-project.cmake").read_text(
+                encoding="utf-8"
+            )
+
+            self.assertEqual(
+                configured.data["generated"]["board_resources"],
+                str(generated / "include/ecos/board_resources.h"),
+            )
+            self.assertIn("#define ECOS_BOARD_HAS_GPIO_DEMO 1", header)
+            self.assertIn("{ ECOS_GPIO_PORT_1, 7u }", header)
+            self.assertIn("{ ECOS_GPIO_PORT_1, 5u }", header)
+            self.assertIn(
+                '#define ECOS_BOARD_GPIO_DEMO_INPUT_LABEL "GPIO1[7]"', header
+            )
+            self.assertIn(
+                "#define ECOS_BOARD_GPIO_DEMO_OUTPUT_INITIAL_LEVEL "
+                "ECOS_GPIO_LEVEL_HIGH",
+                header,
+            )
+            self.assertIn("set(ECOS_GENERATED_INCLUDE_DIR", cmake)
+
+    def test_rejects_invalid_gpio_demo_board_resources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+            board_manifest = sdk / "board/StarrySkyL4/ecos-board.yml"
+            board_manifest.write_text(
+                board_manifest.read_text(encoding="utf-8")
+                + "resources:\n"
+                + "  gpio-demo:\n"
+                + "    driver: driver-gpio\n"
+                + "    input:\n"
+                + "      controller: 1\n"
+                + "      pin: 256\n"
+                + "      label: GPIO1[256]\n"
+                + "      idle_level: high\n"
+                + "    output:\n"
+                + "      controller: 1\n"
+                + "      pin: 5\n"
+                + "      label: GPIO1[5]\n"
+                + "      initial_level: high\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                configuration.ProjectModelError,
+                r"gpio-demo\.input\.pin must be between 0 and 255",
+            ):
+                configuration.configure_project(
+                    sdk_context(sdk), project_root=project
+                )
 
     def test_resolves_component_dependencies_and_capabilities(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -367,6 +367,28 @@ resources:
 实际 schema 必须通过结构化解析器和 schema 校验处理，3.0 不再扩展仅靠 `awk` 匹配
 缩进的 YAML 解析方式。
 
+`gpio-demo` 是标准板级资源，必须完整声明两端引脚、可读标签和上电电平语义：
+
+```yaml
+resources:
+  gpio-demo:
+    driver: driver-gpio
+    input:
+      controller: 0
+      pin: 7
+      label: GPIOA7
+      idle_level: high
+    output:
+      controller: 3
+      pin: 4
+      label: GPIOD4
+      initial_level: high
+```
+
+配置阶段将其生成为 `ecos/board_resources.h`。Example 只能通过生成的逻辑资源访问
+引脚，不得复制 Board 清单数值或根据 Board 配置宏选择引脚。当前 GPIO 基础示例直接
+镜像输入原始电平，因此 `idle_level` 和 `initial_level` 必须一致。
+
 ### 7.2 Example 清单
 
 Example 必须声明源码和运行所需的逻辑能力：

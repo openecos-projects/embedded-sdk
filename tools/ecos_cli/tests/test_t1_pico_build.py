@@ -174,6 +174,9 @@ class StartySkyT1PicoBuildTest(unittest.TestCase):
             "<_start>",
             "<main>",
             "<bsp_console_init>",
+            "<ecos_result_failed>",
+            "<ecos_log_error>",
+            "<ecos_panic>",
             "<hal_uart_init>",
         ):
             self.assertIn(symbol, text)
@@ -210,6 +213,18 @@ class StartySkyT1PicoBuildTest(unittest.TestCase):
         project_root, _, temporary = self.create_and_build("gpio-basic")
         self.addCleanup(temporary.cleanup)
         firmware = project_root / "build" / "retrosoc_fw"
+        resources = (
+            project_root / ".ecos/generated/include/ecos/board_resources.h"
+        ).read_text(encoding="utf-8")
+        self.assertIn("{ ECOS_GPIO_PORT_0, 7u }", resources)
+        self.assertIn("{ ECOS_GPIO_PORT_3, 4u }", resources)
+        self.assertIn(
+            '#define ECOS_BOARD_GPIO_DEMO_INPUT_LABEL "GPIOA7"', resources
+        )
+        self.assertNotIn(
+            "CONFIG_STARTYSKY_T1_PICO",
+            (project_root / "main.c").read_text(encoding="utf-8"),
+        )
         compile_commands = project_root / "build" / "compile_commands.json"
         compiled_sources = {
             Path(item["file"]).resolve()

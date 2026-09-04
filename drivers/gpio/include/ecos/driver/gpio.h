@@ -34,6 +34,11 @@ typedef enum {
 } ecos_gpio_function_t;
 
 typedef struct {
+    ecos_gpio_port_t port;
+    uint8_t pin;
+} ecos_gpio_pin_t;
+
+typedef struct {
     ecos_gpio_direction_t direction;
     ecos_gpio_function_t function;
 } ecos_gpio_config_t;

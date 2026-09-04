@@ -8,52 +8,45 @@
 
 int main(void)
 {
-    const char *operation = "initialize console";
-    ecos_err_t result = bsp_console_init();
+    int timer_count;
 
-    if (ecos_result_failed(result))
-        goto failed;
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG, bsp_console_init(), "initialize console"
+    );
 
     (void)ECOS_LOGI(LOG_TAG, "Starting blink example");
 
-    if (ecos_timer_get_instance_count() < 1) {
-        operation = "find default timer";
-        result = ECOS_ERR_NOT_FOUND;
-        goto failed;
-    }
+    timer_count = ecos_timer_get_instance_count();
+    ECOS_PANIC_ON_ERROR(LOG_TAG, timer_count, "query timers");
+    if (timer_count < 1)
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG, ECOS_ERR_NOT_FOUND, "find default timer"
+        );
 
-    operation = "initialize LED";
-    result = bsp_led_init();
-    if (ecos_result_failed(result))
-        goto failed;
+    ECOS_PANIC_ON_ERROR(LOG_TAG, bsp_led_init(), "initialize LED");
 
     (void)ECOS_LOGI(LOG_TAG, "Blinking LED 0 every %u ms", BLINK_DELAY_MS);
 
     for (;;) {
-        operation = "turn LED on";
-        result = bsp_led_set_state(BSP_LED_0, BSP_LED_ON);
-        if (ecos_result_failed(result))
-            goto failed;
-
-        operation = "wait after turning LED on";
-        result = ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS);
-        if (ecos_result_failed(result))
-            goto failed;
-
-        operation = "turn LED off";
-        result = bsp_led_set_state(BSP_LED_0, BSP_LED_OFF);
-        if (ecos_result_failed(result))
-            goto failed;
-
-        operation = "wait after turning LED off";
-        result = ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS);
-        if (ecos_result_failed(result))
-            goto failed;
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG,
+            bsp_led_set_state(BSP_LED_0, BSP_LED_ON),
+            "turn LED on"
+        );
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG,
+            ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS),
+            "wait after turning LED on"
+        );
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG,
+            bsp_led_set_state(BSP_LED_0, BSP_LED_OFF),
+            "turn LED off"
+        );
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG,
+            ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, BLINK_DELAY_MS),
+            "wait after turning LED off"
+        );
     }
-
-failed:
-    (void)operation;
-    (void)ECOS_LOG_ERR(LOG_TAG, result, operation);
-    for (;;)
-        __asm__ volatile("nop");
 }

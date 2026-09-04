@@ -11,12 +11,13 @@
 
 | 板卡 | `--board` 参数 | 支持状态 | 说明 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | 已提供 `gpio-demo` 板级资源 |
-| StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | 已提供 `gpio-demo` 板级资源 |
+| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | 已提供类型化 `gpio-demo` 板级资源 |
+| StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | 已提供类型化 `gpio-demo` 板级资源 |
 
 当前示例要求板卡同时提供 `console`、`gpio-demo` 资源，并要求对应 Target 支持
 GPIO。StartySky T1-Pico 的 LED 已确认为 `GPIOD4`、Button 已确认为 `GPIOA7`；
-CL1-2512 已提供相应的 GPIO HAL。
+CL1-2512 已提供相应的 GPIO HAL。示例源码不包含板卡名称或固定引脚号，配置阶段会从
+Board 清单生成 `ecos/board_resources.h`。
 
 ## 引脚连接
 
@@ -25,7 +26,7 @@ CL1-2512 已提供相应的 GPIO HAL。
 | 板卡 | 输入 | 输出 | 输出电平语义 |
 | --- | --- | --- | --- |
 | StarrySky L4 | `GPIO1[7]`（按键 0） | `GPIO1[5]`（LED 0） | 低电平点亮 |
-| StartySky T1-Pico | `GPIOA7`（Button） | `GPIOD4`（LED 0） | 低电平点亮 |
+| StartySky T1-Pico | `GPIOA7`（Button，默认上拉） | `GPIOD4`（LED 0） | 低电平点亮 |
 
 示例将输入引脚的原始电平直接写入输出引脚。对于低电平有效的按键，按下时 LED
 点亮，松开时 LED 熄灭。串口仅在输入电平变化时打印当前输入和输出电平。

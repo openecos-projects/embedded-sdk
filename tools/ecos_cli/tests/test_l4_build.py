@@ -211,6 +211,17 @@ class StarrySkyL4BuildTest(unittest.TestCase):
             self.assertEqual(
                 firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF"
             )
+            resources = (
+                project_root / ".ecos/generated/include/ecos/board_resources.h"
+            ).read_text(encoding="utf-8")
+            self.assertIn("{ ECOS_GPIO_PORT_1, 7u }", resources)
+            self.assertIn("{ ECOS_GPIO_PORT_1, 5u }", resources)
+            self.assertIn(
+                '#define ECOS_BOARD_GPIO_DEMO_INPUT_LABEL "GPIO1[7]"', resources
+            )
+            source = (project_root / "main.c").read_text(encoding="utf-8")
+            self.assertNotIn("CONFIG_STARRYSKY_L4", source)
+            self.assertNotIn("CONFIG_STARTYSKY_T1_PICO", source)
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
             for symbol in (
                 "<main>",
@@ -373,7 +384,9 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 "<bsp_console_init>",
                 "<ecos_log_set_writer>",
                 "<ecos_log_write>",
-                "<ecos_result_succeeded>",
+                "<ecos_result_failed>",
+                "<ecos_log_error>",
+                "<ecos_panic>",
                 "<hal_uart_init>",
             ):
                 self.assertIn(symbol, text)

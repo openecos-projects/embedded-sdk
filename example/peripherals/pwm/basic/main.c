@@ -10,22 +10,21 @@
 #define PWM_STAGE_DELAY_MS 2000u
 #define LOG_TAG "pwm-basic"
 
-static void stop_with_error(ecos_err_t error, const char *operation)
+static void stop_pwm_on_error(int result, const char *operation)
 {
+    if (ecos_result_succeeded(result))
+        return;
+
     (void)ecos_pwm_stop(PWM_DEMO_CONTROLLER);
-    (void)ECOS_LOG_ERR(LOG_TAG, error, operation);
-    for (;;)
-        __asm__ volatile("nop");
+    ECOS_PANIC_ON_ERROR(LOG_TAG, result, operation);
 }
 
 static void wait_for_next_stage(void)
 {
-    ecos_err_t result = ecos_timer_delay_ms(
-        ECOS_TIMER_DEFAULT, PWM_STAGE_DELAY_MS
+    stop_pwm_on_error(
+        ecos_timer_delay_ms(ECOS_TIMER_DEFAULT, PWM_STAGE_DELAY_MS),
+        "wait for next PWM stage"
     );
-
-    if (ecos_result_failed(result))
-        stop_with_error(result, "wait for next PWM stage");
 }
 
 int main(void)
@@ -34,28 +33,30 @@ int main(void)
         .clock_divider = PWM_CLOCK_DIVIDER,
         .period_ticks = PWM_PERIOD_TICKS,
     };
-    ecos_err_t result;
     int instance_count;
     int timer_count;
 
-    result = bsp_console_init();
-    if (ecos_result_failed(result))
-        stop_with_error(result, "initialize console");
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG, bsp_console_init(), "initialize console"
+    );
 
     instance_count = ecos_pwm_get_instance_count();
-    if (instance_count < 0)
-        stop_with_error((ecos_err_t)instance_count, "query PWM controllers");
+    ECOS_PANIC_ON_ERROR(LOG_TAG, instance_count, "query PWM controllers");
     if (instance_count <= (int)PWM_DEMO_CONTROLLER)
-        stop_with_error(ECOS_ERR_NOT_FOUND, "find default PWM controller");
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG, ECOS_ERR_NOT_FOUND, "find default PWM controller"
+        );
     timer_count = ecos_timer_get_instance_count();
-    if (timer_count < 0)
-        stop_with_error((ecos_err_t)timer_count, "query timers");
+    ECOS_PANIC_ON_ERROR(LOG_TAG, timer_count, "query timers");
     if (timer_count < 1)
-        stop_with_error(ECOS_ERR_NOT_FOUND, "find default timer");
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG, ECOS_ERR_NOT_FOUND, "find default timer"
+        );
 
-    result = ecos_pwm_init(PWM_DEMO_CONTROLLER, &config);
-    if (ecos_result_failed(result))
-        stop_with_error(result, "configure PWM controller");
+    stop_pwm_on_error(
+        ecos_pwm_init(PWM_DEMO_CONTROLLER, &config),
+        "configure PWM controller"
+    );
 
     (void)ECOS_LOGI(
         LOG_TAG,
@@ -67,29 +68,31 @@ int main(void)
     );
 
     for (;;) {
-        result = ecos_pwm_set_duty_cycle(
-            PWM_DEMO_CONTROLLER, PWM_DEMO_CHANNEL, 25u
+        stop_pwm_on_error(
+            ecos_pwm_set_duty_cycle(
+                PWM_DEMO_CONTROLLER, PWM_DEMO_CHANNEL, 25u
+            ),
+            "set PWM duty cycle to 25 percent"
         );
-        if (ecos_result_failed(result))
-            stop_with_error(result, "set PWM duty cycle to 25 percent");
 
-        result = ecos_pwm_start(PWM_DEMO_CONTROLLER);
-        if (ecos_result_failed(result))
-            stop_with_error(result, "start PWM controller");
+        stop_pwm_on_error(
+            ecos_pwm_start(PWM_DEMO_CONTROLLER), "start PWM controller"
+        );
         (void)ECOS_LOGI(LOG_TAG, "PWM started: duty=25%%");
         wait_for_next_stage();
 
-        result = ecos_pwm_set_duty_cycle(
-            PWM_DEMO_CONTROLLER, PWM_DEMO_CHANNEL, 75u
+        stop_pwm_on_error(
+            ecos_pwm_set_duty_cycle(
+                PWM_DEMO_CONTROLLER, PWM_DEMO_CHANNEL, 75u
+            ),
+            "set PWM duty cycle to 75 percent"
         );
-        if (ecos_result_failed(result))
-            stop_with_error(result, "set PWM duty cycle to 75 percent");
         (void)ECOS_LOGI(LOG_TAG, "PWM duty updated: duty=75%%");
         wait_for_next_stage();
 
-        result = ecos_pwm_stop(PWM_DEMO_CONTROLLER);
-        if (ecos_result_failed(result))
-            stop_with_error(result, "stop PWM controller");
+        stop_pwm_on_error(
+            ecos_pwm_stop(PWM_DEMO_CONTROLLER), "stop PWM controller"
+        );
         (void)ECOS_LOGI(LOG_TAG, "PWM stopped");
         wait_for_next_stage();
     }

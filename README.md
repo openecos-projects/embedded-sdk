@@ -148,10 +148,7 @@ Core Runtime 是 SDK 3.0 工程的默认组件，提供统一的 `ECOS_ERR_*` �
   #include "ecos/log.h"
 
   int main(void) {
-      ecos_err_t result = bsp_console_init();
-
-      if (ecos_result_failed(result))
-          return result;
+      ECOS_RETURN_ON_ERROR(bsp_console_init());
       ecos_log_set_level(ECOS_LOG_DEBUG);
       ECOS_LOGI("app", "设备启动成功");
       ECOS_LOGW("app", "检测到异常输入");
@@ -159,6 +156,10 @@ Core Runtime 是 SDK 3.0 工程的默认组件，提供统一的 `ECOS_ERR_*` �
       return ECOS_OK;
   }
   ```
+
+  `ECOS_RETURN_ON_ERROR()` 用于向调用者传播错误；需要统一清理时使用
+  `ECOS_GOTO_ON_ERROR()`；不可恢复的应用错误可使用 `ECOS_PANIC_ON_ERROR()`
+  记录错误后停机。三个宏都只会对结果表达式求值一次。
 
 ---
 

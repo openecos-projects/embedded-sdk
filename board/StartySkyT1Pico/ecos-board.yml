@@ -26,9 +26,13 @@ resources:
     input:
       controller: 0
       pin: 7
+      label: GPIOA7
+      idle_level: high
     output:
       controller: 3
       pin: 4
+      label: GPIOD4
+      initial_level: high
   i2c-bus:
     driver: driver-i2c
     controller: 0

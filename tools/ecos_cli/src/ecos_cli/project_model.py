@@ -28,6 +28,8 @@ SUPPORTED_BUILD_OUTPUTS = {
 REQUIRED_BUILD_OUTPUTS = {"elf", "bin", "hex", "map", "size", "compile_commands"}
 COMPONENT_RESOURCE_NAMES = ("components", "hal", "drivers", "devices", "boards")
 CMAKE_TARGET_PATTERN = re.compile(r"^ecos(?:::[a-z][a-z0-9_]*){2,}$")
+GPIO_CONTROLLER_MAX = 3
+GPIO_PIN_MAX = 255
 
 
 class ProjectModelError(RuntimeError):
@@ -177,6 +179,75 @@ def _path_list(
     ]
 
 
+def _gpio_demo_endpoint(
+    value: Any,
+    field: str,
+    path: Path,
+    *,
+    level_field: str,
+) -> dict[str, Any]:
+    endpoint = _mapping(value, field, path)
+    _check_keys(
+        endpoint,
+        {"controller", "pin", "label", level_field},
+        kind=field,
+        path=path,
+    )
+    controller = _integer(endpoint.get("controller"), f"{field}.controller", path)
+    pin = _integer(endpoint.get("pin"), f"{field}.pin", path)
+    label = _string(endpoint.get("label"), f"{field}.label", path)
+    level = _string(endpoint.get(level_field), f"{field}.{level_field}", path)
+    assert label is not None
+    assert level is not None
+    if not 0 <= controller <= GPIO_CONTROLLER_MAX:
+        raise ManifestValidationError(
+            f"{field}.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
+        )
+    if not 0 <= pin <= GPIO_PIN_MAX:
+        raise ManifestValidationError(
+            f"{field}.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
+        )
+    if any(ord(character) < 0x20 or ord(character) > 0x7E for character in label):
+        raise ManifestValidationError(f"{field}.label must be printable ASCII in {path}")
+    if level not in {"low", "high"}:
+        raise ManifestValidationError(
+            f"{field}.{level_field} must be 'low' or 'high' in {path}"
+        )
+    return {
+        "controller": controller,
+        "pin": pin,
+        "label": label,
+        level_field: level,
+    }
+
+
+def _gpio_demo_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
+    field = "Board.resources.gpio-demo"
+    _check_keys(value, {"driver", "input", "output"}, kind=field, path=path)
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    if driver != "driver-gpio":
+        raise ManifestValidationError(
+            f"{field}.driver must be 'driver-gpio' in {path}"
+        )
+    input_pin = _gpio_demo_endpoint(
+        value.get("input"),
+        f"{field}.input",
+        path,
+        level_field="idle_level",
+    )
+    output_pin = _gpio_demo_endpoint(
+        value.get("output"),
+        f"{field}.output",
+        path,
+        level_field="initial_level",
+    )
+    if input_pin["idle_level"] != output_pin["initial_level"]:
+        raise ManifestValidationError(
+            f"{field} input idle_level and output initial_level must match in {path}"
+        )
+    return {"driver": driver, "input": input_pin, "output": output_pin}
+
+
 class _Inputs:
     def __init__(self, project_root: Path, sdk_root: Path) -> None:
         self.project_root = project_root.resolve()
@@ -303,13 +374,19 @@ def _resolve_board(
         raise CapabilityMismatchError(
             f"project Board {board_id!r} maps to {target!r}, not {expected_target!r}"
         )
-    resources = _mapping(value.get("resources"), "Board.resources", path)
-    for resource_id, resource in resources.items():
+    declared_resources = _mapping(value.get("resources"), "Board.resources", path)
+    resources: dict[str, dict[str, Any]] = {}
+    for resource_id, resource in declared_resources.items():
         project.validate_selection("Board resource", resource_id)
         if not isinstance(resource, dict):
             raise ManifestValidationError(
                 f"Board resource {resource_id!r} must be a mapping in {path}"
             )
+        resources[resource_id] = (
+            _gpio_demo_resource(resource, path)
+            if resource_id == "gpio-demo"
+            else dict(resource)
+        )
     build = _mapping(value.get("build"), "Board.build", path)
     _check_keys(
         build,

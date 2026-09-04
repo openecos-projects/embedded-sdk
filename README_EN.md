@@ -193,10 +193,7 @@ The Core Runtime is included by default in SDK 3.0 projects. It provides shared 
   #include "ecos/log.h"
 
   int main(void) {
-      ecos_err_t result = bsp_console_init();
-
-      if (ecos_result_failed(result))
-          return result;
+      ECOS_RETURN_ON_ERROR(bsp_console_init());
       ecos_log_set_level(ECOS_LOG_DEBUG);
       ECOS_LOGI("app", "Device booted successfully");
       ECOS_LOGW("app", "Abnormal input detected");
@@ -204,6 +201,11 @@ The Core Runtime is included by default in SDK 3.0 projects. It provides shared 
       return ECOS_OK;
   }
   ```
+
+  Use `ECOS_RETURN_ON_ERROR()` to propagate an error to the caller,
+  `ECOS_GOTO_ON_ERROR()` when common cleanup is required, and
+  `ECOS_PANIC_ON_ERROR()` to report an unrecoverable application error before
+  halting. Each macro evaluates its result expression exactly once.
 
 ---
 

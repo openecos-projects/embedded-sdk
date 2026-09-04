@@ -33,6 +33,24 @@ bool ecos_err_is_known(int result);
 const char *ecos_err_name(ecos_err_t error);
 const char *ecos_err_description(ecos_err_t error);
 
+/* Control-flow helpers evaluate result_expression exactly once. */
+#define ECOS_RETURN_ON_ERROR(result_expression) \
+    do { \
+        const int _ecos_cf_result = (int)(result_expression); \
+        if (ecos_result_failed(_ecos_cf_result)) \
+            return (ecos_err_t)_ecos_cf_result; \
+    } while (0)
+
+/* error_variable must be an assignable int or ecos_err_t lvalue. */
+#define ECOS_GOTO_ON_ERROR(result_expression, error_variable, label) \
+    do { \
+        const int _ecos_cf_result = (int)(result_expression); \
+        if (ecos_result_failed(_ecos_cf_result)) { \
+            (error_variable) = (ecos_err_t)_ecos_cf_result; \
+            goto label; \
+        } \
+    } while (0)
+
 #ifdef __cplusplus
 }
 #endif

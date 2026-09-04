@@ -103,6 +103,18 @@ void ecos_panic(void);
         ecos_panic(); \
     } while (0)
 
+/* Evaluate result_expression once, then report and halt on failure. */
+#define ECOS_PANIC_ON_ERROR(tag, result_expression, operation) \
+    do { \
+        const int _ecos_cf_result = (int)(result_expression); \
+        if (ecos_result_failed(_ecos_cf_result)) { \
+            (void)ECOS_LOG_ERR((tag), \
+                               (ecos_err_t)_ecos_cf_result, \
+                               (operation)); \
+            ecos_panic(); \
+        } \
+    } while (0)
+
 #ifdef __cplusplus
 }
 #endif

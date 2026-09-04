@@ -13,33 +13,30 @@ static void halt(void)
         __asm__ volatile("nop");
 }
 
-static void halt_with_error(ecos_err_t error, const char *operation)
-{
-    (void)ECOS_LOG_ERR(LOG_TAG, error, operation);
-    halt();
-}
-
 int main(void)
 {
     const ecos_i2c_config_t config = ECOS_I2C_CONFIG_DEFAULT;
     unsigned address;
     unsigned device_count = 0u;
     int instance_count;
-    int result;
+    int probe_result;
 
-    result = bsp_console_init();
-    if (ecos_result_failed(result))
-        halt_with_error((ecos_err_t)result, "initialize console");
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG, bsp_console_init(), "initialize console"
+    );
 
     instance_count = ecos_i2c_get_instance_count();
-    if (instance_count < 0)
-        halt_with_error((ecos_err_t)instance_count, "query I2C controllers");
+    ECOS_PANIC_ON_ERROR(LOG_TAG, instance_count, "query I2C controllers");
     if (instance_count <= (int)I2C_SCAN_CONTROLLER)
-        halt_with_error(ECOS_ERR_NOT_FOUND, "find default I2C controller");
+        ECOS_PANIC_ON_ERROR(
+            LOG_TAG, ECOS_ERR_NOT_FOUND, "find default I2C controller"
+        );
 
-    result = ecos_i2c_init(I2C_SCAN_CONTROLLER, &config);
-    if (ecos_result_failed(result))
-        halt_with_error((ecos_err_t)result, "initialize I2C controller");
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG,
+        ecos_i2c_init(I2C_SCAN_CONTROLLER, &config),
+        "initialize I2C controller"
+    );
 
     (void)ECOS_LOGI(
         LOG_TAG,
@@ -50,12 +47,16 @@ int main(void)
 
     for (address = I2C_SCAN_FIRST_ADDRESS;
          address <= I2C_SCAN_LAST_ADDRESS; ++address) {
-        result = ecos_i2c_probe(I2C_SCAN_CONTROLLER, (uint8_t)address);
-        if (result < 0) {
+        probe_result = ecos_i2c_probe(
+            I2C_SCAN_CONTROLLER, (uint8_t)address
+        );
+        if (ecos_result_failed(probe_result)) {
             (void)ecos_i2c_deinit(I2C_SCAN_CONTROLLER);
-            halt_with_error((ecos_err_t)result, "probe I2C address");
+            ECOS_PANIC_ON_ERROR(
+                LOG_TAG, probe_result, "probe I2C address"
+            );
         }
-        if (result == 1) {
+        if (probe_result == 1) {
             ++device_count;
             (void)ECOS_LOGI(LOG_TAG, "Device found at 0x%02X", address);
         }
@@ -64,8 +65,10 @@ int main(void)
     (void)ECOS_LOGI(
         LOG_TAG, "Scan complete: %u device(s) found", device_count
     );
-    result = ecos_i2c_deinit(I2C_SCAN_CONTROLLER);
-    if (ecos_result_failed(result))
-        halt_with_error((ecos_err_t)result, "deinitialize I2C controller");
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG,
+        ecos_i2c_deinit(I2C_SCAN_CONTROLLER),
+        "deinitialize I2C controller"
+    );
     halt();
 }

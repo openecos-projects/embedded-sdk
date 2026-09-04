@@ -37,6 +37,9 @@ endif()
 
 add_library(ecos_build_options INTERFACE)
 target_compile_features(ecos_build_options INTERFACE c_std_11)
+target_include_directories(ecos_build_options INTERFACE
+    "${ECOS_GENERATED_INCLUDE_DIR}"
+)
 target_compile_options(ecos_build_options INTERFACE
     -Wall
     -Wextra

@@ -1,12 +1,14 @@
 #include "ecos/bsp/console.h"
 #include "ecos/log.h"
 
+#define LOG_TAG "hello"
+
 int main(void)
 {
-    ecos_err_t result = bsp_console_init();
-
-    if (ecos_result_succeeded(result))
-        (void)ECOS_LOGI("hello", "Hello, World!");
+    ECOS_PANIC_ON_ERROR(
+        LOG_TAG, bsp_console_init(), "initialize console"
+    );
+    (void)ECOS_LOGI(LOG_TAG, "Hello, World!");
 
     for (;;)
         __asm__ volatile("nop");

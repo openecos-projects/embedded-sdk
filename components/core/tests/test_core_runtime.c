@@ -2,6 +2,7 @@
 #include "ecos/log.h"
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -44,6 +45,44 @@ static ecos_err_t evaluated_error(unsigned *calls)
     return ECOS_ERR_IO;
 }
 
+static int evaluated_result(unsigned *calls, int result)
+{
+    ++*calls;
+    return result;
+}
+
+static int return_on_error(int result, unsigned *calls)
+{
+    ECOS_RETURN_ON_ERROR(evaluated_result(calls, result));
+    return 17;
+}
+
+static int goto_on_error(int result,
+                         unsigned *calls,
+                         unsigned *cleanup_calls)
+{
+    ecos_err_t error = ECOS_OK;
+
+    ECOS_GOTO_ON_ERROR(evaluated_result(calls, result), error, cleanup);
+    return 17;
+
+cleanup:
+    ++*cleanup_calls;
+    return error;
+}
+
+static jmp_buf panic_jump;
+static capture_t panic_capture;
+static unsigned panic_calls;
+static unsigned panic_result_evaluations;
+
+static void jump_from_panic(void *context)
+{
+    (void)context;
+    ++panic_calls;
+    longjmp(panic_jump, 1);
+}
+
 #if CONFIG_ECOS_LOG_LEVEL <= 0
 static int evaluated_value(unsigned *calls)
 {
@@ -84,6 +123,59 @@ static void test_error_model(void)
 #else
     assert(ecos_err_description(ECOS_ERR_TIMEOUT) == NULL);
 #endif
+}
+
+static void test_error_control_flow(void)
+{
+    unsigned calls = 0u;
+    unsigned cleanup_calls = 0u;
+
+    assert(return_on_error(ECOS_OK, &calls) == 17);
+    assert(calls == 1u);
+    assert(return_on_error(9, &calls) == 17);
+    assert(calls == 2u);
+    assert(return_on_error(ECOS_ERR_TIMEOUT, &calls) == ECOS_ERR_TIMEOUT);
+    assert(calls == 3u);
+
+    assert(goto_on_error(ECOS_OK, &calls, &cleanup_calls) == 17);
+    assert(calls == 4u);
+    assert(cleanup_calls == 0u);
+    assert(goto_on_error(-37, &calls, &cleanup_calls) == -37);
+    assert(calls == 5u);
+    assert(cleanup_calls == 1u);
+}
+
+static void test_panic_on_error(void)
+{
+    memset(&panic_capture, 0, sizeof(panic_capture));
+    panic_calls = 0u;
+    panic_result_evaluations = 0u;
+
+    assert(ecos_log_set_writer(capture_writer, &panic_capture) == ECOS_OK);
+    ecos_panic_set_handler(jump_from_panic, NULL);
+
+    ECOS_PANIC_ON_ERROR(
+        "core",
+        evaluated_result(&panic_result_evaluations, ECOS_OK),
+        "successful operation"
+    );
+    assert(panic_result_evaluations == 1u);
+    assert(panic_calls == 0u);
+
+    if (setjmp(panic_jump) == 0) {
+        ECOS_PANIC_ON_ERROR(
+            "core",
+            evaluated_result(&panic_result_evaluations, ECOS_ERR_IO),
+            "failed operation"
+        );
+        assert(0);
+    }
+
+    ecos_panic_set_handler(NULL, NULL);
+    assert(panic_result_evaluations == 2u);
+    assert(panic_calls == 1u);
+    assert(strstr(panic_capture.data,
+                  "failed operation: ECOS_ERR_IO (-4)") != NULL);
 }
 
 static void test_log_output(void)
@@ -184,7 +276,9 @@ static void test_log_truncation(void)
 int main(void)
 {
     test_error_model();
+    test_error_control_flow();
     test_log_output();
     test_log_truncation();
+    test_panic_on_error();
     return 0;
 }
