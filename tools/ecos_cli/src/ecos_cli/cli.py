@@ -1006,6 +1006,17 @@ def create_project_parser() -> argparse.ArgumentParser:
         description="Create and manage ECOS projects.",
     )
     commands = parser.add_subparsers(dest="project_command", required=True)
+    listing = commands.add_parser(
+        "list", help="list SDK examples and compatible Boards"
+    )
+    listing.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+        help="output format",
+    )
+
     create = commands.add_parser("create", help="create a project from an SDK example")
     create.add_argument("example", metavar="EXAMPLE", help="SDK Example name")
     create.add_argument(
@@ -1082,6 +1093,31 @@ def _print_project_data(data: dict[str, Any], console: ConsoleProgress) -> None:
         console.warning(message)
 
 
+def _print_project_list(data: dict[str, Any], console: ConsoleProgress) -> None:
+    examples = data["examples"]
+    sdk = data["sdk"]
+    console.info(f"SDK Examples: {sdk['id']} {sdk['version']}")
+    if not examples:
+        console.info("No project examples are available.")
+        return
+
+    example_width = max(len("EXAMPLE"), *(len(item["name"]) for item in examples))
+    board_values = [
+        ", ".join(item["supported_boards"]) or "none" for item in examples
+    ]
+    board_width = max(len("BOARDS"), *(len(value) for value in board_values))
+    console.info(
+        f"{'EXAMPLE':<{example_width}}  "
+        f"{'BOARDS':<{board_width}}  REQUIRES"
+    )
+    for item, boards in zip(examples, board_values):
+        requirements = ", ".join(item["requires"]) or "none"
+        console.info(
+            f"{item['name']:<{example_width}}  "
+            f"{boards:<{board_width}}  {requirements}"
+        )
+
+
 def _print_project_selection(data: dict[str, Any], console: ConsoleProgress) -> None:
     console.info(f"Project updated: {data['path']}")
     console.info(f"Board: {data['board'] or 'none'}")
@@ -1091,11 +1127,7 @@ def _print_project_selection(data: dict[str, Any], console: ConsoleProgress) -> 
 def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
     parser = create_project_parser()
     raw_arguments = list(argv)
-    requested_format = (
-        "json"
-        if "--format" in raw_arguments and "json" in raw_arguments
-        else "text"
-    )
+    requested_format = _requested_output_format(raw_arguments)
     requested_command = raw_arguments[0] if raw_arguments else "unknown"
     try:
         args = parser.parse_args(raw_arguments)
@@ -1111,7 +1143,9 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
 
     command = f"project.{args.project_command}"
     try:
-        if args.project_command == "create":
+        if args.project_command == "list":
+            data = project_model.list_examples(sdk_context)
+        elif args.project_command == "create":
             example_name = project.normalize_example_name(args.example)
             source = project.resolve_example(sdk_context, example_name)
             project_model.validate_example_source(
@@ -1147,7 +1181,7 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
                     metadata_override=metadata,
                 ),
             )
-        else:
+        elif args.project_command == "set-target":
             data = project.set_target(
                 sdk_context,
                 args.target,
@@ -1160,6 +1194,8 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
             )
         if args.output_format == "json":
             emit_json(envelope(command, "ok", data))
+        elif args.project_command == "list":
+            _print_project_list(data, ConsoleProgress())
         elif args.project_command == "create":
             _print_project_data(data, ConsoleProgress())
         else:
@@ -1267,6 +1303,7 @@ def print_help() -> None:
     print("  sdk pin NAME                     Pin an SDK to the current project")
     print("  sdk unregister NAME              Remove an SDK registration")
     print("  sdk doctor                       Validate registered SDK paths")
+    print("  project list                     List SDK examples and compatible Boards")
     print("  project create EXAMPLE           Create a project from an SDK example")
     print("  project set-board BOARD          Select a Board and its mapped Target")
     print("  project set-target TARGET        Select a Target and clear the Board")

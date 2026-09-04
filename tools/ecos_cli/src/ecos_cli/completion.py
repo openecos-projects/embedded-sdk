@@ -28,7 +28,7 @@ ROOT_COMMANDS = (
 )
 TOOLCHAIN_COMMANDS = ("detect", "status", "install")
 SDK_COMMANDS = ("register", "list", "current", "use", "pin", "unregister", "doctor")
-PROJECT_COMMANDS = ("create", "set-board", "set-target")
+PROJECT_COMMANDS = ("list", "create", "set-board", "set-target")
 
 
 def _bash() -> str:
@@ -80,6 +80,7 @@ _ecos_complete() {{
         esac
     elif [[ "$cmd" == "project" && "$cur" == -* ]]; then
         case "$sub" in
+            list) candidates="--format --help" ;;
             create) candidates="--name --path --board --target --profile --dry-run --force --format --help" ;;
             set-board|set-target) candidates="--project --format --help" ;;
         esac
@@ -138,6 +139,7 @@ _ecos() {{
         esac
     elif [[ "$words[2]" == "project" && "$PREFIX" == -* ]]; then
         case "$words[3]" in
+            list) candidates=(--format --help) ;;
             create) candidates=(--name --path --board --target --profile --dry-run --force --format --help) ;;
             set-board|set-target) candidates=(--project --format --help) ;;
         esac
@@ -192,6 +194,7 @@ complete -c ecos -f -n '__fish_seen_subcommand_from create' -l profile -r
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l dry-run
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l force
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from project; and __fish_seen_subcommand_from list' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l project -r
@@ -267,6 +270,7 @@ Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
         }}
     }} elseif ($command -eq 'project' -and $wordToComplete.StartsWith('-')) {{
         $candidates = switch ($subcommand) {{
+            'list' {{ '--format', '--help' }}
             'create' {{ '--name', '--path', '--board', '--target', '--profile', '--dry-run', '--force', '--format', '--help' }}
             'set-board' {{ '--project', '--format', '--help' }}
             'set-target' {{ '--project', '--format', '--help' }}

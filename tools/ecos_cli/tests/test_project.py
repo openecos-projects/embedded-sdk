@@ -110,6 +110,116 @@ class ProjectCreateTest(unittest.TestCase):
             )
         return result, json.loads(output.getvalue())
 
+    def run_list_json(self, sdk: Path) -> tuple[int, dict]:
+        output = StringIO()
+        with redirect_stdout(output):
+            result = main(
+                [
+                    "--sdk",
+                    str(sdk),
+                    "project",
+                    "list",
+                    "--format",
+                    "json",
+                ]
+            )
+        return result, json.loads(output.getvalue())
+
+    def test_lists_examples_and_compatible_boards(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            pwm = sdk / "example" / "peripherals" / "pwm" / "basic"
+            pwm.mkdir(parents=True)
+            (pwm / "main.c").write_text("void main(void) {}\n", encoding="utf-8")
+            (pwm / "ecos-example.yml").write_text(
+                "schema: 1\n"
+                "name: pwm-basic\n"
+                "sources:\n  - main.c\n"
+                "requires:\n  - pwm-output\n",
+                encoding="utf-8",
+            )
+            l4_manifest = sdk / "board" / "StarrySkyL4" / "ecos-board.yml"
+            l4_manifest.write_text(
+                l4_manifest.read_text(encoding="utf-8")
+                + "resources:\n  pwm-output:\n    driver: driver-pwm\n",
+                encoding="utf-8",
+            )
+            legacy_board = sdk / "board" / "Legacy" / "ecos-board.yml"
+            legacy_board.parent.mkdir()
+            legacy_board.write_text(
+                "schema: 1\nid: legacy\nname: Legacy\n", encoding="utf-8"
+            )
+            pending_board = sdk / "board" / "Pending" / "ecos-board.yml"
+            pending_board.parent.mkdir()
+            pending_board.write_text(
+                "schema: 2\nid: pending\ntarget: pending-soc\n",
+                encoding="utf-8",
+            )
+
+            result, payload = self.run_list_json(sdk)
+
+            self.assertEqual(result, ExitCode.OK)
+            self.assertEqual(payload["command"], "project.list")
+            data = payload["data"]
+            self.assertEqual(data["sdk"]["id"], "ecos-embedded-sdk")
+            self.assertEqual(
+                [board["id"] for board in data["boards"]],
+                ["starrysky-l3-1", "starrysky-l4"],
+            )
+            self.assertEqual(
+                [example["name"] for example in data["examples"]],
+                ["hello", "hello_world", "pwm-basic"],
+            )
+            by_name = {item["name"]: item for item in data["examples"]}
+            self.assertEqual(by_name["hello"]["path"], "get-started/hello")
+            self.assertEqual(
+                by_name["hello"]["supported_boards"],
+                ["starrysky-l3-1", "starrysky-l4"],
+            )
+            self.assertEqual(
+                by_name["pwm-basic"]["supported_boards"], ["starrysky-l4"]
+            )
+            self.assertEqual(by_name["pwm-basic"]["requires"], ["pwm-output"])
+
+    def test_project_list_text_prints_compatibility_table(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = create_sdk(Path(directory) / "sdk")
+            output = StringIO()
+
+            with redirect_stderr(output):
+                result = main(["--sdk", str(sdk), "project", "list"])
+
+            text = output.getvalue()
+            self.assertEqual(result, ExitCode.OK)
+            self.assertIn("SDK Examples: ecos-embedded-sdk 3.0.0", text)
+            self.assertIn("EXAMPLE", text)
+            self.assertIn("BOARDS", text)
+            self.assertIn("hello_world", text)
+            self.assertIn("starrysky-l3-1, starrysky-l4", text)
+
+    def test_project_list_rejects_ambiguous_example_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            duplicate = sdk / "example" / "other" / "hello"
+            duplicate.mkdir(parents=True)
+            (duplicate / "ecos-example.yml").write_text(
+                "schema: 1\nname: hello\nsources:\n  - main.c\n",
+                encoding="utf-8",
+            )
+            (duplicate / "main.c").write_text(
+                "void main(void) {}\n", encoding="utf-8"
+            )
+
+            result, payload = self.run_list_json(sdk)
+
+            self.assertEqual(result, ExitCode.CONFIG)
+            self.assertEqual(
+                payload["diagnostics"][0]["code"],
+                "ECOS_PROJECT_EXAMPLE_AMBIGUOUS",
+            )
+
     def test_creates_hello_world_with_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

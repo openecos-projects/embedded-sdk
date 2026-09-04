@@ -103,6 +103,7 @@ ecos sdk current
 ecos sdk use 3.0.0
 ecos sdk pin 3.0.0 --project /path/to/project
 ecos sdk doctor
+ecos project list
 ecos project create hello --path ~/workspace
 ecos toolchain detect
 ecos toolchain status

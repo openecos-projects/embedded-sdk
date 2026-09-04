@@ -16,6 +16,7 @@ from ecos_cli.cli import ExitCode, main  # noqa: E402
 
 class CompletionTest(unittest.TestCase):
     def test_generates_all_supported_shells(self):
+        self.assertIn("list", completion.PROJECT_COMMANDS)
         for shell in completion.SUPPORTED_SHELLS:
             with self.subTest(shell=shell):
                 generated = completion.generate(shell)

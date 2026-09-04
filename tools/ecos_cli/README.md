@@ -11,6 +11,7 @@ python3 tools/install.py --dry-run
 python3 tools/ecos.py toolchain detect
 python3 tools/ecos.py toolchain status --format json
 python3 tools/ecos.py toolchain install --dry-run
+python3 tools/ecos.py project list
 python3 tools/ecos.py project create hello --path ~/workspace
 python3 tools/ecos.py project create hello --name my-app --path ~/workspace
 python3 tools/ecos.py project create hello --target ysyx-2512 --path ~/workspace

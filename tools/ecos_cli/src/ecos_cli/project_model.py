@@ -1041,6 +1041,144 @@ def validate_example_source(
     }
 
 
+def list_examples(context: SdkContext) -> dict[str, Any]:
+    """Return validated SDK Examples and their compatible Boards."""
+
+    examples_root = context.resource("examples").resolve()
+    discovered: dict[str, Path] = {}
+    for manifest_path in sorted(examples_root.rglob("ecos-example.yml")):
+        value = _read_manifest(manifest_path, "Example")
+        name = _string(value.get("name"), "Example.name", manifest_path)
+        assert name is not None
+        try:
+            project.normalize_example_name(name)
+        except project.InvalidProjectArgument as exc:
+            raise ManifestValidationError(
+                f"Example.name is invalid in {manifest_path}: {exc}"
+            ) from exc
+        previous = discovered.get(name)
+        if previous is not None:
+            locations = ", ".join(
+                str(path) for path in sorted((previous, manifest_path))
+            )
+            raise project.ExampleAmbiguous(
+                f"SDK Example name is ambiguous: {name} ({locations})"
+            )
+        discovered[name] = manifest_path.parent.resolve()
+
+    catalog_inputs = _Inputs(examples_root, context.root)
+    targets: dict[str, dict[str, Any]] = {}
+    boards: list[dict[str, Any]] = []
+    board_ids: set[str] = set()
+    for manifest_path in sorted(context.resource("boards").glob("*/ecos-board.yml")):
+        value = _read_manifest(manifest_path, "Board")
+        if value.get("schema") != 2 or value.get("target") is None:
+            continue
+        target_id = _string(value.get("target"), "Board.target", manifest_path)
+        assert target_id is not None
+        target_manifest = (
+            context.resource("components") / "soc" / target_id / "ecos-soc.yml"
+        )
+        if not target_manifest.is_file():
+            continue
+        board_id = _string(value.get("id"), "Board.id", manifest_path)
+        assert board_id is not None
+        if board_id in board_ids:
+            raise project.BoardManifestError(
+                f"Board ID is ambiguous in the SDK: {board_id}"
+            )
+        board_ids.add(board_id)
+        target = targets.get(target_id)
+        if target is None:
+            target = _resolve_target(context, target_id, catalog_inputs)
+            targets[target_id] = target
+        board = _resolve_board(context, board_id, target_id, catalog_inputs)
+        if board["arch"] is not None and board["arch"] != target["arch"]:
+            raise CapabilityMismatchError(
+                f"Board {board_id!r} uses architecture {board['arch']!r}, "
+                f"but Target {target_id!r} uses {target['arch']!r}"
+            )
+        if board["flash"] is not None:
+            flash_artifact = board["flash"].get("artifact", "bin")
+            if flash_artifact not in target["build"]["outputs"]:
+                raise ManifestValidationError(
+                    f"Board {board_id!r} requires flash artifact "
+                    f"{flash_artifact!r}, but Target {target_id!r} does not produce it"
+                )
+        aliases = _string_list(value.get("aliases"), "Board.aliases", manifest_path)
+        boards.append(
+            {
+                "id": board_id,
+                "name": board["name"],
+                "aliases": aliases,
+                "target": target_id,
+                "components": board["components"],
+                "resources": sorted(board["resources"]),
+            }
+        )
+    boards.sort(key=lambda item: item["id"])
+
+    core_components = list(
+        context.manifest.get("build", {}).get("core_components", [])
+    )
+    examples: list[dict[str, Any]] = []
+    for name, example_root in sorted(discovered.items()):
+        validated = validate_example_source(context, example_root, name)
+        example = validated["example"]
+        effective_requirements = set(example["requires"])
+        for component in validated["components"]:
+            effective_requirements.update(component["requires"])
+
+        supported_boards: list[str] = []
+        for board in boards:
+            component_roots = list(
+                dict.fromkeys(
+                    [
+                        *core_components,
+                        *example["components"],
+                        *board["components"],
+                    ]
+                )
+            )
+            components = _resolve_components(
+                context,
+                component_roots,
+                _Inputs(example_root, context.root),
+            )
+            requested = set(example["requires"])
+            for component in components:
+                requested.update(component["requires"])
+            target = targets[board["target"]]
+            available = set(target["capabilities"])
+            available.update(board["resources"])
+            if requested.issubset(available):
+                supported_boards.append(board["id"])
+
+        examples.append(
+            {
+                "name": name,
+                "path": example_root.relative_to(examples_root).as_posix(),
+                "components": list(example["components"]),
+                "requires": sorted(effective_requirements),
+                "supported_boards": supported_boards,
+            }
+        )
+
+    return {
+        "sdk": {"id": context.sdk_id, "version": context.version},
+        "boards": [
+            {
+                "id": board["id"],
+                "name": board["name"],
+                "aliases": board["aliases"],
+                "target": board["target"],
+            }
+            for board in boards
+        ],
+        "examples": examples,
+    }
+
+
 def resolve_project(
     context: SdkContext,
     *,

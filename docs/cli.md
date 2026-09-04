@@ -34,6 +34,7 @@ ecos project create
 以下管理操作必须分组，因为脱离资源名称后容易产生歧义：
 
 ```bash
+ecos project list
 ecos project create hello
 ecos sdk list
 ecos toolchain status
@@ -101,6 +102,7 @@ ecos toolchain --sdk 3.0.0 status
 | `ecos toolchain detect` | 识别宿主平台并选择 SDK 锁定的工具链资产。 |
 | `ecos toolchain status` | 检查工具链安装状态和编译器身份。 |
 | `ecos toolchain install` | 下载或导入并安装锁定的工具链。 |
+| `ecos project list` | 列出可创建的 Example、有效能力需求和兼容 Board。 |
 | `ecos project create EXAMPLE` | 从指定 Example 创建外部工程并写入工程元数据。 |
 | `ecos project set-board BOARD` | 设置 Board，并用 Board 清单映射覆盖 Target。 |
 | `ecos project set-target TARGET` | 设置 Target/SoC，并清空工程的 Board。 |
@@ -121,8 +123,6 @@ ecos toolchain --sdk 3.0.0 status
 | `ecos board describe ID` | 显示 Board 清单、Target、资源和能力。 |
 | `ecos target list` | 列出当前 SDK 提供的 Target。 |
 | `ecos target describe ID` | 显示 Target/SoC、ISA、ABI 和外设能力。 |
-| `ecos example list` | 列出 Example 及其能力要求。 |
-| `ecos example describe ID` | 显示 Example 来源、依赖和兼容条件。 |
 | `ecos component list` | 列出 SDK Component。 |
 | `ecos component describe ID` | 显示 Component 依赖和公开接口元数据。 |
 | `ecos menuconfig` | 进入跨平台交互配置界面。 |
@@ -189,6 +189,15 @@ SHA-256 校验。`--force` 允许替换无效安装；正常且匹配的安装�
 
 ## 6. 工程命令组设计
 
+使用以下只读命令查看可创建的工程、有效能力需求和兼容 Board：
+
+```bash
+ecos project list [--format text|json]
+```
+
+列表从 SDK 的 Example、Component、Board 和 Target 清单实时解析兼容关系。清单损坏或
+Example 名称重名时命令明确失败，不生成临时工程或 `.ecos` 派生文件。
+
 工程创建的正式接口为：
 
 ```bash
@@ -214,6 +223,8 @@ ecos project create EXAMPLE [--name NAME] [--path DIRECTORY]
 示例：
 
 ```bash
+ecos project list
+ecos project list --format json
 ecos project create hello
 ecos project create hello --board starrysky-l4
 ecos project create hello --name my-app
