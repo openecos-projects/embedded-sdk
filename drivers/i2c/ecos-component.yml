@@ -1,0 +1,12 @@
+schema: 1
+id: driver-i2c
+name: I2C Driver
+cmake_target: ecos::driver::i2c
+sources:
+  - src/i2c.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-i2c

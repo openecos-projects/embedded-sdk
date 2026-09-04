@@ -31,6 +31,8 @@ build:
   capability_sources:
     gpio:
       - hal/gpio/gpio.c
+    i2c:
+      - hal/i2c/i2c.c
     pwm:
       - hal/pwm/pwm.c
     timer:
@@ -40,6 +42,8 @@ build:
   capability_include_dirs:
     gpio:
       - ../../../hal/gpio/include
+    i2c:
+      - ../../../hal/i2c/include
     pwm:
       - ../../../hal/pwm
     timer:
@@ -58,6 +62,7 @@ capabilities:
   - uart
   - gpio
   - hp-uart
+  - i2c
   - pwm
   - qspi
   - timer

@@ -56,6 +56,66 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
+    def test_i2c_scan_build_links_i2c_probe_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "project",
+                        "create",
+                        "i2c-scan",
+                        "--path",
+                        directory,
+                        "--board",
+                        "starrysky-l4",
+                    ]
+                )
+                project_root = Path(directory) / "i2c-scan"
+                build_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "build",
+                        "--project",
+                        str(project_root),
+                    ]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            firmware = project_root / "build" / "retrosoc_fw"
+            self.assertEqual(
+                firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF"
+            )
+            compile_commands = project_root / "build" / "compile_commands.json"
+            compiled_sources = {
+                Path(item["file"]).resolve()
+                for item in json.loads(compile_commands.read_text(encoding="utf-8"))
+            }
+            self.assertIn(
+                (SDK_ROOT / "drivers/i2c/src/i2c.c").resolve(), compiled_sources
+            )
+            self.assertIn(
+                (SDK_ROOT / "components/soc/ysyx-2512/hal/i2c/i2c.c").resolve(),
+                compiled_sources,
+            )
+            text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
+            for symbol in (
+                "<main>",
+                "<ecos_i2c_get_instance_count>",
+                "<ecos_i2c_init>",
+                "<ecos_i2c_probe>",
+                "<ecos_i2c_deinit>",
+                "<hal_i2c_get_instance_count>",
+                "<hal_i2c_init>",
+                "<hal_i2c_probe>",
+                "<hal_i2c_deinit>",
+            ):
+                self.assertIn(symbol, text)
+
     def test_pwm_basic_build_links_pwm_control_and_timer_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()

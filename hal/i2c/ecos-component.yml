@@ -1,0 +1,10 @@
+schema: 1
+id: hal-i2c
+name: I2C HAL Contract
+cmake_target: ecos::hal::i2c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - i2c

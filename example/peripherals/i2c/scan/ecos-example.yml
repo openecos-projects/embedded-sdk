@@ -1,0 +1,8 @@
+schema: 1
+name: i2c-scan
+sources:
+  - main.c
+components:
+  - driver-i2c
+requires:
+  - console
