@@ -56,6 +56,53 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4BuildTest(unittest.TestCase):
+    def test_gpio_basic_build_links_gpio_input_and_output_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "project",
+                        "create",
+                        "gpio-basic",
+                        "--path",
+                        directory,
+                        "--board",
+                        "starrysky-l4",
+                    ]
+                )
+                project_root = Path(directory) / "gpio-basic"
+                build_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "build",
+                        "--project",
+                        str(project_root),
+                    ]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            firmware = project_root / "build" / "retrosoc_fw"
+            self.assertEqual(
+                firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF"
+            )
+            text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
+            for symbol in (
+                "<main>",
+                "<bsp_console_init>",
+                "<ecos_gpio_configure>",
+                "<ecos_gpio_get_level>",
+                "<ecos_gpio_set_level>",
+                "<hal_gpio_configure>",
+                "<hal_gpio_get_level>",
+                "<hal_gpio_set_level>",
+            ):
+                self.assertIn(symbol, text)
+
     def test_blink_build_links_bsp_gpio_and_timer_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
