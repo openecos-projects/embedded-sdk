@@ -2,9 +2,23 @@
 #include "ecos/driver/gpio.h"
 #include "ecos/log.h"
 
-#define GPIO_DEMO_PORT ECOS_GPIO_PORT_1
-#define GPIO_OUTPUT_PIN 5u
-#define GPIO_INPUT_PIN 7u
+#if defined(CONFIG_STARTYSKY_T1_PICO)
+#define GPIO_OUTPUT_PORT ECOS_GPIO_PORT_3
+#define GPIO_OUTPUT_PIN  4u
+#define GPIO_OUTPUT_NAME "GPIOD4"
+#define GPIO_INPUT_PORT  ECOS_GPIO_PORT_0
+#define GPIO_INPUT_PIN   7u
+#define GPIO_INPUT_NAME  "GPIOA7"
+#elif defined(CONFIG_STARRYSKY_L4)
+#define GPIO_OUTPUT_PORT ECOS_GPIO_PORT_1
+#define GPIO_OUTPUT_PIN  5u
+#define GPIO_OUTPUT_NAME "GPIO1[5]"
+#define GPIO_INPUT_PORT  ECOS_GPIO_PORT_1
+#define GPIO_INPUT_PIN   7u
+#define GPIO_INPUT_NAME  "GPIO1[7]"
+#else
+#error "gpio-basic does not define pins for the selected Board"
+#endif
 #define LOG_TAG "gpio-basic"
 
 static void stop_with_error(ecos_err_t error, const char *operation)
@@ -32,40 +46,39 @@ int main(void)
     if (ecos_result_failed(result))
         stop_with_error(result, "initialize console");
 
-    /* GPIO1[5] is LED 0 and is active-low on StarrySky L4. */
+    /* Both supported boards use an active-low LED output. */
     result = ecos_gpio_set_level(
-        GPIO_DEMO_PORT, GPIO_OUTPUT_PIN, ECOS_GPIO_LEVEL_HIGH
+        GPIO_OUTPUT_PORT, GPIO_OUTPUT_PIN, ECOS_GPIO_LEVEL_HIGH
     );
     if (ecos_result_failed(result))
         stop_with_error(result, "set initial output level");
 
     result = ecos_gpio_configure(
-        GPIO_DEMO_PORT, GPIO_OUTPUT_PIN, &output_config
+        GPIO_OUTPUT_PORT, GPIO_OUTPUT_PIN, &output_config
     );
     if (ecos_result_failed(result))
         stop_with_error(result, "configure output pin");
 
-    /* GPIO1[7] is button 0 and is also active-low on StarrySky L4. */
     result = ecos_gpio_configure(
-        GPIO_DEMO_PORT, GPIO_INPUT_PIN, &input_config
+        GPIO_INPUT_PORT, GPIO_INPUT_PIN, &input_config
     );
     if (ecos_result_failed(result))
         stop_with_error(result, "configure input pin");
 
     (void)ECOS_LOGI(
         LOG_TAG,
-        "Mirroring GPIO1[%u] input to GPIO1[%u] output",
-        GPIO_INPUT_PIN,
-        GPIO_OUTPUT_PIN
+        "Mirroring %s input to %s output",
+        GPIO_INPUT_NAME,
+        GPIO_OUTPUT_NAME
     );
 
     for (;;) {
-        input_level = ecos_gpio_get_level(GPIO_DEMO_PORT, GPIO_INPUT_PIN);
+        input_level = ecos_gpio_get_level(GPIO_INPUT_PORT, GPIO_INPUT_PIN);
         if (input_level < 0)
             stop_with_error((ecos_err_t)input_level, "read input pin");
 
         result = ecos_gpio_set_level(
-            GPIO_DEMO_PORT,
+            GPIO_OUTPUT_PORT,
             GPIO_OUTPUT_PIN,
             (ecos_gpio_level_t)input_level
         );

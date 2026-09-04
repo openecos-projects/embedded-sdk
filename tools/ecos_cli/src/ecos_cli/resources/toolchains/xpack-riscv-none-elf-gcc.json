@@ -20,7 +20,7 @@
       "abi": "ilp32"
     },
     {
-      "names": ["StartySkyT1"],
+      "names": ["StartySkyT1Pico"],
       "isa": "rv32imc_zicsr_zifencei",
       "abi": "ilp32"
     },

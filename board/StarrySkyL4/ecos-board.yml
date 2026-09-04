@@ -21,6 +21,9 @@ resources:
     output:
       controller: 1
       pin: 5
+  i2c-bus:
+    driver: driver-i2c
+    controller: 0
   pwm-output:
     driver: driver-pwm
     controller: 0

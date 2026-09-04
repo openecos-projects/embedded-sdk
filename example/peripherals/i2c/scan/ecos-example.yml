@@ -6,3 +6,4 @@ components:
   - driver-i2c
 requires:
   - console
+  - i2c-bus

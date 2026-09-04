@@ -1,0 +1,46 @@
+menu "System Read-Only Information"
+    config STARTYSKY_T1_PICO
+        bool "StartySky T1-Pico Platform"
+        default y
+
+    config BOARD_RAM_TYPE_NAME
+        string
+        default "SDRAM" if LINK_TARGET_SDRAM
+        default "DSRAM" if LINK_TARGET_FLASH_XIP
+
+    config BOARD_RAM_SIZE_KB
+        int
+        default 32768 if LINK_TARGET_SDRAM
+        default 16 if LINK_TARGET_FLASH_XIP
+
+    config BOARD_FLASH_SIZE_KB
+        int "Flash Size (KB)"
+        default 16384
+endmenu
+
+menu "System Configuration"
+    choice
+        bool "Boot/Runtime Memory Selection"
+        default LINK_TARGET_FLASH_XIP
+
+        config LINK_TARGET_FLASH_XIP
+            bool "Flash XIP"
+            help
+                Execute code and read-only data directly from Flash; place data and the stack in DSRAM.
+
+        config LINK_TARGET_SDRAM
+            bool "SDRAM (Loaded by Bootloader)"
+            help
+                The FSBL initializes SDRAM and transfers the loaded image to SDRAM before execution.
+    endchoice
+
+    config CPU_FREQ_MHZ
+        int "CPU Frequency (MHz)"
+        default 20
+        range 1 1000
+
+    config UART_BAUD_RATE
+        int "UART Baud Rate"
+        default 115200
+        range 1200 4000000
+endmenu

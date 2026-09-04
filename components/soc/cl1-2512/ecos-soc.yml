@@ -2,7 +2,7 @@ schema: 1
 id: cl1-2512
 name: CL1-2512
 arch: riscv
-description: SoC target used by StartySky T1.
+description: SoC target used by StartySky T1-Pico.
 cpu:
   march: rv32imc_zicsr_zifencei
   abi: ilp32

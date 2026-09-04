@@ -1,0 +1,14 @@
+schema: 1
+id: bsp-startysky-t1-pico
+name: StartySky T1-Pico BSP
+cmake_target: ecos::bsp::startysky_t1_pico
+sources:
+  - bsp/console.c
+  - bsp/led.c
+include_dirs:
+  - ../include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - driver-gpio
+  - driver-uart

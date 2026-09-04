@@ -26,21 +26,26 @@ static int i2c_id_is_valid(hal_i2c_id_t i2c)
 static ecos_err_t i2c_wait_for_transfer(void)
 {
     uint32_t timeout = I2C_TRANSFER_TIMEOUT;
-    uint8_t transfer_started = 0u;
 
     while (timeout-- != 0u) {
         uint32_t status = REG_I2C_0_SR;
 
         if ((status & I2C_STATUS_ARBITRATION_LOST) != 0u)
             return ECOS_ERR_IO;
-        if ((status & I2C_STATUS_TRANSFER_IN_PROGRESS) != 0u) {
-            transfer_started = 1u;
-        } else if (transfer_started != 0u ||
-                   (status & I2C_STATUS_COMPLETE) != 0u) {
-            return ECOS_OK;
-        }
+        if ((status & I2C_STATUS_COMPLETE) != 0u)
+            break;
     }
-    return ECOS_ERR_TIMEOUT;
+    if ((REG_I2C_0_SR & I2C_STATUS_COMPLETE) == 0u)
+        return ECOS_ERR_TIMEOUT;
+
+    timeout = I2C_TRANSFER_TIMEOUT;
+    while ((REG_I2C_0_SR & I2C_STATUS_TRANSFER_IN_PROGRESS) != 0u) {
+        if ((REG_I2C_0_SR & I2C_STATUS_ARBITRATION_LOST) != 0u)
+            return ECOS_ERR_IO;
+        if (timeout-- == 0u)
+            return ECOS_ERR_TIMEOUT;
+    }
+    return ECOS_OK;
 }
 
 static ecos_err_t i2c_stop(void)
