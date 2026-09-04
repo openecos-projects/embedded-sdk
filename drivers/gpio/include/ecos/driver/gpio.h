@@ -13,6 +13,7 @@ typedef enum {
     ECOS_GPIO_PORT_0 = 0,
     ECOS_GPIO_PORT_1,
     ECOS_GPIO_PORT_2,
+    ECOS_GPIO_PORT_3,
     ECOS_GPIO_PORT_COUNT
 } ecos_gpio_port_t;
 
@@ -40,7 +41,7 @@ typedef struct {
 #define ECOS_GPIO_CONFIG_DEFAULT \
     { ECOS_GPIO_DIRECTION_INPUT, ECOS_GPIO_FUNCTION_GPIO }
 
-/* Configure one pin. Each declared GPIO port contains pins 0 through 31. */
+/* Configure one pin. Valid pin ranges are defined by the selected Target. */
 ecos_err_t ecos_gpio_configure(ecos_gpio_port_t port,
                                uint8_t pin,
                                const ecos_gpio_config_t *config);

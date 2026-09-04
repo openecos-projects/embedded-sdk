@@ -1,86 +1,37 @@
 #include "ecos/hal/gpio.h"
-#include "ysyx_2512_soc.h"
+#include "cl1_2512_soc.h"
 
 #include <stddef.h>
 
+static volatile uint32_t *const gpio_output_registers[CL1_2512_GPIO_PORT_COUNT] = {
+    &REG_GPIO_0_SWPORTA_DR,
+    &REG_GPIO_0_SWPORTB_DR,
+    &REG_GPIO_0_SWPORTC_DR,
+    &REG_GPIO_0_SWPORTD_DR,
+};
+
+static volatile uint32_t *const gpio_direction_registers[CL1_2512_GPIO_PORT_COUNT] = {
+    &REG_GPIO_0_SWPORTA_DDR,
+    &REG_GPIO_0_SWPORTB_DDR,
+    &REG_GPIO_0_SWPORTC_DDR,
+    &REG_GPIO_0_SWPORTD_DDR,
+};
+
+static volatile uint32_t *const gpio_input_registers[CL1_2512_GPIO_PORT_COUNT] = {
+    &REG_GPIO_0_EXT_PORTA,
+    &REG_GPIO_0_EXT_PORTB,
+    &REG_GPIO_0_EXT_PORTC,
+    &REG_GPIO_0_EXT_PORTD,
+};
+
 static int gpio_port_is_valid(hal_gpio_port_t port)
 {
-    return port >= HAL_GPIO_PORT_0 && port <= HAL_GPIO_PORT_2;
+    return port >= HAL_GPIO_PORT_0 && port <= HAL_GPIO_PORT_3;
 }
 
 static int gpio_pin_is_valid(uint8_t pin)
 {
-    return pin < 32u;
-}
-
-static volatile uint32_t *gpio_direction_register(hal_gpio_port_t port)
-{
-    switch (port) {
-    case HAL_GPIO_PORT_0:
-        return &REG_GPIO_0_PADDIR;
-    case HAL_GPIO_PORT_1:
-        return &REG_GPIO_1_PADDIR;
-    case HAL_GPIO_PORT_2:
-        return &REG_GPIO_2_PADDIR;
-    default:
-        return NULL;
-    }
-}
-
-static volatile uint32_t *gpio_input_register(hal_gpio_port_t port)
-{
-    switch (port) {
-    case HAL_GPIO_PORT_0:
-        return &REG_GPIO_0_PADIN;
-    case HAL_GPIO_PORT_1:
-        return &REG_GPIO_1_PADIN;
-    case HAL_GPIO_PORT_2:
-        return &REG_GPIO_2_PADIN;
-    default:
-        return NULL;
-    }
-}
-
-static volatile uint32_t *gpio_output_register(hal_gpio_port_t port)
-{
-    switch (port) {
-    case HAL_GPIO_PORT_0:
-        return &REG_GPIO_0_PADOUT;
-    case HAL_GPIO_PORT_1:
-        return &REG_GPIO_1_PADOUT;
-    case HAL_GPIO_PORT_2:
-        return &REG_GPIO_2_PADOUT;
-    default:
-        return NULL;
-    }
-}
-
-static volatile uint32_t *gpio_function_register(hal_gpio_port_t port)
-{
-    switch (port) {
-    case HAL_GPIO_PORT_0:
-        return &REG_GPIO_0_IOFCFG;
-    case HAL_GPIO_PORT_1:
-        return &REG_GPIO_1_IOFCFG;
-    case HAL_GPIO_PORT_2:
-        return &REG_GPIO_2_IOFCFG;
-    default:
-        return NULL;
-    }
-}
-
-static volatile uint32_t *gpio_mux_register(hal_gpio_port_t port)
-{
-    switch (port) {
-    case HAL_GPIO_PORT_0:
-        return &REG_GPIO_0_PINMUX;
-    case HAL_GPIO_PORT_1:
-        return &REG_GPIO_1_PINMUX;
-    case HAL_GPIO_PORT_2:
-        return &REG_GPIO_2_PINMUX;
-    default:
-        return NULL;
-    }
+    return pin < CL1_2512_GPIO_PINS_PER_PORT;
 }
 
 ecos_err_t hal_gpio_set_direction(hal_gpio_port_t port,
@@ -95,7 +46,7 @@ ecos_err_t hal_gpio_set_direction(hal_gpio_port_t port,
          direction != HAL_GPIO_DIRECTION_OUTPUT))
         return ECOS_ERR_INVALID_ARGUMENT;
 
-    direction_register = gpio_direction_register(port);
+    direction_register = gpio_direction_registers[port];
     bit = (uint32_t)1u << pin;
     if (direction == HAL_GPIO_DIRECTION_OUTPUT)
         *direction_register |= bit;
@@ -115,7 +66,7 @@ ecos_err_t hal_gpio_set_level(hal_gpio_port_t port,
         (level != HAL_GPIO_LEVEL_LOW && level != HAL_GPIO_LEVEL_HIGH))
         return ECOS_ERR_INVALID_ARGUMENT;
 
-    output_register = gpio_output_register(port);
+    output_register = gpio_output_registers[port];
     bit = (uint32_t)1u << pin;
     if (level == HAL_GPIO_LEVEL_HIGH)
         *output_register |= bit;
@@ -126,15 +77,13 @@ ecos_err_t hal_gpio_set_level(hal_gpio_port_t port,
 
 int hal_gpio_get_level(hal_gpio_port_t port, uint8_t pin)
 {
-    volatile uint32_t *input_register;
     uint32_t bit;
 
     if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin))
         return ECOS_ERR_INVALID_ARGUMENT;
 
-    input_register = gpio_input_register(port);
     bit = (uint32_t)1u << pin;
-    return (*input_register & bit) != 0u ?
+    return (*gpio_input_registers[port] & bit) != 0u ?
            HAL_GPIO_LEVEL_HIGH : HAL_GPIO_LEVEL_LOW;
 }
 
@@ -142,27 +91,12 @@ ecos_err_t hal_gpio_set_function(hal_gpio_port_t port,
                                  uint8_t pin,
                                  hal_gpio_function_t function)
 {
-    volatile uint32_t *function_register;
-    volatile uint32_t *mux_register;
-    uint32_t bit;
-
     if (!gpio_port_is_valid(port) || !gpio_pin_is_valid(pin) ||
         function < HAL_GPIO_FUNCTION_GPIO ||
         function > HAL_GPIO_FUNCTION_ALT_1)
         return ECOS_ERR_INVALID_ARGUMENT;
-
-    function_register = gpio_function_register(port);
-    mux_register = gpio_mux_register(port);
-    bit = (uint32_t)1u << pin;
-    if (function == HAL_GPIO_FUNCTION_GPIO) {
-        *function_register &= ~bit;
-    } else {
-        if (function == HAL_GPIO_FUNCTION_ALT_1)
-            *mux_register |= bit;
-        else
-            *mux_register &= ~bit;
-        *function_register |= bit;
-    }
+    if (function != HAL_GPIO_FUNCTION_GPIO)
+        return ECOS_ERR_UNSUPPORTED;
     return ECOS_OK;
 }
 
@@ -178,6 +112,8 @@ ecos_err_t hal_gpio_configure(hal_gpio_port_t port,
         config->function < HAL_GPIO_FUNCTION_GPIO ||
         config->function > HAL_GPIO_FUNCTION_ALT_1)
         return ECOS_ERR_INVALID_ARGUMENT;
+    if (config->function != HAL_GPIO_FUNCTION_GPIO)
+        return ECOS_ERR_UNSUPPORTED;
 
     result = hal_gpio_set_direction(port, pin, config->direction);
     if (result != ECOS_OK)

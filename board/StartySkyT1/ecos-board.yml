@@ -1,24 +1,45 @@
 # 定义 StartySky T1 内置板卡清单。
-schema: 1
+schema: 2
 id: startysky-t1
 name: StartySky T1
 aliases:
   - t1
 category: StartySkyT1
 arch: riscv
+target: cl1-2512
 
-# 声明普通工程所需的构建和板卡文件。
+# SDK 3.0 默认使用 Flash XIP 和 DSRAM 数据布局。
+build:
+  default_profile: flash_xip
+  profiles:
+    - flash_xip
+  components:
+    - bsp-startysky-t1
+
+# 已确认板载 LED 位于 GPIOD4、Button 位于 GPIOD5；当前不注册这些资源，
+# 避免在板级 BSP 完成前开放绑定示例。
+resources:
+  console:
+    driver: driver-uart
+    instance: 0
+
+flash:
+  provider: mass-storage
+  artifact: bin
+  volume_label: YSYX-HFPLnk
+  copy_count: 2
+  settle_seconds: 0.5
+
+monitor:
+  baudrate: 115200
+
 files:
+  # 2.x compatibility entry; SDK 3.0 projects use the CL1-2512 Target files.
   makefile: Makefile
   board_header: board.h
+  linker_script: sections.lds
+  startup: start.S
   build_conf: build_conf.mk
-
-# 默认使用 Flash XIP 和 DSRAM 数据布局。
-default_profile: flash_xip
-profiles:
-  flash_xip:
-    linker_script: sections.lds
-    startup: start.S
 
 # 声明板卡和驱动配置入口。
 kconfig:

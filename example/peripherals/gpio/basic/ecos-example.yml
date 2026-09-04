@@ -6,3 +6,4 @@ components:
   - driver-gpio
 requires:
   - console
+  - gpio-demo

@@ -13,6 +13,7 @@ typedef enum {
     HAL_GPIO_PORT_0 = 0,
     HAL_GPIO_PORT_1,
     HAL_GPIO_PORT_2,
+    HAL_GPIO_PORT_3,
     HAL_GPIO_PORT_COUNT
 } hal_gpio_port_t;
 

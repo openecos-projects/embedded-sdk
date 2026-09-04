@@ -7,3 +7,4 @@ components:
   - driver-timer
 requires:
   - console
+  - pwm-output

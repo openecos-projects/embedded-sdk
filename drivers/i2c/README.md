@@ -8,5 +8,6 @@
 - `ecos_i2c_deinit()` 停止并关闭控制器；
 - `ecos_i2c_get_instance_count()` 返回当前 Target 提供的控制器数量。
 
-`clock_divider` 表示控制器输入时钟的分频参数。当前 ysyx-2512 Target 支持 I2C0，
-分频范围为 `1..256`，并由 SoC HAL 配置 GPIO0[27:28] 的 I2C 复用功能。
+`clock_divider` 表示控制器输入时钟的分频参数，具体寄存器语义由 Target HAL
+负责。当前 ysyx-2512 与 CL1-2512 Target 均支持 I2C0；ysyx-2512 的分频范围为
+`1..256`，并由 SoC HAL 配置 GPIO0[27:28] 的 I2C 复用功能。

@@ -13,6 +13,21 @@ build:
     - bsp-starrysky-l4
 
 resources:
+  gpio-demo:
+    driver: driver-gpio
+    input:
+      controller: 1
+      pin: 7
+    output:
+      controller: 1
+      pin: 5
+  pwm-output:
+    driver: driver-pwm
+    controller: 0
+    channel: 0
+    gpio:
+      controller: 1
+      pin: 14
   button:
     driver: driver-gpio
     active_level: low

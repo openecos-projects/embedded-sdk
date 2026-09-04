@@ -1,0 +1,59 @@
+schema: 1
+id: cl1-2512
+name: CL1-2512
+arch: riscv
+description: SoC target used by StartySky T1.
+cpu:
+  march: rv32imc_zicsr_zifencei
+  abi: ilp32
+toolchain:
+  prefix: riscv-none-elf-
+  triple: riscv-none-elf
+memory:
+  flash:
+    origin: 0x20000000
+    size: 16M
+  dsram:
+    origin: 0x01800000
+    size: 16K
+build:
+  cmake: CMakeLists.txt
+  toolchain_file: toolchain.cmake
+  kconfig: Kconfig
+  linker_script: linker/sections.lds
+  startup: startup/start.S
+  sources:
+    - startup/start.S
+  include_dirs:
+    - include
+  capability_sources:
+    gpio:
+      - hal/gpio/gpio.c
+    i2c:
+      - hal/i2c/i2c.c
+    timer:
+      - hal/timer/timer.c
+    uart:
+      - hal/uart/uart.c
+  capability_include_dirs:
+    gpio:
+      - ../../../hal/gpio/include
+    i2c:
+      - ../../../hal/i2c/include
+    timer:
+      - ../../../hal/timer/include
+    uart:
+      - ../../../hal/uart/include
+  outputs:
+    - elf
+    - bin
+    - hex
+    - txt
+    - map
+    - size
+    - compile_commands
+capabilities:
+  - uart
+  - gpio
+  - i2c
+  - timer
