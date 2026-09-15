@@ -19,6 +19,10 @@ sys.path.insert(0, str(SOURCE_ROOT))
 from ecos_cli import toolchain as installer  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
 from ecos_cli.progress import ConsoleProgress, DownloadStatus  # noqa: E402
+from ecos_cli.sdk_manifest import load_manifest  # noqa: E402
+
+
+REPOSITORY_ROOT = Path(__file__).parents[3]
 
 
 class ToolchainInstallerTest(unittest.TestCase):
@@ -266,7 +270,10 @@ class ToolchainInstallerTest(unittest.TestCase):
         self.assertEqual(payload["command"], "toolchain.detect")
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["data"]["release"], "15.2.0-1")
-        self.assertEqual(payload["data"]["sdk"]["sdk_version"], "3.0.0")
+        self.assertEqual(
+            payload["data"]["sdk"]["sdk_version"],
+            load_manifest(REPOSITORY_ROOT)["sdk_version"],
+        )
         self.assertEqual(payload["diagnostics"], [])
 
     def test_unsupported_host_has_stable_json_diagnostic(self):
