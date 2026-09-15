@@ -18,7 +18,8 @@
 - `origin/2.1-dev` 比 `origin/2.0` 多 25 个提交。
 - `origin/1.0` 是独立的旧稳定版本线，不应该大范围合并 `2.0` 的改动。
 
-仓库目前没有 `.github/` CI 配置，没有 `CHANGELOG.md`，也没有统一的版本文件。
+仓库已经提供基于 Git tag 的自动 SDK 发布流程，版本以
+`tools/sdk-manifest.json` 为唯一来源。目前仍没有 `CHANGELOG.md`。
 
 ## 推荐的分支职责
 
@@ -64,6 +65,10 @@ docs(branching): clarify 2.1-dev release path
 ```
 
 ## 发布流程
+
+当前发布由 `.github/workflows/release.yml` 自动执行。标签、SDK 版本和 release 通道的
+要求以及完整操作步骤见 [SDK 自动发布](releasing.md)。以下命令保留为版本分支推进参考；
+推送符合要求的 `v*` 标签后，不再手工创建或上传 GitHub Release 制品。
 
 发布 `v2.0.1` 这类补丁版本时，可以参考：
 
@@ -123,10 +128,9 @@ git push origin main
 1. 在 GitHub 上保护 `main`、`2.0`、`2.1-dev` 和 `1.0`。
 2. 受保护分支要求通过 Pull Request 合并。
 3. 合并前至少需要一名维护者 review。
-4. 添加一个简单的 CI workflow，用来构建一个或多个模板工程。
+4. 添加独立的日常 CI workflow，用来构建一个或多个模板工程。
 5. 添加 `CHANGELOG.md`，每次发布时更新。
-6. 添加单一版本来源，例如 `VERSION` 文件，让使用者不用查 Git tag 也能看到版本。
-7. 决定 GitHub 默认展示分支应该是 `2.0` 还是 `main`。
+6. 决定 GitHub 默认展示分支应该是 `2.0` 还是 `main`。
 
 ## 简单判断规则
 

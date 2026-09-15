@@ -8,6 +8,10 @@
 !README*.md
 !.envrc
 
+!.github/
+!.github/workflows/
+!.github/workflows/release.yml
+
 !src/
 !src/**
 
@@ -45,6 +49,7 @@
 !tools
 !tools/ecos.py
 !tools/install.py
+!tools/release.py
 !tools/sdk-manifest.json
 !tools/fixdep
 !tools/fixdep/**

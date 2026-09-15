@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "sdk_id": "ecos-embedded-sdk",
-  "sdk_version": "3.0.0",
-  "channel": "development",
+  "sdk_version": "3.0.0-alpha.0",
+  "channel": "release",
   "cli_compatibility": {
     "major": 3,
     "schema_version": "1.0"
