@@ -1,0 +1,12 @@
+schema: 1
+id: device-at24c64
+name: AT24C64 I2C EEPROM
+cmake_target: ecos::device::at24c64
+sources:
+  - src/ecos_at24c64.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-i2c
+  - driver-timer

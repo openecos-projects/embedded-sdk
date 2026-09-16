@@ -1,0 +1,12 @@
+schema: 1
+id: device-aht20
+name: AHT20 Temperature and Humidity Sensor
+cmake_target: ecos::device::aht20
+sources:
+  - src/ecos_aht20.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-i2c
+  - driver-timer
