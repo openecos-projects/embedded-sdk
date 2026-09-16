@@ -1,0 +1,12 @@
+schema: 1
+id: device-sgp30
+name: SGP30 Air Quality Sensor
+cmake_target: ecos::device::sgp30
+sources:
+  - src/ecos_sgp30.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-i2c
+  - driver-timer

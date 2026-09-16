@@ -261,7 +261,7 @@ def _board_resources_header(
         backlight_gpio = display["backlight_gpio"]
         lines.extend(
             [
-                '#include "ecos/device/st7735.h"',
+                '#include "ecos/driver/gpio.h"',
                 "",
                 "#define ECOS_BOARD_HAS_DISPLAY 1",
                 "#define ECOS_BOARD_DISPLAY_CHIP_SELECT "

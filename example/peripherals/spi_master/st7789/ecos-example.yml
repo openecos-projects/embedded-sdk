@@ -1,0 +1,10 @@
+schema: 1
+name: spi-master-st7789
+sources:
+  - main.c
+components:
+  - device-st7789
+  - driver-timer
+requires:
+  - console
+  - display

@@ -1,0 +1,15 @@
+schema: 1
+name: i2c-pcf8563
+sources:
+  - main.c
+components:
+  - device-pcf8563
+  - driver-i2c
+  - driver-timer
+requires:
+  - console
+  - i2c-bus
+# StarrySky L4C2/L4C3 未在板级引出 I2C 总线，本示例不支持这两块板卡。
+unsupported_boards:
+  - starrysky-l4-c2
+  - starrysky-l4-c3

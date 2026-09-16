@@ -1,0 +1,13 @@
+schema: 1
+id: device-st7789
+name: ST7789 Display Device
+cmake_target: ecos::device::st7789
+sources:
+  - src/ecos_st7789.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio
+  - driver-qspi
+  - driver-timer

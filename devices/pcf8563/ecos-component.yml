@@ -1,0 +1,11 @@
+schema: 1
+id: device-pcf8563
+name: PCF8563 Real-Time Clock
+cmake_target: ecos::device::pcf8563
+sources:
+  - src/ecos_pcf8563.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-i2c
