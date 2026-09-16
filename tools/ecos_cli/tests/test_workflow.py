@@ -362,6 +362,12 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 + "      initial_level: high\n",
                 encoding="utf-8",
             )
+            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest.write_text(
+                example_manifest.read_text(encoding="utf-8")
+                + "requires:\n  - gpio-demo\n",
+                encoding="utf-8",
+            )
             workspace = root / "workspace"
             workspace.mkdir()
             project = create_project(sdk, workspace)

@@ -49,6 +49,51 @@ class QSPIBoardResourceHeaderTest(unittest.TestCase):
         )
         self.assertIn("#define ECOS_BOARD_DISPLAY_BACKLIGHT_PIN 31u", header)
 
+    def test_omits_unrequested_resources(self):
+        board = {
+            "resources": {
+                "gpio-demo": {
+                    "input": {
+                        "controller": 1,
+                        "pin": 7,
+                        "label": "GPIO1[7]",
+                        "idle_level": "high",
+                    },
+                    "output": {
+                        "controller": 1,
+                        "pin": 5,
+                        "label": "GPIO1[5]",
+                        "initial_level": "high",
+                    },
+                },
+                "qspi-bus": {
+                    "controller": 0,
+                    "clock_divider": 3,
+                },
+                "display": {
+                    "chip_select": 0,
+                    "dc_gpio": {"controller": 0, "pin": 29},
+                    "reset_gpio": {"controller": 0, "pin": 30},
+                    "backlight_gpio": {"controller": 0, "pin": 31},
+                    "width": 128,
+                    "height": 128,
+                    "rotation": 0,
+                    "horizontal_offset": 0,
+                    "vertical_offset": 0,
+                },
+            }
+        }
+        header = _board_resources_header(board, set())
+        self.assertIn("#define ECOS_BOARD_HAS_GPIO_DEMO 0", header)
+        self.assertIn("#define ECOS_BOARD_HAS_QSPI_BUS 0", header)
+        self.assertIn("#define ECOS_BOARD_HAS_DISPLAY 0", header)
+        self.assertNotIn("#include", header)
+
+        header = _board_resources_header(board, {"display"})
+        self.assertIn("#define ECOS_BOARD_HAS_QSPI_BUS 1", header)
+        self.assertIn("#define ECOS_BOARD_HAS_DISPLAY 1", header)
+        self.assertIn("#define ECOS_BOARD_HAS_GPIO_DEMO 0", header)
+
 
 if __name__ == "__main__":
     unittest.main()
