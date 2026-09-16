@@ -9,10 +9,12 @@ GS2020CR-G 数码管（共 4 位，段 A～G + 小数点 DP）。程序初始化
 | 板卡 | `--board` 参数 | 支持状态 | 信号连接 |
 | --- | --- | --- | --- |
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | SEG_DAT=GPIO1[9]，SEG_CLK=GPIO1[10] |
+| StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 支持 | SEG_DAT=GPIO1[9]，SEG_CLK=GPIO1[10] |
+| StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 支持 | SEG_DAT=GPIO1[9]，SEG_CLK=GPIO1[10] |
 
 当前示例要求板卡在 `ecos-board.yml` 中提供 `console`、`tm1650` 资源，
-目前只有 StarrySky L4C1 声明了 `tm1650` 资源（SEG_DAT=GPIO1[9]、
-SEG_CLK=GPIO1[10]，各经 10 kΩ 上拉至 3V3），其余板卡创建工程时会被拒绝。
+StarrySky L4 全系列板卡均已声明 `tm1650` 资源（SEG_DAT=GPIO1[9]、
+SEG_CLK=GPIO1[10]，各经 10 kΩ 上拉至 3V3）。
 
 ## 创建和构建
 
