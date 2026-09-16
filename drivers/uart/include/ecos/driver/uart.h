@@ -12,6 +12,7 @@ extern "C" {
 
 typedef enum {
     ECOS_UART_PORT_0 = 0,
+    ECOS_UART_PORT_1,
     ECOS_UART_PORT_COUNT
 } ecos_uart_port_t;
 

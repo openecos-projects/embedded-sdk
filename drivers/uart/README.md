@@ -6,6 +6,9 @@
 - Driver 负责校验端口和配置、记录初始化状态，并将 HAL 错误映射为公共错误码。
 - Driver 只进行原始字节输入输出，不选择开发板引脚，也不转换换行符。
 - 开发板默认终端的绑定和文本行为由 BSP Console API 负责。
+- 端口与 SoC 实现的对应关系由 Target 决定：在 ysyx-2512-1/ysyx-2512-2 上，
+  `ECOS_UART_PORT_0` 是 16550 风格控制台串口（固定 115200 8N1），
+  `ECOS_UART_PORT_1` 是 hp_uart 块（TX=GPIO0[25]，RX=GPIO0[26]，8N1，波特率可配）。
 
 以下示例初始化 UART0，并直接发送原始字节：
 

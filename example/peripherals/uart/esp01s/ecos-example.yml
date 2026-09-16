@@ -1,0 +1,11 @@
+schema: 1
+name: uart-esp01s
+sources:
+  - main.c
+components:
+  - device-esp01s-at
+  - driver-uart
+  - driver-timer
+requires:
+  - console
+  - hp-uart

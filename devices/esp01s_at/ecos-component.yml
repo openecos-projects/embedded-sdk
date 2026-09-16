@@ -1,0 +1,12 @@
+schema: 1
+id: device-esp01s-at
+name: ESP01S AT WiFi Module
+cmake_target: ecos::device::esp01s_at
+sources:
+  - src/ecos_esp01s_at.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-uart
+  - driver-timer
