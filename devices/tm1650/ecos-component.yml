@@ -1,0 +1,12 @@
+schema: 1
+id: device-tm1650
+name: TM1650 4-Digit 7-Segment Display Driver
+cmake_target: ecos::device::tm1650
+sources:
+  - src/ecos_tm1650.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio
+  - driver-timer

@@ -1,0 +1,11 @@
+schema: 1
+name: gpio-tm1650
+sources:
+  - main.c
+components:
+  - device-tm1650
+  - driver-gpio
+  - driver-timer
+requires:
+  - console
+  - tm1650

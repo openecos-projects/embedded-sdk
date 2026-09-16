@@ -1,0 +1,120 @@
+schema: 2
+id: starrysky-l4-c1
+name: StarrySky L4C1
+aliases:
+  - l4c1
+category: StarrySkyL4_C1
+arch: riscv
+target: ysyx-2512-1
+
+build:
+  default_profile: memory
+  components:
+    - bsp-starrysky-l4-c1
+
+resources:
+  gpio-demo:
+    driver: driver-gpio
+    input:
+      controller: 1
+      pin: 7
+      label: GPIO1[7]
+      idle_level: high
+    output:
+      controller: 1
+      pin: 5
+      label: GPIO1[5]
+      initial_level: high
+  i2c-bus:
+    driver: driver-i2c
+    controller: 0
+  qspi-bus:
+    driver: driver-qspi
+    controller: 0
+    clock_divider: 3
+  display:
+    driver: device-st7735
+    bus: qspi-bus
+    chip_select: 0
+    dc_gpio:
+      controller: 0
+      pin: 29
+    reset_gpio:
+      controller: 0
+      pin: 30
+    backlight_gpio:
+      controller: 0
+      pin: 31
+    width: 128
+    height: 128
+    rotation: 0
+    horizontal_offset: 2
+    vertical_offset: 3
+  pwm-output:
+    driver: driver-pwm
+    controller: 0
+    channel: 0
+    gpio:
+      controller: 1
+      pin: 14
+  tm1650:
+    driver: device-tm1650
+    dat_gpio:
+      controller: 1
+      pin: 9
+    clk_gpio:
+      controller: 1
+      pin: 10
+  button:
+    driver: driver-gpio
+    active_level: low
+    idle_level: high
+    instances:
+      - id: 0
+        controller: 1
+        pin: 7
+      - id: 1
+        controller: 1
+        pin: 8
+  console:
+    driver: driver-uart
+    instance: 0
+  led:
+    driver: driver-gpio
+    active_level: low
+    instances:
+      - id: 0
+        controller: 1
+        pin: 5
+      - id: 1
+        controller: 1
+        pin: 6
+
+flash:
+  provider: mass-storage
+  artifact: bin
+  volume_label: YSYX-HFPLnk
+  copy_count: 2
+  settle_seconds: 0.5
+
+monitor:
+  baudrate: 115200
+
+files:
+  # 2.x compatibility entry; 3.0 ordinary projects use the Target CMake files.
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.S
+  build_conf: build_conf.mk
+
+kconfig:
+  board: board.kconfig
+  drivers: driver.kconfig
+
+paths:
+  loader: loader
+
+abstract_machine:
+  path: environments/abstract-machine
+  default_core: rv32e-base
