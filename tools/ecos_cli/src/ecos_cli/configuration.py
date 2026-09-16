@@ -227,6 +227,60 @@ def _board_resources_header(board: Optional[dict[str, Any]]) -> str:
                 + level_names[output_pin["initial_level"]],
             ]
         )
+    resources = board.get("resources", {}) if board else {}
+    qspi_bus = resources.get("qspi-bus") or resources.get("qspi0")
+    if qspi_bus is None:
+        lines.extend(["", "#define ECOS_BOARD_HAS_QSPI_BUS 0"])
+    else:
+        lines.extend(
+            [
+                '#include "ecos/driver/qspi.h"',
+                "",
+                "#define ECOS_BOARD_HAS_QSPI_BUS 1",
+                "#define ECOS_BOARD_QSPI_BUS_CONTROLLER "
+                f"((ecos_qspi_id_t){qspi_bus['controller']}u)",
+                "#define ECOS_BOARD_QSPI_BUS_CLOCK_DIVIDER "
+                f"{qspi_bus['clock_divider']}u",
+            ]
+        )
+    display = board.get("resources", {}).get("display") if board else None
+    if display is None:
+        lines.extend(["", "#define ECOS_BOARD_HAS_DISPLAY 0"])
+    else:
+        dc_gpio = display["dc_gpio"]
+        reset_gpio = display["reset_gpio"]
+        backlight_gpio = display["backlight_gpio"]
+        lines.extend(
+            [
+                '#include "ecos/device/st7735.h"',
+                "",
+                "#define ECOS_BOARD_HAS_DISPLAY 1",
+                "#define ECOS_BOARD_DISPLAY_CHIP_SELECT "
+                f"ECOS_QSPI_CS_{display['chip_select']}",
+                "#define ECOS_BOARD_DISPLAY_DC_PORT "
+                f"ECOS_GPIO_PORT_{dc_gpio['controller']}",
+                "#define ECOS_BOARD_DISPLAY_DC_PIN "
+                f"{dc_gpio['pin']}u",
+                "#define ECOS_BOARD_DISPLAY_RESET_PORT "
+                f"ECOS_GPIO_PORT_{reset_gpio['controller']}",
+                "#define ECOS_BOARD_DISPLAY_RESET_PIN "
+                f"{reset_gpio['pin']}u",
+                "#define ECOS_BOARD_DISPLAY_BACKLIGHT_PORT "
+                f"ECOS_GPIO_PORT_{backlight_gpio['controller']}",
+                "#define ECOS_BOARD_DISPLAY_BACKLIGHT_PIN "
+                f"{backlight_gpio['pin']}u",
+                "#define ECOS_BOARD_DISPLAY_WIDTH "
+                f"{display['width']}u",
+                "#define ECOS_BOARD_DISPLAY_HEIGHT "
+                f"{display['height']}u",
+                "#define ECOS_BOARD_DISPLAY_ROTATION "
+                f"{display['rotation']}u",
+                "#define ECOS_BOARD_DISPLAY_HORIZONTAL_OFFSET "
+                f"{display['horizontal_offset']}u",
+                "#define ECOS_BOARD_DISPLAY_VERTICAL_OFFSET "
+                f"{display['vertical_offset']}u",
+            ]
+        )
     lines.extend(["", "#endif", ""])
     return "\n".join(lines)
 

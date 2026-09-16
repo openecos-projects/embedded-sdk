@@ -1,0 +1,10 @@
+schema: 1
+id: hal-qspi
+name: QSPI HAL Contract
+cmake_target: ecos::hal::qspi
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - qspi

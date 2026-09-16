@@ -1,0 +1,10 @@
+schema: 1
+name: spi-master-st7735
+sources:
+  - main.c
+components:
+  - device-st7735
+  - driver-timer
+requires:
+  - console
+  - display

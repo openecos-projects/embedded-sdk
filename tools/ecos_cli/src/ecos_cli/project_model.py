@@ -248,6 +248,165 @@ def _gpio_demo_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
     return {"driver": driver, "input": input_pin, "output": output_pin}
 
 
+def _qspi_bus_resource(
+    value: dict[str, Any], path: Path, resource_id: str = "qspi-bus"
+) -> dict[str, Any]:
+    field = f"Board.resources.{resource_id}"
+    _check_keys(
+        value,
+        {"driver", "controller", "clock_divider"},
+        kind=field,
+        path=path,
+    )
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    controller = _integer(value.get("controller"), f"{field}.controller", path)
+    clock_divider = _integer(
+        value.get("clock_divider", 3), f"{field}.clock_divider", path
+    )
+    assert driver is not None
+    if driver != "driver-qspi":
+        raise ManifestValidationError(
+            f"{field}.driver must be 'driver-qspi' in {path}"
+        )
+    if not 0 <= controller <= 255:
+        raise ManifestValidationError(
+            f"{field}.controller must be between 0 and 255 in {path}"
+        )
+    if not 0 <= clock_divider <= 0xFFFFFFFF:
+        raise ManifestValidationError(
+            f"{field}.clock_divider must be between 0 and 4294967295 in {path}"
+        )
+    return {
+        "driver": driver,
+        "controller": controller,
+        "clock_divider": clock_divider,
+    }
+
+
+def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
+    field = "Board.resources.display"
+    _check_keys(
+        value,
+        {
+            "driver",
+            "bus",
+            "chip_select",
+            "dc_gpio",
+            "reset_gpio",
+            "backlight_gpio",
+            "width",
+            "height",
+            "rotation",
+            "horizontal_offset",
+            "vertical_offset",
+        },
+        kind=field,
+        path=path,
+    )
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    bus = _string(value.get("bus"), f"{field}.bus", path)
+    chip_select = _integer(value.get("chip_select"), f"{field}.chip_select", path)
+    dc_gpio = _mapping(value.get("dc_gpio"), f"{field}.dc_gpio", path)
+    _check_keys(dc_gpio, {"controller", "pin"}, kind=f"{field}.dc_gpio", path=path)
+    controller = _integer(
+        dc_gpio.get("controller"), f"{field}.dc_gpio.controller", path
+    )
+    pin = _integer(dc_gpio.get("pin"), f"{field}.dc_gpio.pin", path)
+    reset_gpio = _mapping(value.get("reset_gpio"), f"{field}.reset_gpio", path)
+    _check_keys(
+        reset_gpio, {"controller", "pin"}, kind=f"{field}.reset_gpio", path=path
+    )
+    reset_controller = _integer(
+        reset_gpio.get("controller"), f"{field}.reset_gpio.controller", path
+    )
+    reset_pin = _integer(reset_gpio.get("pin"), f"{field}.reset_gpio.pin", path)
+    backlight_gpio = _mapping(
+        value.get("backlight_gpio"), f"{field}.backlight_gpio", path
+    )
+    _check_keys(
+        backlight_gpio,
+        {"controller", "pin"},
+        kind=f"{field}.backlight_gpio",
+        path=path,
+    )
+    backlight_controller = _integer(
+        backlight_gpio.get("controller"), f"{field}.backlight_gpio.controller", path
+    )
+    backlight_pin = _integer(
+        backlight_gpio.get("pin"), f"{field}.backlight_gpio.pin", path
+    )
+    width = _integer(value.get("width"), f"{field}.width", path)
+    height = _integer(value.get("height"), f"{field}.height", path)
+    rotation = _integer(value.get("rotation"), f"{field}.rotation", path)
+    horizontal_offset = _integer(
+        value.get("horizontal_offset", 0), f"{field}.horizontal_offset", path
+    )
+    vertical_offset = _integer(
+        value.get("vertical_offset", 0), f"{field}.vertical_offset", path
+    )
+    assert driver is not None and bus is not None
+    if driver not in {"device-st7735", "st7735"}:
+        raise ManifestValidationError(
+            f"{field}.driver must be 'device-st7735' or 'st7735' in {path}"
+        )
+    if bus not in {"qspi-bus", "qspi0"}:
+        raise ManifestValidationError(
+            f"{field}.bus must name a QSPI bus resource in {path}"
+        )
+    if not 0 <= chip_select <= 3:
+        raise ManifestValidationError(
+            f"{field}.chip_select must be between 0 and 3 in {path}"
+        )
+    if not 0 <= controller <= GPIO_CONTROLLER_MAX:
+        raise ManifestValidationError(
+            f"{field}.dc_gpio.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
+        )
+    if not 0 <= pin <= GPIO_PIN_MAX:
+        raise ManifestValidationError(
+            f"{field}.dc_gpio.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
+        )
+    for name, gpio_controller, gpio_pin in (
+        ("reset_gpio", reset_controller, reset_pin),
+        ("backlight_gpio", backlight_controller, backlight_pin),
+    ):
+        if not 0 <= gpio_controller <= GPIO_CONTROLLER_MAX:
+            raise ManifestValidationError(
+                f"{field}.{name}.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
+            )
+        if not 0 <= gpio_pin <= GPIO_PIN_MAX:
+            raise ManifestValidationError(
+                f"{field}.{name}.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
+            )
+    if not 1 <= width <= 65535 or not 1 <= height <= 65535:
+        raise ManifestValidationError(
+            f"{field}.width and height must be between 1 and 65535 in {path}"
+        )
+    if not 0 <= rotation <= 3:
+        raise ManifestValidationError(
+            f"{field}.rotation must be between 0 and 3 in {path}"
+        )
+    if not 0 <= horizontal_offset <= 255 or not 0 <= vertical_offset <= 255:
+        raise ManifestValidationError(
+            f"{field} offsets must be between 0 and 255 in {path}"
+        )
+    return {
+        "driver": driver,
+        "bus": bus,
+        "chip_select": chip_select,
+        "dc_gpio": {"controller": controller, "pin": pin},
+        "reset_gpio": {"controller": reset_controller, "pin": reset_pin},
+        "backlight_gpio": {
+            "controller": backlight_controller,
+            "pin": backlight_pin,
+        },
+        "width": width,
+        "height": height,
+        "rotation": rotation,
+        "horizontal_offset": horizontal_offset,
+        "vertical_offset": vertical_offset,
+    }
+
+
 class _Inputs:
     def __init__(self, project_root: Path, sdk_root: Path) -> None:
         self.project_root = project_root.resolve()
@@ -382,10 +541,19 @@ def _resolve_board(
             raise ManifestValidationError(
                 f"Board resource {resource_id!r} must be a mapping in {path}"
             )
-        resources[resource_id] = (
-            _gpio_demo_resource(resource, path)
-            if resource_id == "gpio-demo"
-            else dict(resource)
+        if resource_id == "gpio-demo":
+            resources[resource_id] = _gpio_demo_resource(resource, path)
+        elif resource_id in {"qspi-bus", "qspi0"}:
+            resources[resource_id] = _qspi_bus_resource(resource, path, resource_id)
+        elif resource_id == "display":
+            resources[resource_id] = _display_resource(resource, path)
+        else:
+            resources[resource_id] = dict(resource)
+    display = resources.get("display")
+    if display is not None and display["bus"] not in resources:
+        raise ManifestValidationError(
+            f"Board.resources.display.bus refers to missing resource "
+            f"{display['bus']!r} in {path}"
         )
     build = _mapping(value.get("build"), "Board.build", path)
     _check_keys(

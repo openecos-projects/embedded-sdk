@@ -79,7 +79,9 @@ StarrySkyL4 的 SDK AbstractMachine 环境见
 - QSPI MOSI/SI00：GPIO0[12]
 - QSPI SI01..SI03：GPIO0[13:15]
 - QSPI NSS0：GPIO0[16]
-- ST7735 DC：GPIO0[31]，普通 GPIO 输出
+- ST7735 DC：GPIO0[29]，普通 GPIO 输出
+- ST7735 RST：GPIO0[30]，初始化时保持高电平
+- ST7735 BLK：GPIO0[31]，初始化时保持高电平
 
 QSPI 引脚复用由 `hal_qspi_init()` 完成，应用不再直接配置 QSPI 引脚寄存器。
 
@@ -93,6 +95,8 @@ QSPI 引脚复用由 `hal_qspi_init()` 完成，应用不再直接配置 QSPI �
   4. 轮询完整 STATUS 回到 idle
 - 新增 `hal_qspi_write_32_repeat()`，用于将同一个 32 位数据循环预填 1 到 32 个 FIFO word；实现与 `verif::qspi_write32_repeat()` 的 MMIO 顺序一致。
 - QSPI 对象强制使用 `-O0`，确保轮询和 MMIO 写入顺序不受应用优化等级影响。
+- SDK 3.0 新增 `hal-qspi`、`driver-qspi` 和 `device-st7735` 组件；应用通过
+  `example/peripherals/spi_master/st7735` 验证 QSPI0 与 ST7735 的完整依赖链。
 
 ### 板上排障记录
 
@@ -110,11 +114,13 @@ QSPI 引脚复用由 `hal_qspi_init()` 完成，应用不再直接配置 QSPI �
 
 - GPIO：使用 32 位无符号掩码，支持 GPIO0、GPIO1 和 GPIO2 的输入、输出、电平与复用设置。
 - Timer：支持 TIMER0..TIMER3；实现微秒、毫秒、秒延时以及系统 tick API；默认 Timer 时钟为 25 MHz。
+- I2C：支持 I2C0 的 7 位地址探测、连续字节写读，以及写后重复 START 读；SCL/SDA 为 GPIO0[27:28]，分频参数范围为 1..256。
 - HP UART：使用 GPIO0[25:26] alternate-0，分频值基于配置的 CPU 时钟计算。
 - PWM：PWM0 使用 GPIO1[14:17]，PWM1 使用 GPIO1[18:21]；不再访问不存在的 PWM2。
 - SYS UART：保持与 `verif` 相同的 16550 初始化和轮询发送流程。
 - ARCHINFO：修复 `uint32_t` 与 `%x` 的可变参数类型告警。
-- 删除未在 L4 上验证的 I2C、PS2、RCU、RTC 和 WDG 板级驱动及对应 L4 模板。
+- 删除未在 L4 上验证的 PS2、RCU、RTC 和 WDG 板级驱动及对应 L4 模板；I2C 已迁移到
+  ysyx-2512 的 3.0 HAL/Driver，提供完整字节事务和重复 START 读。
 
 ## 内存报告
 

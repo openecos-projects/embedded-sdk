@@ -28,6 +28,28 @@ resources:
   i2c-bus:
     driver: driver-i2c
     controller: 0
+  qspi-bus:
+    driver: driver-qspi
+    controller: 0
+    clock_divider: 3
+  display:
+    driver: device-st7735
+    bus: qspi-bus
+    chip_select: 0
+    dc_gpio:
+      controller: 0
+      pin: 29
+    reset_gpio:
+      controller: 0
+      pin: 30
+    backlight_gpio:
+      controller: 0
+      pin: 31
+    width: 128
+    height: 128
+    rotation: 0
+    horizontal_offset: 2
+    vertical_offset: 3
   pwm-output:
     driver: driver-pwm
     controller: 0

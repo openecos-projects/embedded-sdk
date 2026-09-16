@@ -1,0 +1,13 @@
+schema: 1
+id: device-st7735
+name: ST7735 Display Device
+cmake_target: ecos::device::st7735
+sources:
+  - src/ecos_st7735.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio
+  - driver-qspi
+  - driver-timer

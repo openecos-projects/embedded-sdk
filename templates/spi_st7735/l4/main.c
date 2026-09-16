@@ -16,19 +16,27 @@ void main(void){
     hal_sys_uart_init();
     printf("ST7735 LCD TEST!\n");
 
-    // QSPI pins are configured by hal_qspi_init(); configure DC as GPIO0[31].
+    // QSPI pins are configured by hal_qspi_init(); configure the display GPIOs.
+    // DC=GPIO0[29], RST=GPIO0[30], BLK=GPIO0[31]. RST and BLK stay high.
+    gpio_hal_set_fcfg(0, 29, 0);
+    gpio_hal_set_mux(0, 29, 0);
+    gpio_hal_set_fcfg(0, 30, 0);
+    gpio_hal_set_mux(0, 30, 0);
     gpio_hal_set_fcfg(0, 31, 0);
-
     gpio_hal_set_mux(0, 31, 0);
+    gpio_hal_output_enable(0, 30);
+    gpio_hal_output_enable(0, 31);
+    gpio_hal_set_level(0, 30, GPIO_LEVEL_HIGH);
+    gpio_hal_set_level(0, 31, GPIO_LEVEL_HIGH);
 
     hal_qspi_config_t qspi_config = {
-        .clkdiv = 4,
+        .clkdiv = 3,
     };
     hal_qspi_init(HAL_QSPI_PORT_0, &qspi_config);
 
     st7735_device_t st7735 = {
         .dc_gpio_port = 0,
-        .dc_gpio_pin = 31,
+        .dc_gpio_pin = 29,
         .qspi_port = HAL_QSPI_PORT_0,
         .qspi_cs = HAL_QSPI_CS_0,
         .screen_width = 128,

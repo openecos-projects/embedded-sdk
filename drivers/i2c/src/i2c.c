@@ -43,3 +43,46 @@ int ecos_i2c_probe(ecos_i2c_id_t i2c, uint8_t address)
         hal_i2c_probe((hal_i2c_id_t)i2c, address)
     );
 }
+
+ecos_err_t ecos_i2c_write(ecos_i2c_id_t i2c,
+                          uint8_t address,
+                          const void *data,
+                          size_t size)
+{
+    if (address > 0x7fu || data == NULL || size == 0u)
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return i2c_map_hal_result(
+        hal_i2c_write((hal_i2c_id_t)i2c, address,
+                      (const uint8_t *)data, size)
+    );
+}
+
+ecos_err_t ecos_i2c_read(ecos_i2c_id_t i2c,
+                         uint8_t address,
+                         void *data,
+                         size_t size)
+{
+    if (address > 0x7fu || data == NULL || size == 0u)
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return i2c_map_hal_result(
+        hal_i2c_read((hal_i2c_id_t)i2c, address,
+                     (uint8_t *)data, size)
+    );
+}
+
+ecos_err_t ecos_i2c_write_read(ecos_i2c_id_t i2c,
+                               uint8_t address,
+                               const void *write_data,
+                               size_t write_size,
+                               void *read_data,
+                               size_t read_size)
+{
+    if (address > 0x7fu || write_data == NULL || write_size == 0u ||
+        read_data == NULL || read_size == 0u)
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return i2c_map_hal_result(
+        hal_i2c_write_read((hal_i2c_id_t)i2c, address,
+                           (const uint8_t *)write_data, write_size,
+                           (uint8_t *)read_data, read_size)
+    );
+}

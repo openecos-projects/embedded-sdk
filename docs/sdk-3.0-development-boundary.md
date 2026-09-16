@@ -361,7 +361,9 @@ resources:
     driver: st7735
     bus: qspi0
     chip_select: 0
-    dc_gpio: { controller: 0, pin: 31 }
+    dc_gpio: { controller: 0, pin: 29 }
+    reset_gpio: { controller: 0, pin: 30 }
+    backlight_gpio: { controller: 0, pin: 31 }
 ```
 
 实际 schema 必须通过结构化解析器和 schema 校验处理，3.0 不再扩展仅靠 `awk` 匹配

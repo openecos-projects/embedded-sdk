@@ -35,6 +35,8 @@ build:
       - hal/i2c/i2c.c
     pwm:
       - hal/pwm/pwm.c
+    qspi:
+      - hal/qspi/qspi.c
     timer:
       - hal/timer/timer.c
     uart:
@@ -46,6 +48,8 @@ build:
       - ../../../hal/i2c/include
     pwm:
       - ../../../hal/pwm
+    qspi:
+      - ../../../hal/qspi/include
     timer:
       - ../../../hal/timer/include
     uart:

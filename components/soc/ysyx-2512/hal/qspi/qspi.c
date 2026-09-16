@@ -1,6 +1,5 @@
-#include "hal_qspi.h"
+#include "ecos/hal/qspi.h"
 #include "ysyx_2512_soc.h"
-#include <stdio.h>
 
 #define GPIO_BIT(pin)             ((uint32_t)1u << (pin))
 #define QSPI_GPIO0_MASK           (GPIO_BIT(12) | GPIO_BIT(13) | \
@@ -49,9 +48,9 @@ static int qspi_wait_done(void)
 int hal_qspi_init(hal_qspi_port_t port, const hal_qspi_config_t *config){
     if (port != HAL_QSPI_PORT_0 || !config) return -1;
     qspi_gpio_init();
-    REG_QSPI_0_STATUS = (uint32_t)0b10000;
-    REG_QSPI_0_STATUS = (uint32_t)0b00000;
-    REG_QSPI_0_INTCFG = (uint32_t)0b00000;
+    REG_QSPI_0_STATUS = 0x10u;
+    REG_QSPI_0_STATUS = 0u;
+    REG_QSPI_0_INTCFG = 0u;
     REG_QSPI_0_DUM = (uint32_t)0;
     REG_QSPI_0_CLKDIV = config->clkdiv; // sck = apb_clk/2(div+1)
     return 0;
@@ -59,7 +58,7 @@ int hal_qspi_init(hal_qspi_port_t port, const hal_qspi_config_t *config){
 
 int hal_qspi_deinit(hal_qspi_port_t port) {
     if (port != HAL_QSPI_PORT_0) return -1;
-    REG_QSPI_0_STATUS = (uint32_t)0b10000;
+    REG_QSPI_0_STATUS = 0x10u;
     return 0;
 }
 
@@ -290,8 +289,14 @@ int hal_qspi_write_32x32_cs(hal_qspi_port_t port, uint32_t data1, uint32_t data2
  * @brief 忙等传输完成
  */
 // #define QSPI_BUSY_BIT    (1 << 0)
-static inline void qspi_wait_idle(void) {
-    while ((REG_QSPI_0_STATUS & 0x7F) != FSM_IDLE); // TODO: 加超时保护
+static inline int qspi_wait_idle(void) {
+    uint32_t timeout = QSPI_TIMEOUT;
+
+    while ((REG_QSPI_0_STATUS & 0x7F) != FSM_IDLE) {
+        if (timeout-- == 0u)
+            return -2;
+    }
+    return 0;
 }
 
 /**
@@ -339,7 +344,8 @@ int hal_qspi_send_cmd(hal_qspi_port_t port,
                        uint8_t cmd, uint8_t cmd_len,
                        uint32_t addr, uint8_t addr_len)
 {
-    if (port != HAL_QSPI_PORT_0) return -1;
+    if (port != HAL_QSPI_PORT_0 || cmd_len > 8u || addr_len > 32u)
+        return -1;
 
     /* 命令字左移对齐到 MSB（硬件从 bit[31] 开始移位） */
     if (cmd_len > 0) {
@@ -357,8 +363,7 @@ int hal_qspi_send_cmd(hal_qspi_port_t port,
     REG_QSPI_0_STATUS = STATUS_SPI_RD | STATUS_CS0;
 
     /* 等待传输完成 */
-    qspi_wait_idle();
-    return 0;
+    return qspi_wait_idle();
 }
 
 /* ================================================================
@@ -372,7 +377,9 @@ int hal_qspi_write(hal_qspi_port_t port,
                     uint32_t addr, uint8_t addr_len,
                     const uint8_t *tx_buf, uint16_t tx_len)
 {
-    if (port != HAL_QSPI_PORT_0) return -1;
+    if (port != HAL_QSPI_PORT_0 || cmd_len > 8u || addr_len > 32u ||
+        (tx_buf == NULL && tx_len != 0u))
+        return -1;
     if (tx_len == 0) {
         /* 无数据 → 退化为 send_cmd */
         return hal_qspi_send_cmd(port, cmd, cmd_len, addr, addr_len);
@@ -405,7 +412,10 @@ int hal_qspi_write(hal_qspi_port_t port,
     REG_QSPI_0_STATUS = STATUS_SPI_WR | STATUS_CS0;
 
     /* --- 4. 边传边填剩余数据 --- */
+    uint32_t timeout = QSPI_TIMEOUT;
     while (bytes_remaining > 0) {
+        if (timeout-- == 0u)
+            return -2;
         /* 等 FSM 进入 DATA_TX 状态且 FIFO 有空位 */
         if ((REG_QSPI_0_STATUS & 0x7F) == FSM_DATA_TX) {
             if (bytes_remaining >= 4) {
@@ -425,8 +435,7 @@ int hal_qspi_write(hal_qspi_port_t port,
     }
 
     /* --- 5. 等待传输完成 --- */
-    qspi_wait_idle();
-    return 0;
+    return qspi_wait_idle();
 }
 
 /* ================================================================
@@ -445,7 +454,9 @@ int hal_qspi_read(hal_qspi_port_t port,
                    uint8_t dummy_cycles,
                    uint8_t *rx_buf, uint16_t rx_len)
 {
-    if (port != HAL_QSPI_PORT_0) return -1;
+    if (port != HAL_QSPI_PORT_0 || cmd_len > 8u || addr_len > 32u ||
+        (rx_buf == NULL && rx_len != 0u))
+        return -1;
     if (rx_len == 0) return 0;
 
     uint8_t *p = rx_buf;
@@ -474,7 +485,8 @@ int hal_qspi_read(hal_qspi_port_t port,
         REG_QSPI_0_STATUS = STATUS_SPI_RD | STATUS_CS0;
 
         /* --- 3. 等 IDLE 后排水（chunk ≤ FIFO 深度，安全）--- */
-        qspi_wait_idle();
+        if (qspi_wait_idle() != 0)
+            return -2;
 
         while (chunk_remaining > 0) {
             if (((REG_QSPI_0_STATUS >> 16) & 0x1F) == 0) break;

@@ -54,7 +54,11 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 - RNG：`0x10300000`
 - CRC：`0x10301000`
 
-地址存在于 `board.h` 不表示对应驱动已在 L4 上验证。目前 SDK 不提供 L4 I2C、PS2、RCU、RTC 和 WDG 板级驱动。
+地址存在于 `board.h` 不表示对应驱动已在 L4 上验证。目前 L4 已提供 I2C0 和 QSPI0 的 3.0
+HAL/Driver；I2C 支持探测、连续写、连续读和写后重复 START 读，SCL/SDA 使用 GPIO0[27:28]。
+QSPI0 的 3.0 示例为 `example/peripherals/spi_master/st7735`，通过 `device-st7735`
+驱动显示屏。
+SDK 目前不提供 L4 PS2、RCU、RTC 和 WDG 板级驱动。
 
 ## QSPI 引脚
 
@@ -62,7 +66,9 @@ bootloader 使用独立的无优化参数编译，不能依赖尚未搬运的 te
 - GPIO0[13:15]：SI01..SI03
 - GPIO0[16]：NSS0
 - GPIO0[24]：SCK
-- GPIO0[31]：ST7735/ST7789 DC GPIO
+- GPIO0[29]：ST7735/ST7789 DC GPIO
+- GPIO0[30]：ST7735 RST GPIO，初始化时保持高电平
+- GPIO0[31]：ST7735 BLK GPIO，初始化时保持高电平
 
 L4 QSPI 使用经板上验证的 FIFO-first MMIO 顺序，驱动对象固定以 `-O0` 编译。
 

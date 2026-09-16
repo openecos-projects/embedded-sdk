@@ -3,6 +3,7 @@
 
 #include "ecos/error.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -29,6 +30,23 @@ ecos_err_t ecos_i2c_deinit(ecos_i2c_id_t i2c);
 
 /* Returns 1 for ACK, 0 for NACK, or a negative error code. */
 int ecos_i2c_probe(ecos_i2c_id_t i2c, uint8_t address);
+
+/* Execute a complete transaction against a 7-bit slave address. */
+ecos_err_t ecos_i2c_write(ecos_i2c_id_t i2c,
+                          uint8_t address,
+                          const void *data,
+                          size_t size);
+ecos_err_t ecos_i2c_read(ecos_i2c_id_t i2c,
+                         uint8_t address,
+                         void *data,
+                         size_t size);
+/* Write bytes, issue a repeated START, then read bytes. */
+ecos_err_t ecos_i2c_write_read(ecos_i2c_id_t i2c,
+                               uint8_t address,
+                               const void *write_data,
+                               size_t write_size,
+                               void *read_data,
+                               size_t read_size);
 
 #ifdef __cplusplus
 }

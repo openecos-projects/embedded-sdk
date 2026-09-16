@@ -116,6 +116,77 @@ class StarrySkyL4BuildTest(unittest.TestCase):
             ):
                 self.assertIn(symbol, text)
 
+    def test_st7735_build_links_qspi_display_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "project",
+                        "create",
+                        "spi-master-st7735",
+                        "--path",
+                        directory,
+                        "--board",
+                        "starrysky-l4",
+                    ]
+                )
+                project_root = Path(directory) / "spi-master-st7735"
+                build_result = main(
+                    [
+                        "--sdk",
+                        str(SDK_ROOT),
+                        "build",
+                        "--project",
+                        str(project_root),
+                    ]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            firmware = project_root / "build" / "retrosoc_fw"
+            self.assertEqual(
+                firmware.with_suffix(".elf").read_bytes()[:4], b"\x7fELF"
+            )
+            resources = (
+                project_root / ".ecos/generated/include/ecos/board_resources.h"
+            ).read_text(encoding="utf-8")
+            self.assertIn("#define ECOS_BOARD_HAS_QSPI_BUS 1", resources)
+            self.assertIn("#define ECOS_BOARD_HAS_DISPLAY 1", resources)
+            self.assertIn(
+                "#define ECOS_BOARD_DISPLAY_CHIP_SELECT ECOS_QSPI_CS_0", resources
+            )
+            self.assertIn("#define ECOS_BOARD_DISPLAY_DC_PORT ECOS_GPIO_PORT_0", resources)
+            self.assertIn("#define ECOS_BOARD_DISPLAY_DC_PIN 29u", resources)
+            self.assertIn("#define ECOS_BOARD_DISPLAY_RESET_PIN 30u", resources)
+            self.assertIn("#define ECOS_BOARD_DISPLAY_BACKLIGHT_PIN 31u", resources)
+            compile_commands = project_root / "build" / "compile_commands.json"
+            compiled_sources = {
+                Path(item["file"]).resolve()
+                for item in json.loads(compile_commands.read_text(encoding="utf-8"))
+            }
+            for source in (
+                SDK_ROOT / "drivers/qspi/src/qspi.c",
+                SDK_ROOT / "devices/st7735/src/ecos_st7735.c",
+                SDK_ROOT / "components/soc/ysyx-2512/hal/qspi/qspi.c",
+            ):
+                self.assertIn(source.resolve(), compiled_sources)
+            text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
+            for symbol in (
+                "<main>",
+                "<ecos_st7735_init>",
+                "<ecos_st7735_fill>",
+                "<ecos_qspi_init>",
+                "<ecos_qspi_write_32_cs>",
+                "<hal_qspi_init>",
+                "<hal_qspi_write_32_cs>",
+                "<hal_gpio_configure>",
+                "<hal_timer_delay_us>",
+            ):
+                self.assertIn(symbol, text)
+
     def test_pwm_basic_build_links_pwm_control_and_timer_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
