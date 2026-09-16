@@ -226,18 +226,18 @@ ecos project create EXAMPLE [--name NAME] [--path DIRECTORY]
 ecos project list
 ecos project list --format json
 ecos project create hello
-ecos project create hello --board starrysky-l4
+ecos project create hello --board starrysky-l4-c1
 ecos project create hello --name my-app
-ecos project create hello --name my-app --path ~/workspace --board starrysky-l4
-ecos project create hello --target ysyx-2512
+ecos project create hello --name my-app --path ~/workspace --board starrysky-l4-c1
+ecos project create hello --target ysyx-2512-1
 ecos --sdk 3.0.0 project create hello --name hello-demo
 ```
 
 创建后可随时切换硬件选择：
 
 ```bash
-ecos project set-board starrysky-l4
-ecos project set-target ysyx-2512
+ecos project set-board starrysky-l4-c1
+ecos project set-target ysyx-2512-1
 ```
 
 这两个命令使用覆盖语义。`set-board` 将 `board` 写为规范 Board ID，并将 `target`
@@ -257,7 +257,7 @@ ecos build
 
 `ecos build` 必须重新验证 Board 到 Target 的映射，随后从
 `components/soc/<target>/CMakeLists.txt` 加载目标构建规则，并使用 Ninja 生成器。
-StarrySky L4 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`.map`、`.size`
+StarrySky L4C1 当前生成 `build/retrosoc_fw.elf`、`.bin`、`.txt`、`.hex`、`.map`、`.size`
 和 `compile_commands.json`；缺少 ELF、BIN、HEX、MAP、size 报告或编译数据库时即使
 底层构建命令返回成功也视为失败。
 
@@ -313,7 +313,7 @@ ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
 工具链、源码指纹和配置指纹。`flash` 只接受摘要完整、配置未过期且符合当前 Board 的产物清单，
 不会猜测固件文件名。
 
-StarrySky L4 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上由 Python 查找
+StarrySky L4C1 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上由 Python 查找
 卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
 模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
 

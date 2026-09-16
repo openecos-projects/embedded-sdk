@@ -25,7 +25,7 @@
       "abi": "ilp32"
     },
     {
-      "names": ["StarrySkyL4"],
+      "names": ["StarrySkyL4_C1", "StarrySkyL4_C2", "StarrySkyL4_C3"],
       "isa": "rv32e",
       "abi": "ilp32e"
     },

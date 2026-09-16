@@ -8,17 +8,17 @@
 
 | 板卡 | `--board` 参数 | 支持状态 |
 | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 |
+| StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 |
 | StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 |
 
 当前示例要求板卡提供 `console` 资源。以上两块板卡均已提供对应的 UART Console BSP。
 
 ## 创建和构建
 
-以 StarrySky L4 为例：
+以 StarrySky L4C1 为例：
 
 ```bash
-ecos project create hello --board starrysky-l4
+ecos project create hello --board starrysky-l4-c1
 cd hello
 ecos build
 ```

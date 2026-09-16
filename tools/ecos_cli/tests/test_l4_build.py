@@ -55,7 +55,7 @@ def sdk_toolchain_is_ready() -> bool:
     and importlib.util.find_spec("kconfiglib") is not None,
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
-class StarrySkyL4BuildTest(unittest.TestCase):
+class StarrySkyL4C1BuildTest(unittest.TestCase):
     def test_i2c_scan_build_links_i2c_probe_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
@@ -70,7 +70,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "i2c-scan"
@@ -99,7 +99,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "drivers/i2c/src/i2c.c").resolve(), compiled_sources
             )
             self.assertIn(
-                (SDK_ROOT / "components/soc/ysyx-2512/hal/i2c/i2c.c").resolve(),
+                (SDK_ROOT / "components/soc/ysyx-2512-1/hal/i2c/i2c.c").resolve(),
                 compiled_sources,
             )
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
@@ -130,7 +130,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "spi-master-st7735"
@@ -170,7 +170,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
             for source in (
                 SDK_ROOT / "drivers/qspi/src/qspi.c",
                 SDK_ROOT / "devices/st7735/src/ecos_st7735.c",
-                SDK_ROOT / "components/soc/ysyx-2512/hal/qspi/qspi.c",
+                SDK_ROOT / "components/soc/ysyx-2512-1/hal/qspi/qspi.c",
             ):
                 self.assertIn(source.resolve(), compiled_sources)
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
@@ -201,7 +201,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "pwm-basic"
@@ -230,7 +230,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "drivers/pwm/src/pwm.c").resolve(), compiled_sources
             )
             self.assertIn(
-                (SDK_ROOT / "components/soc/ysyx-2512/hal/pwm/pwm.c").resolve(),
+                (SDK_ROOT / "components/soc/ysyx-2512-1/hal/pwm/pwm.c").resolve(),
                 compiled_sources,
             )
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
@@ -262,7 +262,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "gpio-basic"
@@ -320,7 +320,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "blink"
@@ -348,7 +348,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "drivers/timer/src/timer.c").resolve(), compiled_sources
             )
             self.assertIn(
-                (SDK_ROOT / "components/soc/ysyx-2512/hal/timer/timer.c").resolve(),
+                (SDK_ROOT / "components/soc/ysyx-2512-1/hal/timer/timer.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(
@@ -393,7 +393,7 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                         "--path",
                         directory,
                         "--board",
-                        "starrysky-l4",
+                        "starrysky-l4-c1",
                     ]
                 )
                 project_root = Path(directory) / "hello"
@@ -429,15 +429,15 @@ class StarrySkyL4BuildTest(unittest.TestCase):
                 (SDK_ROOT / "drivers/gpio/src/gpio.c").resolve(), compiled_sources
             )
             self.assertIn(
-                (SDK_ROOT / "components/soc/ysyx-2512/hal/gpio/gpio.c").resolve(),
+                (SDK_ROOT / "components/soc/ysyx-2512-1/hal/gpio/gpio.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(
-                (SDK_ROOT / "board/StarrySkyL4/bsp/button.c").resolve(),
+                (SDK_ROOT / "board/StarrySkyL4_C1/bsp/button.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(
-                (SDK_ROOT / "board/StarrySkyL4/bsp/led.c").resolve(),
+                (SDK_ROOT / "board/StarrySkyL4_C1/bsp/led.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(

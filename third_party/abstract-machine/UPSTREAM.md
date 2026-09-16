@@ -8,7 +8,7 @@
 - 初始迁入范围：上游工作树中的公共头文件、AM 平台源码、Klib、构建脚本和工具
 - 排除项：`.git/`、所有 `build/` 目录、`Makefile.html` 以及 ELF/BIN/HEX/TXT 生成物
 
-SDK 当前只支持 StarrySkyL4 的 `riscv32e-ysyxsoc`，因此初始迁入后删除了不会进入
+SDK 当前只支持 StarrySkyL4_C1 的 `riscv32e-ysyxsoc`，因此初始迁入后删除了不会进入
 该构建路径的 LoongArch、MIPS、x86、native、NEMU、NPC、QEMU、Spike 和 rvmini
 平台实现及脚本。NPC 目录中被 RV32E 复用的软算术源码保留为
 `am/src/riscv/libgcc`；Klib 和 AM 公共头文件继续完整保留。原 ysyxsoc 的 CTE、旧
@@ -19,7 +19,7 @@ MMIO 设备实现和链接脚本也未保留，L4 使用 SDK HAL 与板级环境
 SDK 适配阶段修复。同步时需要单独复核 SDK 的精简范围和本地适配差异。
 
 后续同步时先将上游内容复制到临时目录，重新排除上述生成物和非 L4 架构，再单独
-复核需要同步的公共文件。StarrySkyL4 的 HAL 适配放在
-`board/StarrySkyL4/environments/abstract-machine`，通用应用构建适配放在
+复核需要同步的公共文件。StarrySkyL4_C1 的 HAL 适配放在
+`board/StarrySkyL4_C1/environments/abstract-machine`，通用应用构建适配放在
 `environments/abstract-machine`。可实例化的程序保存在 `templates/am-kernels`，
 程序源码不包含板卡适配。

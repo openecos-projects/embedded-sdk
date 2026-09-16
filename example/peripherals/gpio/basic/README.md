@@ -11,7 +11,7 @@
 
 | 板卡 | `--board` 参数 | 支持状态 | 说明 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | 已提供类型化 `gpio-demo` 板级资源 |
+| StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | 已提供类型化 `gpio-demo` 板级资源 |
 | StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | 已提供类型化 `gpio-demo` 板级资源 |
 
 当前示例要求板卡同时提供 `console`、`gpio-demo` 资源，并要求对应 Target 支持
@@ -25,7 +25,7 @@ Board 清单生成 `ecos/board_resources.h`。
 
 | 板卡 | 输入 | 输出 | 输出电平语义 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `GPIO1[7]`（按键 0） | `GPIO1[5]`（LED 0） | 低电平点亮 |
+| StarrySky L4C1 | `GPIO1[7]`（按键 0） | `GPIO1[5]`（LED 0） | 低电平点亮 |
 | StartySky T1-Pico | `GPIOA7`（Button，默认上拉） | `GPIOD4`（LED 0） | 低电平点亮 |
 
 示例将输入引脚的原始电平直接写入输出引脚。对于低电平有效的按键，按下时 LED
@@ -36,7 +36,7 @@ Board 清单生成 `ecos/board_resources.h`。
 创建并构建工程：
 
 ```bash
-ecos project create gpio-basic --board starrysky-l4
+ecos project create gpio-basic --board starrysky-l4-c1
 cd gpio-basic
 ecos build
 ```

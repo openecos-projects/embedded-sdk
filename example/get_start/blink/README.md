@@ -7,7 +7,7 @@
 
 | 板卡 | `--board` 参数 | 支持状态 | 说明 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | LED 0 为 `GPIO1[5]`，低电平点亮 |
+| StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | LED 0 为 `GPIO1[5]`，低电平点亮 |
 | StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | LED 0 为 `GPIOD4`，低电平点亮 |
 
 当前示例要求板卡同时提供 `console`、`led` 资源，并要求对应 Target 支持 Timer。
@@ -16,7 +16,7 @@
 ## 创建和构建
 
 ```bash
-ecos project create blink --board starrysky-l4
+ecos project create blink --board starrysky-l4-c1
 cd blink
 ecos build
 ```

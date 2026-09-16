@@ -118,7 +118,7 @@ Example 职责已经分离的基础上，禁止把现有板卡 Makefile 逐个�
 ### 4.1 Target
 
 Target 是构建系统公开的芯片选择 ID，直接对应一个 SoC 实现目录。例如
-`target: ysyx-2512` 对应 `components/soc/ysyx-2512/`。ECOS 不在 Board 和 SoC 之间
+`target: ysyx-2512-1` 对应 `components/soc/ysyx-2512-1/`。ECOS 不在 Board 和 SoC 之间
 增加另一套具有不同 ID 的软件目标层。Target 负责选择：
 
 - CPU 架构、ISA、ABI 和工具链。
@@ -136,8 +136,8 @@ SoC 组件位于 `components/soc/<target>/`，并以 `ecos-soc.yml` 声明 Targe
 信息。能力应能表达外设数量、通道数、FIFO 大小、地址宽度等约束，而不只是
 `true/false`。
 
-`ysyx-2512` 的寄存器定义、启动入口、PSRAM loader、链接脚本和 SoC HAL 必须以
-`components/soc/ysyx-2512/` 为单一构建来源。StarrySky L4 Board 只负责资源与默认配置，
+`ysyx-2512-1` 的寄存器定义、启动入口、PSRAM loader、链接脚本和 SoC HAL 必须以
+`components/soc/ysyx-2512-1/` 为单一构建来源。StarrySky L4C1 Board 只负责资源与默认配置，
 不得再被 3.0 构建链当作 SoC 实现目录。
 
 ### 4.3 LL 和 HAL
@@ -221,14 +221,14 @@ Example/Application
 Build System ---> Target + Board + Component manifests
 ```
 
-StarrySky L4 `hello` 的 3.0 最小纵向链路固定为：
+StarrySky L4C1 `hello` 的 3.0 最小纵向链路固定为：
 
 ```text
 hello/main.c
     `---> BSP Console                 绑定板级默认控制台并处理 CRLF
               `---> UART Driver      校验公共配置、实例状态和参数
                         `---> UART HAL  执行原始字节收发过程
-                                  `---> ysyx-2512 UART0 registers
+                                  `---> ysyx-2512-1 UART0 registers
 ```
 
 该链路中，应用只能包含 BSP Console 头文件；UART Driver 仍作为独立公共接口，供明确需要
@@ -301,9 +301,9 @@ Example 类别、SoC 内部目标差异或一组模块确有共同策略时才�
 hal/uart/                       UART 内部 HAL
 drivers/uart/                   UART 公共 Driver
 devices/st7735/                 ST7735 外部器件 Driver
-boards/starrysky-l4/            StarrySky L4 BSP 和资源绑定
+boards/starrysky-l4-c1/            StarrySky L4C1 BSP 和资源绑定
 components/libc/                公共软件组件
-components/soc/ysyx-2512/       ysyx-2512 Target/SoC
+components/soc/ysyx-2512-1/       ysyx-2512-1 Target/SoC
 examples/get-started/hello/     使用 BSP Console 的应用
 ```
 
@@ -318,7 +318,7 @@ examples/get-started/hello/     使用 BSP Console 的应用
 hal-uart
 driver-uart
 device-st7735
-bsp-starrysky-l4
+bsp-starrysky-l4-c1
 ```
 
 构建系统和清单必须遵循以下规则：
@@ -331,7 +331,7 @@ bsp-starrysky-l4
 - 清单必须显式声明源码、公开 include、编译定义、依赖和能力要求，不用递归源码 glob
   代替组件边界。
 - CMake target 使用确定的命名空间别名，例如内部的 `ecos::hal::uart`，以及面向应用的
-  `ecos::driver::uart`、`ecos::device::st7735` 和 `ecos::bsp::starrysky_l4`。生成的内部
+  `ecos::driver::uart`、`ecos::device::st7735` 和 `ecos::bsp::starrysky_l4_c1`。生成的内部
   target 名可以不同，但 ID 到命名空间 target 的映射必须确定，并拒绝规范化后的名称冲突。
 - 目录路径调整不构成 API 兼容承诺。公共 Driver、Device、BSP、Component 的稳定 ID、
   公开头文件、正式 schema 和应用可见 CMake target 的变更必须遵守第 10 节的兼容策略；
@@ -859,7 +859,7 @@ SoC 寄存器、HAL、LL、生成文件、私有 CMake 模块和构建内部变�
 
 ### 阶段 B：最小垂直链路
 
-至少完成以下三条链路，并同时覆盖 StarrySkyL3_1 和 StarrySkyL4：
+至少完成以下三条链路，并同时覆盖 StarrySkyL3_1 和 StarrySkyL4_C1：
 
 - `hello`（目录 `example/get_start/hello/`）：验证 Console。
 - `peripherals/gpio-blink`：验证逻辑 LED/GPIO 资源。
@@ -943,7 +943,7 @@ SDK 3.0 发布前必须满足：
 - 切换 Board 后重新配置 CMake 即可完成构建，不修改应用 `CMakeLists.txt` 或源码。
 - CMake target 的源码、include、宏定义和依赖关系可通过正式接口查询，并生成有效的
   `compile_commands.json`。
-- StarrySkyL3_1 和 StarrySkyL4 至少完成 hello、GPIO 和 display 垂直链路构建。
+- StarrySkyL3_1 和 StarrySkyL4_C1 至少完成 hello、GPIO 和 display 垂直链路构建。
 - 每个受支持组合均有可重复的 CI 构建记录；涉及硬件语义的能力有对应板测记录。
 - 2.x 到 3.0 的 BSP 和应用迁移文档已经发布。
 - 自动化工具可以通过正式 CLI 的机器模式发现 Board/Example、检查兼容关系、创建工程

@@ -71,7 +71,7 @@ class CoreRuntimeTest(unittest.TestCase):
                 str(SDK_ROOT / "drivers" / "uart" / "include"),
                 str(CORE_ROOT / "src" / "error.c"),
                 str(CORE_ROOT / "src" / "log.c"),
-                str(SDK_ROOT / "board" / "StarrySkyL4" / "bsp" / "console.c"),
+                str(SDK_ROOT / "board" / "StarrySkyL4_C1" / "bsp" / "console.c"),
                 str(CORE_ROOT / "tests" / "test_console_integration.c"),
                 "-o",
                 str(executable),

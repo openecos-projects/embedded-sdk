@@ -1,0 +1,104 @@
+# L4 non-assembly firmware always executes from PSRAM via the board bootloader.
+LDFLAGS += -DCONFIG_LINK_TARGET_MEM
+CFLAGS += -DCONFIG_LINK_TARGET_MEM
+SOC_ROOT := $(ECOS_SDK_HOME)/components/soc/ysyx-2512-2
+CFLAGS += -I$(SOC_ROOT)/include
+
+# 根据配置文件添加编译优化选项
+ifdef CONFIG_BUILD_OPT_FLAGS
+CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
+endif
+
+# 根据配置文件添加调试选项
+ifdef CONFIG_BUILD_DEBUG
+CFLAGS += -g -DDEBUG
+endif
+
+# 根据配置文件添加详细输出选项
+ifdef CONFIG_BUILD_VERBOSE
+VERBOSE := 1
+endif
+
+# 固件名称 - 从配置文件读取，如果未定义则使用默认值
+ifdef CONFIG_FIRMWARE_NAME
+FIRMWARE_NAME := $(subst ",,$(CONFIG_FIRMWARE_NAME))
+else
+FIRMWARE_NAME := main
+endif
+
+# 可选的驱动列表
+define driver_template
+ifdef CONFIG_DRIVER_$(1)
+        SDK_SRC_PATH += $(shell find $(SOC_ROOT)/hal/$(2) -name "*.c")
+        CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
+endif
+endef
+DRIVER_DIR := $(SOC_ROOT)/hal
+DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null))
+
+$(foreach subdir,$(DRIVER_SUBDIRS), \
+    $(eval CONFIG_NAME := $(shell echo $(subdir) | tr '[:lower:]' '[:upper:]')) \
+	$(if $(VERBOSE),$(info Auto-load drivers: $(CONFIG_NAME))) \
+    $(eval $(call driver_template,$(CONFIG_NAME),$(subdir))) \
+)
+
+# 可选的链接库列表
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/core/src -name "*.[cS]")
+SDK_SRC_PATH += $(ECOS_SDK_HOME)/components/core/ports/legacy_sys_uart.c
+CFLAGS += -I$(ECOS_SDK_HOME)/components/core/include
+ifneq ($(CONFIG_ECOS_LOG_LEVEL),)
+CFLAGS += -DCONFIG_ECOS_LOG_LEVEL=$(CONFIG_ECOS_LOG_LEVEL)
+endif
+ifneq ($(CONFIG_ECOS_LOG_BUFFER_SIZE),)
+CFLAGS += -DCONFIG_ECOS_LOG_BUFFER_SIZE=$(CONFIG_ECOS_LOG_BUFFER_SIZE)
+endif
+ifeq ($(CONFIG_ECOS_LOG_COLOR),y)
+CFLAGS += -DCONFIG_ECOS_LOG_COLOR=1
+endif
+ifeq ($(CONFIG_ECOS_LOG_SOURCE_LOCATION),y)
+CFLAGS += -DCONFIG_ECOS_LOG_SOURCE_LOCATION=1
+endif
+ifneq ($(CONFIG_ECOS_ERROR_DESCRIPTIONS),)
+CFLAGS += -DCONFIG_ECOS_ERROR_DESCRIPTIONS=$(CONFIG_ECOS_ERROR_DESCRIPTIONS)
+endif
+
+ifdef CONFIG_COMPONENT_SPI_SOFTWARE
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/spi_software/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/spi_software/include
+endif
+
+ifdef CONFIG_COMPONENT_SFUD
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/sfud/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/sfud/include
+endif
+
+ifdef CONFIG_COMPONENT_FLASH_FS
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/fatfs/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/fatfs/include
+endif
+
+ifdef CONFIG_COMPONENT_SHELL
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/letter-shell/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/letter-shell/include
+endif
+
+ifdef CONFIG_LINK_LIBC
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include
+endif
+
+ifdef CONFIG_LINK_LIBGCC
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
+endif
+
+# 自动包含所有的 devices 组件的头文件（方便代码补全）
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/*/include -type d 2>/dev/null))
+
+ifdef CONFIG_DEVICE_ST7735
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7735/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_ST7789
+SDK_SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7789/src -name "*.c")
+endif

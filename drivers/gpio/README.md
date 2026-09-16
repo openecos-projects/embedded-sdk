@@ -4,7 +4,7 @@
 
 - 应用包含 `ecos/driver/gpio.h`，不直接访问 HAL 或 SoC 寄存器。
 - Driver 负责校验端口、引脚和配置，并将 HAL 错误映射为公共错误码。
-- StarrySky L4 提供 GPIO0、GPIO1 和 GPIO2 三个端口，每个端口包含 32 个引脚。
+- StarrySky L4C1 提供 GPIO0、GPIO1 和 GPIO2 三个端口，每个端口包含 32 个引脚。
 - PinMux 的具体信号绑定仍由 BSP 或设备配置决定；Driver 只表达 GPIO、复用功能 0 和复用功能 1。
 
 以下示例将 GPIO0[0] 配置为普通 GPIO 输出并拉高：

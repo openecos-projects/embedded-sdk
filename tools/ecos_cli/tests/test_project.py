@@ -302,6 +302,52 @@ class ProjectCreateTest(unittest.TestCase):
             )
             self.assertFalse((workspace / "hello_world").exists())
 
+    def test_unsupported_boards_are_filtered_and_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8")
+                + "unsupported_boards:\n  - starrysky-l4\n",
+                encoding="utf-8",
+            )
+
+            result, payload = self.run_list_json(sdk)
+            self.assertEqual(result, ExitCode.OK)
+            by_name = {item["name"]: item for item in payload["data"]["examples"]}
+            self.assertEqual(
+                by_name["hello_world"]["supported_boards"], ["starrysky-l3-1"]
+            )
+
+            result, payload = self.run_json(
+                sdk,
+                "hello_world",
+                "--path",
+                str(workspace),
+                "--board",
+                "l4",
+            )
+            self.assertEqual(result, ExitCode.CONFIG)
+            self.assertEqual(
+                payload["diagnostics"][0]["code"],
+                "ECOS_PROJECT_CAPABILITY_MISMATCH",
+            )
+            self.assertFalse((workspace / "hello_world").exists())
+
+            result, payload = self.run_json(
+                sdk,
+                "hello_world",
+                "--path",
+                str(workspace),
+                "--board",
+                "starrysky-l3-1",
+            )
+            self.assertEqual(result, ExitCode.OK)
+            self.assertTrue((workspace / "hello_world").exists())
+
     def test_set_board_and_set_target_replace_each_other(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

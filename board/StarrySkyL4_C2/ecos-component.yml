@@ -1,0 +1,15 @@
+schema: 1
+id: bsp-starrysky-l4-c2
+name: StarrySky L4C2 BSP
+cmake_target: ecos::bsp::starrysky_l4_c2
+sources:
+  - bsp/button.c
+  - bsp/console.c
+  - bsp/led.c
+include_dirs:
+  - ../include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - driver-gpio
+  - driver-uart

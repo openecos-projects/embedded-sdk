@@ -11,7 +11,7 @@
 
 | 板卡 | `--board` 参数 | 支持状态 | 说明 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | 已提供 PWM0 通道 0 及 `pwm-output` 资源 |
+| StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | 已提供 PWM0 通道 0 及 `pwm-output` 资源 |
 | StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 暂不支持 | CL1-2512 尚未提供 PWM HAL |
 
 当前示例要求板卡同时提供 `console`、`pwm-output` 资源，并要求对应 Target 支持
@@ -19,7 +19,7 @@ PWM 和 Timer。StartySky T1-Pico 当前既未提供 PWM 能力，也未注册�
 
 ## 输出和运行过程
 
-当前示例使用 StarrySky L4 的 PWM0 通道 0，输出引脚为 `GPIO1[14]`。运行后每隔
+当前示例使用 StarrySky L4C1 的 PWM0 通道 0，输出引脚为 `GPIO1[14]`。运行后每隔
 2 秒依次切换以下状态：
 
 1. 25% 占空比并启动输出；
@@ -31,7 +31,7 @@ PWM 和 Timer。StartySky T1-Pico 当前既未提供 PWM 能力，也未注册�
 创建并构建工程：
 
 ```bash
-ecos project create pwm-basic --board starrysky-l4
+ecos project create pwm-basic --board starrysky-l4-c1
 cd pwm-basic
 ecos build
 ```

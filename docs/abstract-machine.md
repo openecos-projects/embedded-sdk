@@ -21,7 +21,7 @@ eval "$(/path/to/embedded-sdk/bin/ecos env)"
 
 ecos init_project abstract-machine \
     -name my_am_app \
-    -target l4
+    -target l4c1
 
 cd my_am_app
 make
@@ -44,15 +44,15 @@ build/retrosoc_fw.hex
 ```sh
 ecos init_project am-kernels/kernels/hello \
     -name am_hello \
-    -target l4
+    -target l4c1
 
 ecos init_project am-kernels/benchmarks/coremark \
     -name coremark_l4 \
-    -target l4
+    -target l4c1
 
 ecos init_project am-kernels/benchmarks/microbench \
     -name microbench_l4 \
-    -target l4
+    -target l4c1
 ```
 
 初始化器只复制选中的子工程。复制后的源码属于用户工程，可以直接修改，构建时不再
@@ -78,9 +78,9 @@ abstract_machine:
 默认 core。执行 `ecos set_board <board>` 可以改绑到另一个支持 AM 的 BSP，不会
 替换用户的 Makefile 或源码。AM 工程当前不支持 `-isolated`。
 
-## StarrySkyL4 当前实现
+## StarrySkyL4_C1 当前实现
 
-StarrySkyL4 默认使用 `rv32e-base`，编译参数为 `-march=rv32e -mabi=ilp32e`。
+StarrySkyL4_C1 默认使用 `rv32e-base`，编译参数为 `-march=rv32e -mabi=ilp32e`。
 UART、Timer 和单核 MPE 已接入；GPU、Input、RTC、Audio、Disk、Net、VME 和 CTE
 尚未形成完整硬件契约。使用这些接口的 am-kernels 模板仍可正常实例化，后续能力
 补充应发生在 L4 BSP 的 AM 环境中，而不是修改 kernel 程序。

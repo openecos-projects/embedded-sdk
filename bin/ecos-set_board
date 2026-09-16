@@ -221,7 +221,9 @@ set_board() {
             "c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyC2" ;;
             "l3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3" ;;
             "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
-            "l4") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4" ;;
+            "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
+            "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
+            "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
             "t1-pico") board_sdk_dir="$SDK_ROOT/board/StartySkyT1Pico" ;;
             *)
                 err "Unsupported board: $target_board_name"
@@ -457,14 +459,20 @@ set_board() {
                 log "Updated project configuration file."
             fi
             ;;
-        "l4")
+        "l4c1"|"l4c2"|"l4c3")
+            local board_sdk_dir=""
+            case "$target_board_name" in
+                "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
+                "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
+                "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
+            esac
             local board_file="board.h"
             local make_file="Makefile"
             local lds_file="sections.lds"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyL4/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyL4/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyL4/$lds_file"
+            local board_source_path="$board_sdk_dir/$board_file"
+            local make_source_path="$board_sdk_dir/$make_file"
+            local lds_source_path="$board_sdk_dir/$lds_file"
 
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
@@ -477,7 +485,7 @@ set_board() {
 
             # Copy board config file
             cp "$board_source_path" "$board_target_path"
-            log "Set board configuration to: starrysky_l4"
+            log "Set board configuration to: $target_board_name"
             log "Config file: $board_target_path"
 
             # Copy Makefile
@@ -491,13 +499,13 @@ set_board() {
             fi
 
              # Copy start.S if exists
-            if [[ -f "$SDK_ROOT/board/StarrySkyL4/start.S" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyL4/start.S" "./start.S"
+            if [[ -f "$board_sdk_dir/start.S" ]]; then
+                cp "$board_sdk_dir/start.S" "./start.S"
                 log "Set startup code: ./start.S"
             fi
 
             # Copy bootloader
-            local bootloader_source_path="$SDK_ROOT/board/StarrySkyL4/loader"
+            local bootloader_source_path="$board_sdk_dir/loader"
             local bootloader_target_path="./loader"
             rm -rf "$bootloader_target_path"
             cp -r "$bootloader_source_path" "$bootloader_target_path"
@@ -521,7 +529,9 @@ set_board() {
             echo "  c2    StarrySky C2 board"
             echo "  l3    StarrySky L3 board"
             echo "  l3_1  StarrySky L3_1 board"
-            echo "  l4    StarrySky L4 board"
+            echo "  l4c1  StarrySky L4C1 board"
+            echo "  l4c2  StarrySky L4C2 board"
+            echo "  l4c3  StarrySky L4C3 board"
             echo "  Use 'ecos board list' for package-discovered boards."
             exit 1
             ;;

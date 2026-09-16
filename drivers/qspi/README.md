@@ -9,5 +9,5 @@
 - `clock_divider` 由板级 `qspi-bus` 资源提供，具体时钟公式由 Target HAL 定义；设备的
   片选由设备资源单独选择。
 
-StarrySky L4 的 QSPI0 使用 GPIO0[12..16]、GPIO0[24] 的硬件复用，ST7735 的 DC
+StarrySky L4C1 的 QSPI0 使用 GPIO0[12..16]、GPIO0[24] 的硬件复用，ST7735 的 DC
 信号由 `display` 资源映射到 GPIO0[31]。

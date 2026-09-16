@@ -14,10 +14,10 @@ python3 tools/ecos.py toolchain install --dry-run
 python3 tools/ecos.py project list
 python3 tools/ecos.py project create hello --path ~/workspace
 python3 tools/ecos.py project create hello --name my-app --path ~/workspace
-python3 tools/ecos.py project create hello --target ysyx-2512 --path ~/workspace
+python3 tools/ecos.py project create hello --target ysyx-2512-1 --path ~/workspace
 python3 tools/ecos.py project create hello --path ~/workspace --dry-run
-python3 tools/ecos.py project set-board starrysky-l4 --project ~/workspace/hello
-python3 tools/ecos.py project set-target ysyx-2512 --project ~/workspace/hello
+python3 tools/ecos.py project set-board starrysky-l4-c1 --project ~/workspace/hello
+python3 tools/ecos.py project set-target ysyx-2512-1 --project ~/workspace/hello
 python3 tools/ecos.py validate --project ~/workspace/hello
 python3 tools/ecos.py configure --project ~/workspace/hello
 python3 tools/ecos.py menuconfig --project ~/workspace/hello

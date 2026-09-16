@@ -944,7 +944,7 @@ def _resolve_example(root: Path, expected_name: str, inputs: _Inputs) -> dict[st
     value = _read_manifest(path, "Example")
     _check_keys(
         value,
-        {"schema", "name", "sources", "include_dirs", "defines", "requires", "components"},
+        {"schema", "name", "sources", "include_dirs", "defines", "requires", "components", "unsupported_boards"},
         kind="Example",
         path=path,
     )
@@ -968,8 +968,13 @@ def _resolve_example(root: Path, expected_name: str, inputs: _Inputs) -> dict[st
     requires = _string_list(value.get("requires"), "Example.requires", path)
     components = _string_list(value.get("components"), "Example.components", path)
     defines = _string_list(value.get("defines"), "Example.defines", path)
+    unsupported_boards = _string_list(
+        value.get("unsupported_boards"), "Example.unsupported_boards", path
+    )
     for item in [*requires, *components]:
         project.validate_selection("Example dependency", item)
+    for item in unsupported_boards:
+        project.validate_selection("Example unsupported Board", item)
     inputs.add(path)
     for item in sources:
         inputs.add(item)
@@ -983,6 +988,7 @@ def _resolve_example(root: Path, expected_name: str, inputs: _Inputs) -> dict[st
         "defines": defines,
         "requires": requires,
         "components": components,
+        "unsupported_boards": unsupported_boards,
     }
 
 
@@ -1319,7 +1325,10 @@ def list_examples(context: SdkContext) -> dict[str, Any]:
             target = targets[board["target"]]
             available = set(target["capabilities"])
             available.update(board["resources"])
-            if requested.issubset(available):
+            if (
+                requested.issubset(available)
+                and board["id"] not in example["unsupported_boards"]
+            ):
                 supported_boards.append(board["id"])
 
         examples.append(
@@ -1411,6 +1420,10 @@ def resolve_project(
     if not isinstance(example_name, str) or not example_name:
         raise ManifestValidationError("project Example must be a non-empty string")
     example = _resolve_example(root, example_name, inputs)
+    if board is not None and board["id"] in example["unsupported_boards"]:
+        raise CapabilityMismatchError(
+            f"Example {example_name!r} does not support Board {board['id']!r}"
+        )
     requested_components = list(
         context.manifest.get("build", {}).get("core_components", [])
     )

@@ -9,7 +9,7 @@
 - `ecos_pwm_stop()` 停止 PWM 控制器并保留当前配置；
 - `ecos_pwm_get_instance_count()` 返回当前 Target 提供的控制器数量。
 
-当前 ysyx-2512 Target 提供 PWM0 和 PWM1，每个控制器有四个通道。StarrySky L4
+当前 ysyx-2512-1 Target 提供 PWM0 和 PWM1，每个控制器有四个通道。StarrySky L4C1
 上的通道引脚为：
 
 | 控制器 | 通道 | 引脚 |

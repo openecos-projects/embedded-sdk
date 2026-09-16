@@ -233,7 +233,9 @@ set_board() {
         case "$target_board_name" in
             "c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyC2" ;;
             "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
-            "l4") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4" ;;
+            "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
+            "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
+            "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
             *)
                 err "Unsupported board: $target_board_name"
                 exit 1
@@ -415,19 +417,25 @@ set_board() {
                 log "Updated project configuration file."
             fi
             ;;
-        "l4")
+        "l4c1"|"l4c2"|"l4c3")
+            local board_sdk_dir=""
+            case "$target_board_name" in
+                "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
+                "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
+                "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
+            esac
             local board_file="board.h"
             local make_file="Makefile_isolated"
             local lds_file="sections.lds"
             local start_file="start.S"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyL4/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyL4/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyL4/$lds_file"
-            local start_source_path="$SDK_ROOT/board/StarrySkyL4/$start_file"
-            local driver_source_path="$SDK_ROOT/board/StarrySkyL4/driver"
-            local loader_source_path="$SDK_ROOT/board/StarrySkyL4/loader"
-            local main_source_path="$SDK_ROOT/templates/hello/l4"
+            local board_source_path="$board_sdk_dir/$board_file"
+            local make_source_path="$board_sdk_dir/$make_file"
+            local lds_source_path="$board_sdk_dir/$lds_file"
+            local start_source_path="$board_sdk_dir/$start_file"
+            local driver_source_path="$board_sdk_dir/driver"
+            local loader_source_path="$board_sdk_dir/loader"
+            local main_source_path="$SDK_ROOT/templates/hello/$target_board_name"
 
             local board_target_path="./Library/board.h"
             local make_target_path="./Makefile"
@@ -444,7 +452,7 @@ set_board() {
 
             # Copy Board config file
             cp "$board_source_path" "$board_target_path"
-            log "Set board configuration to: starrysky_l4"
+            log "Set board configuration to: $target_board_name"
             log "Config file: $board_target_path"
 
             # Copy Makefile
@@ -456,7 +464,7 @@ set_board() {
                 cp "$lds_source_path" "$lds_target_path"
                 log "Set Linker Script: $lds_target_path"
             else
-                warn "Linker Script not found for L4: $lds_source_path"
+                warn "Linker Script not found for $target_board_name: $lds_source_path"
             fi
 
             # Copy Startup Code
@@ -464,7 +472,7 @@ set_board() {
                 cp "$start_source_path" "$start_target_path"
                 log "Set Startup Code: $start_target_path"
             else
-                warn "Startup Code not found for L4: $start_source_path"
+                warn "Startup Code not found for $target_board_name: $start_source_path"
             fi
 
             # Copy Drivers
@@ -472,7 +480,7 @@ set_board() {
                 replace_board_drivers "$driver_source_path" "$driver_target_path"
                 log "Set Drivers: $driver_target_path"
             else
-                warn "Drivers not found for L4: $driver_source_path"
+                warn "Drivers not found for $target_board_name: $driver_source_path"
             fi
 
             # Copy Loaders
@@ -480,14 +488,14 @@ set_board() {
                 replace_loader "$loader_source_path" "$loader_target_path"
                 log "Set Loaders: $loader_target_path"
             else
-                warn "Loaders not found for L4: $loader_source_path"
+                warn "Loaders not found for $target_board_name: $loader_source_path"
             fi
 
             # Copy Main Files
             if [[ -d "$main_source_path" ]]; then
                 install_default_main "$main_source_path" "$main_target_path"
             else
-                warn "Main Files not found for L4: $main_source_path"
+                warn "Main Files not found for $target_board_name: $main_source_path"
             fi
 
             # Update project config file if it exists
@@ -507,7 +515,9 @@ set_board() {
             # echo "  c1    StarrySky C1 board"
             echo "  c2    StarrySky C2 board"
             echo "  l3_1    StarrySky L3_1 board"
-            echo "  l4      StarrySky L4 board"
+            echo "  l4c1    StarrySky L4C1 board"
+            echo "  l4c2    StarrySky L4C2 board"
+            echo "  l4c3    StarrySky L4C3 board"
             exit 1
             ;;
     esac

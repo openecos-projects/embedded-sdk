@@ -29,15 +29,15 @@ Timer Driver 使用微秒作为周期配置单位；支持读取计数值的 Tar
 阻塞式延时会临时替换所选实例的已有配置，并在结束前停止和释放该实例。毫秒和秒延时
 不依赖硬件乘除法，适用于 RV32E 等没有 M 扩展的目标。
 
-## ysyx-2512 实现
+## ysyx-2512-1 实现
 
-ysyx-2512 提供 Timer0 至 Timer3，共四个实例。L4 默认使用 25 MHz Timer 输入时钟，
+ysyx-2512-1 提供 Timer0 至 Timer3，共四个实例。L4 默认使用 25 MHz Timer 输入时钟，
 HAL 将其预分频为 1 MHz，因此一个计数对应一微秒。
 
-该 Timer IP 未接出 CNT 读值，因此 ysyx-2512 的 `ecos_timer_get_count()` 返回
+该 Timer IP 未接出 CNT 读值，因此 ysyx-2512-1 的 `ecos_timer_get_count()` 返回
 `ECOS_ERR_UNSUPPORTED`；轮询延时仅通过 STAT 到期标志判断结果。
 
-当前只支持基础控制和轮询模式。Timer 中断需要先完成 ysyx-2512 中断控制器适配，
+当前只支持基础控制和轮询模式。Timer 中断需要先完成 ysyx-2512-1 中断控制器适配，
 在此之前公共 Driver 不提供 callback 接口。
 
 ## 延时示例

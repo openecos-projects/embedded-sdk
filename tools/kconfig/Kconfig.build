@@ -95,7 +95,7 @@ menu "Build Configuration"
 
     choice
         bool "Optimization Level"
-        default BUILD_OPT_NONE if STARRYSKY_L4
+        default BUILD_OPT_NONE if STARRYSKY_L4_C1 || STARRYSKY_L4_C2 || STARRYSKY_L4_C3
         default BUILD_OPT_SIZE
 
         config BUILD_OPT_NONE

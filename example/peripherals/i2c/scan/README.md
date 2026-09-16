@@ -7,18 +7,21 @@
 
 | 板卡 | `--board` 参数 | 支持状态 | 控制器 |
 | --- | --- | --- | --- |
-| StarrySky L4 | `starrysky-l4` 或 `l4` | 支持 | ysyx-2512 I2C0 |
+| StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | ysyx-2512-1 I2C0 |
+| StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 不支持 | 板级未引出 I2C |
+| StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 不支持 | 板级未引出 I2C |
 | StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | CL1-2512 I2C0 |
 
 当前示例要求板卡提供 `console`、`i2c-bus` 资源，并要求对应 Target 支持 I2C。
-以上两块板卡均已声明 I2C0 总线，并提供相应的 Console BSP 和 I2C HAL。
+StarrySky L4C2/L4C3 未在板级引出 I2C 总线，示例清单已通过
+`unsupported_boards` 显式排除这两块板卡，创建工程时会被拒绝。
 
 ## 创建和构建
 
 创建并构建工程：
 
 ```bash
-ecos project create i2c-scan --board starrysky-l4
+ecos project create i2c-scan --board starrysky-l4-c1
 cd i2c-scan
 ecos build
 ```
@@ -27,6 +30,22 @@ ecos build
 
 ## 连接和运行
 
-ysyx-2512 与 CL1-2512 SoC 适配均使用 I2C0，其中 ysyx-2512 的 SCL/SDA 复用到
-GPIO0[27:28]。连接设备时需要确认总线电压兼容并为 SCL、SDA 提供合适的上拉电阻。
-运行后，串口会逐项打印所有返回 ACK 的设备地址，并在结束时打印设备总数。
+ysyx-2512-1 与 CL1-2512 SoC 适配均使用 I2C0，其中 ysyx-2512-1 的 SCL 复用到
+GPIO0[27]、SDA 复用到 GPIO0[28]。连接设备时需要确认总线电压兼容并为 SCL、SDA
+提供合适的上拉电阻。
+运行后，串口会以 i2cdetect 风格的二维地址图打印扫描结果：行是地址高 4 位、
+列是低 4 位，返回 ACK 的地址显示其十六进制值，其余显示 `--`：
+
+```text
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+50: 50 -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+70: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+```
+
+地址图打印完成后，串口会输出本次扫描发现的设备总数。
