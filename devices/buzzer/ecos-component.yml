@@ -1,0 +1,12 @@
+schema: 1
+id: device-buzzer
+name: PWM Buzzer
+cmake_target: ecos::device::buzzer
+sources:
+  - src/ecos_buzzer.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-pwm
+  - driver-timer

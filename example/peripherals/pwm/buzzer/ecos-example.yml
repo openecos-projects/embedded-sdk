@@ -1,0 +1,11 @@
+schema: 1
+name: pwm-buzzer
+sources:
+  - main.c
+components:
+  - device-buzzer
+  - driver-pwm
+  - driver-timer
+requires:
+  - console
+  - pwm-output
