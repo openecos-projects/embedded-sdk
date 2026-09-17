@@ -12,7 +12,7 @@ APP ?= main
 SOURCE := $(APP).s
 OUTPUT_BASE := $(BUILD_DIR)/$(APP)-asm
 
-# 配置 StartySky T1-Pico 的汇编架构和 XFlash 链接参数。
+# 配置 StarrySky T1-Pico 的汇编架构和 XFlash 链接参数。
 ASFLAGS := -march=rv32imc_zicsr_zifencei -mabi=ilp32
 LDFLAGS := -m elf32lriscv -T flash.ld -z noexecstack \
 	--gc-sections --build-id=none --no-relax \

@@ -20,8 +20,8 @@ static void sdram_fill(uint32_t seed)
     uintptr_t address;
 
     /* 逐字写入整个 SDRAM 地址范围。 */
-    for (address = STARTYSKY_T1_PICO_SDRAM_BASE_ADDR;
-         address < STARTYSKY_T1_PICO_SDRAM_END_ADDR;
+    for (address = STARRYSKY_T1_PICO_SDRAM_BASE_ADDR;
+         address < STARRYSKY_T1_PICO_SDRAM_END_ADDR;
          address += SDRAM_WORD_BYTES)
         *(volatile uint32_t *)address = sdram_pattern(address, seed);
 
@@ -37,8 +37,8 @@ static int sdram_verify(uint32_t seed)
     uintptr_t address;
 
     /* 逐字回读并在首次数据不匹配时报告失败。 */
-    for (address = STARTYSKY_T1_PICO_SDRAM_BASE_ADDR;
-         address < STARTYSKY_T1_PICO_SDRAM_END_ADDR;
+    for (address = STARRYSKY_T1_PICO_SDRAM_BASE_ADDR;
+         address < STARRYSKY_T1_PICO_SDRAM_END_ADDR;
          address += SDRAM_WORD_BYTES)
     {
         if (*(volatile uint32_t *)address != sdram_pattern(address, seed))
@@ -56,7 +56,7 @@ int main(void)
 {
     /* 初始化串口和 SDRAM，不执行任何 PLL 配置或时钟切换。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico SDRAM 32 MiB test at 20 MHz started.\n");
+    hal_sys_putstr("StarrySky T1-Pico SDRAM 32 MiB test at 20 MHz started.\n");
     if (hal_sdram_init() != 0)
         hal_sys_putstr("SDRAM TEST FAIL: initialization\n");
     else

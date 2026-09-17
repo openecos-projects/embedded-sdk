@@ -20,7 +20,7 @@ int main(void)
 
     /* 初始化串口并输出 Timer0 测试配置。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico Timer0 polling test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico Timer0 polling test started.\n");
     hal_sys_putstr("Expected interval: 1 second.\n");
 
     /* 持续执行一秒硬件延时并输出本轮结果。 */

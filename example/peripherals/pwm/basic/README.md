@@ -12,10 +12,10 @@
 | 板卡 | `--board` 参数 | 支持状态 | 说明 |
 | --- | --- | --- | --- |
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | 已提供 PWM0 通道 0 及 `pwm-output` 资源 |
-| StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 暂不支持 | CL1-2512 尚未提供 PWM HAL |
+| StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 暂不支持 | CL1-2512 尚未提供 PWM HAL |
 
 当前示例要求板卡同时提供 `console`、`pwm-output` 资源，并要求对应 Target 支持
-PWM 和 Timer。StartySky T1-Pico 当前既未提供 PWM 能力，也未注册板级 PWM 输出资源。
+PWM 和 Timer。StarrySky T1-Pico 当前既未提供 PWM 能力，也未注册板级 PWM 输出资源。
 
 ## 输出和运行过程
 

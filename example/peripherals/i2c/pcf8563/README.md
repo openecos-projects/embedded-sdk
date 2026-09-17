@@ -11,7 +11,7 @@
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | ysyx-2512-1 I2C0 |
 | StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 不支持 | 板级未引出 I2C |
 | StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 不支持 | 板级未引出 I2C |
-| StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 支持 | CL1-2512 I2C0 |
+| StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 支持 | CL1-2512 I2C0 |
 
 当前示例要求板卡提供 `console`、`i2c-bus` 资源，并要求对应 Target 支持 I2C。
 StarrySky L4C2/L4C3 未在板级引出 I2C 总线，示例清单已通过
@@ -27,7 +27,7 @@ cd i2c-pcf8563
 ecos build
 ```
 
-使用 StartySky T1-Pico 时，将板卡参数改为 `--board t1-pico`。
+使用 StarrySky T1-Pico 时，将板卡参数改为 `--board t1-pico`。
 
 ## 连接和运行
 

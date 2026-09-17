@@ -14,7 +14,7 @@
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | ysyx-2512-1 RTC |
 | StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 支持 | ysyx-2512-1 RTC |
 | StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 支持 | ysyx-2512-2 RTC |
-| StartySky T1-Pico | `startysky-t1-pico` 或 `t1-pico` | 不支持 | CL1-2512 无此 IP |
+| StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 不支持 | CL1-2512 无此 IP |
 
 当前示例要求板卡提供 `console` 资源，并要求对应 Target 具备 `rtc` 能力；
 CL1-2512（T1-Pico）未声明该能力，创建工程时会被拒绝。

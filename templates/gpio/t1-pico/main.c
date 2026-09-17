@@ -57,7 +57,7 @@ int main(void)
     /* 初始化串口和 GPIO 演示引脚。 */
     hal_sys_uart_init();
     gpio_demo_init();
-    hal_sys_putstr("StartySky T1-Pico GPIO polling demo started.\n");
+    hal_sys_putstr("StarrySky T1-Pico GPIO polling demo started.\n");
 
     /* 使用软件延时周期翻转 GPIOA 低八位。 */
     for (;;)

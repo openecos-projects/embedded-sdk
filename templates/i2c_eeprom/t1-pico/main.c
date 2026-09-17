@@ -77,7 +77,7 @@ int main(void)
 
     /* 初始化串口并说明本次小型非破坏性测试。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico AT24C64 I2C EEPROM test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico AT24C64 I2C EEPROM test started.\n");
     hal_sys_putstr("Test address: 0x1FF0, original byte will be restored.\n");
 
     /* 基于 20 MHz APB 时钟将 I2C0 配置为 100 kHz。 */

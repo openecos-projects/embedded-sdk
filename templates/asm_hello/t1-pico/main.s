@@ -1,4 +1,4 @@
-/* 定义 StartySky T1-Pico 系统串口寄存器和位标志。 */
+/* 定义 StarrySky T1-Pico 系统串口寄存器和位标志。 */
 .equ UART_BASE,              0x10010000
 .equ UART_THR_OFFSET,        0x00
 .equ UART_DLL_OFFSET,        0x00
@@ -73,4 +73,4 @@ uart_puts:
 /* 将串口问候信息保存在 XFlash 只读数据段。 */
 .section .rodata, "a"
 hello_message:
-    .asciz "StartySky T1-Pico XFlash assembly hello world.\r\n"
+    .asciz "StarrySky T1-Pico XFlash assembly hello world.\r\n"

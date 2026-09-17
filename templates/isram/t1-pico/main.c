@@ -8,11 +8,11 @@
 static void isram_fill(uint32_t pattern)
 {
     uintptr_t address;
-    uintptr_t end = STARTYSKY_T1_PICO_ISRAM_BASE_ADDR +
-                    STARTYSKY_T1_PICO_ISRAM_TEST_SIZE_BYTES;
+    uintptr_t end = STARRYSKY_T1_PICO_ISRAM_BASE_ADDR +
+                    STARRYSKY_T1_PICO_ISRAM_TEST_SIZE_BYTES;
 
     /* 逐字写入整个十六千字节测试范围。 */
-    for (address = STARTYSKY_T1_PICO_ISRAM_BASE_ADDR;
+    for (address = STARRYSKY_T1_PICO_ISRAM_BASE_ADDR;
          address < end;
          address += ISRAM_WORD_BYTES)
         *(volatile uint32_t *)address = pattern ^ (uint32_t)address;
@@ -27,11 +27,11 @@ static void isram_fill(uint32_t pattern)
 static int isram_verify(uint32_t pattern)
 {
     uintptr_t address;
-    uintptr_t end = STARTYSKY_T1_PICO_ISRAM_BASE_ADDR +
-                    STARTYSKY_T1_PICO_ISRAM_TEST_SIZE_BYTES;
+    uintptr_t end = STARRYSKY_T1_PICO_ISRAM_BASE_ADDR +
+                    STARRYSKY_T1_PICO_ISRAM_TEST_SIZE_BYTES;
 
     /* 逐字比较整个测试范围中的地址异或数据。 */
-    for (address = STARTYSKY_T1_PICO_ISRAM_BASE_ADDR;
+    for (address = STARRYSKY_T1_PICO_ISRAM_BASE_ADDR;
          address < end;
          address += ISRAM_WORD_BYTES)
     {
@@ -51,7 +51,7 @@ int main(void)
 {
     /* 初始化串口并测试两组互补地址模式。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico ISRAM 16 KiB test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico ISRAM 16 KiB test started.\n");
     isram_fill(0xA5A5A5A5u);
     if (isram_verify(0xA5A5A5A5u) != 0)
         hal_sys_putstr("ISRAM TEST FAIL: pattern A5\n");

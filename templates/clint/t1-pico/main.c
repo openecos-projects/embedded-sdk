@@ -39,7 +39,7 @@ int main(void)
 
     /* 初始化串口并保存测试前的计数和比较寄存器。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico CLINT register test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico CLINT register test started.\n");
     if ((hal_clint_get_mtime(&original_time) != 0) ||
         (hal_clint_get_mtimecmp(&original_compare) != 0))
         clint_test_fail("initial read");

@@ -1,6 +1,6 @@
 # CL1-2512 SoC Target
 
-`cl1-2512` is the SDK 3.0 Target used by StartySky T1-Pico. It owns the
+`cl1-2512` is the SDK 3.0 Target used by StarrySky T1-Pico. It owns the
 RV32IMC/ILP32 build configuration, reset entry, Flash-XIP linker layout,
 register definitions, and the SoC implementations of the public HAL contracts.
 

@@ -260,7 +260,7 @@ int main(void)
 
     /* 初始化串口并说明本次轻量非破坏性测试。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico ESP_PSRAM64H QSPI test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico ESP_PSRAM64H QSPI test started.\n");
     hal_sys_putstr("Test address: 0x00001000, original word will be restored.\n");
 
     /* 初始化 QSPI0 并使用标准 SPI 命令使 PSRAM 进入 QPI 模式。 */

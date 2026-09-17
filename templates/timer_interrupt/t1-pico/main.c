@@ -44,7 +44,7 @@ int main(void)
 
     /* 初始化串口、机器中断入口和 Timer0 周期。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico Timer0 interrupt test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico Timer0 interrupt test started.\n");
     if (hal_intr_init() != 0)
         timer_interrupt_fail("interrupt init");
 

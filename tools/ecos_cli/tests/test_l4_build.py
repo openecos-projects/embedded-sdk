@@ -292,7 +292,7 @@ class StarrySkyL4C1BuildTest(unittest.TestCase):
             )
             source = (project_root / "main.c").read_text(encoding="utf-8")
             self.assertNotIn("CONFIG_STARRYSKY_L4", source)
-            self.assertNotIn("CONFIG_STARTYSKY_T1_PICO", source)
+            self.assertNotIn("CONFIG_STARRYSKY_T1_PICO", source)
             text = firmware.with_suffix(".txt").read_text(encoding="utf-8")
             for symbol in (
                 "<main>",

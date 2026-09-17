@@ -46,7 +46,7 @@ def sdk_toolchain_is_ready() -> bool:
     return status["state"] == "installed"
 
 
-class StartySkyT1PicoCapabilityTest(unittest.TestCase):
+class StarrySkyT1PicoCapabilityTest(unittest.TestCase):
     def test_t1_name_is_available_for_a_future_board(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
@@ -116,7 +116,7 @@ class StartySkyT1PicoCapabilityTest(unittest.TestCase):
     and importlib.util.find_spec("kconfiglib") is not None,
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
-class StartySkyT1PicoBuildTest(unittest.TestCase):
+class StarrySkyT1PicoBuildTest(unittest.TestCase):
     def create_and_build(self, example: str) -> tuple[Path, StringIO, tempfile.TemporaryDirectory]:
         temporary = tempfile.TemporaryDirectory()
         output = StringIO()
@@ -164,7 +164,7 @@ class StartySkyT1PicoBuildTest(unittest.TestCase):
         for source in (
             "components/soc/cl1-2512/startup/start.S",
             "components/soc/cl1-2512/hal/uart/uart.c",
-            "board/StartySkyT1Pico/bsp/console.c",
+            "board/StarrySkyT1Pico/bsp/console.c",
             "drivers/uart/src/uart.c",
         ):
             self.assertIn((SDK_ROOT / source).resolve(), compiled_sources)
@@ -193,7 +193,7 @@ class StartySkyT1PicoBuildTest(unittest.TestCase):
         for source in (
             "components/soc/cl1-2512/hal/gpio/gpio.c",
             "components/soc/cl1-2512/hal/timer/timer.c",
-            "board/StartySkyT1Pico/bsp/led.c",
+            "board/StarrySkyT1Pico/bsp/led.c",
             "drivers/gpio/src/gpio.c",
             "drivers/timer/src/timer.c",
         ):
@@ -222,7 +222,7 @@ class StartySkyT1PicoBuildTest(unittest.TestCase):
             '#define ECOS_BOARD_GPIO_DEMO_INPUT_LABEL "GPIOA7"', resources
         )
         self.assertNotIn(
-            "CONFIG_STARTYSKY_T1_PICO",
+            "CONFIG_STARRYSKY_T1_PICO",
             (project_root / "main.c").read_text(encoding="utf-8"),
         )
         compile_commands = project_root / "build" / "compile_commands.json"

@@ -35,7 +35,7 @@ int main(void)
 {
     /* 初始化串口和机器模式中断基础设施。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico PLIC API test started.\n");
+    hal_sys_putstr("StarrySky T1-Pico PLIC API test started.\n");
     if (hal_intr_init() != 0)
         plic_test_fail("init");
 

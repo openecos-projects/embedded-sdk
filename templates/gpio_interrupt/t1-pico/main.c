@@ -42,7 +42,7 @@ int main(void)
 
     /* 初始化串口、中断入口和 GPIOA0 输入模式。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico GPIOA0 falling-edge interrupt test.\n");
+    hal_sys_putstr("StarrySky T1-Pico GPIOA0 falling-edge interrupt test.\n");
     hal_sys_putstr("Drive GPIOA0 HIGH then LOW to trigger.\n");
     if (hal_intr_init() != 0)
         gpio_interrupt_fail("interrupt init");

@@ -1,4 +1,4 @@
-/* 定义 StartySky T1-Pico 汇编固件的 XFlash XIP 布局。 */
+/* 定义 StarrySky T1-Pico 汇编固件的 XFlash XIP 布局。 */
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 

@@ -1,4 +1,4 @@
-/* 定义 StartySky T1-Pico GPIOA 寄存器和演示参数。 */
+/* 定义 StarrySky T1-Pico GPIOA 寄存器和演示参数。 */
 .equ GPIO_BASE,              0x10060000
 .equ GPIO_PORTA_DR_OFFSET,   0x00
 .equ GPIO_PORTA_DDR_OFFSET,  0x04

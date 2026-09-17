@@ -169,7 +169,7 @@ int main(void)
 
     /* 初始化串口并说明扫描不会向从设备写入数据。 */
     hal_sys_uart_init();
-    hal_sys_putstr("StartySky T1-Pico I2C address scan started.\n");
+    hal_sys_putstr("StarrySky T1-Pico I2C address scan started.\n");
     hal_sys_putstr("Range: 0x08-0x77, address only, no data write.\n");
 
     /* 基于 20 MHz APB 时钟将 I2C0 配置为 100 kHz。 */
