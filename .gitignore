@@ -21,6 +21,18 @@
 !docs/
 !docs/**
 
+# docs 内部开发文档（仅本地保留，不随仓库发布）
+docs/StarrySkyL3_1_Memory_Modes.md
+docs/StarrySkyL4_C1_Board_Adaptation.md
+docs/abstract-machine.md
+docs/branching.md
+docs/bsp_import.md
+docs/cli.md
+docs/hal_v2_design_guideline.md
+docs/menuconfig.md
+docs/releasing.md
+docs/sdk-3.0-development-boundary.md
+
 !board
 !board/**
 
