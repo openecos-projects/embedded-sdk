@@ -29,6 +29,10 @@ build:
   include_dirs:
     - include
   capability_sources:
+    archinfo:
+      - hal/archinfo/archinfo.c
+    crc:
+      - hal/crc/crc.c
     gpio:
       - hal/gpio/gpio.c
     i2c:
@@ -37,11 +41,23 @@ build:
       - hal/pwm/pwm.c
     qspi:
       - hal/qspi/qspi.c
+    rng:
+      - hal/rng/rng.c
+    rcu:
+      - hal/rcu/rcu.c
+    rtc:
+      - hal/rtc/rtc.c
     timer:
       - hal/timer/timer.c
     uart:
       - hal/uart/uart.c
   capability_include_dirs:
+    archinfo:
+      - ../../../hal/archinfo/include
+      - ../../../hal/archinfo
+    crc:
+      - ../../../hal/crc/include
+      - ../../../hal/crc
     gpio:
       - ../../../hal/gpio/include
     i2c:
@@ -50,6 +66,13 @@ build:
       - ../../../hal/pwm
     qspi:
       - ../../../hal/qspi/include
+    rng:
+      - ../../../hal/rng/include
+      - ../../../hal/rng
+    rcu:
+      - ../../../hal/rcu/include
+    rtc:
+      - ../../../hal/rtc/include
     timer:
       - ../../../hal/timer/include
     uart:
@@ -73,3 +96,5 @@ capabilities:
   - archinfo
   - rng
   - crc
+  - rcu
+  - rtc

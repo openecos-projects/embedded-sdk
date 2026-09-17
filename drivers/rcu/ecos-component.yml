@@ -1,0 +1,12 @@
+schema: 1
+id: driver-rcu
+name: RCU Driver
+cmake_target: ecos::driver::rcu
+sources:
+  - src/rcu.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-rcu

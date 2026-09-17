@@ -1,0 +1,10 @@
+schema: 1
+id: hal-rtc
+name: RTC HAL Contract
+cmake_target: ecos::hal::rtc
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - rtc

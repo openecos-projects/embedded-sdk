@@ -1,0 +1,12 @@
+schema: 1
+id: driver-archinfo
+name: Archinfo Driver
+cmake_target: ecos::driver::archinfo
+sources:
+  - src/archinfo.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-archinfo

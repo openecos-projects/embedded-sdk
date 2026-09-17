@@ -1,0 +1,9 @@
+schema: 1
+name: rng-random
+sources:
+  - main.c
+components:
+  - driver-rng
+  - driver-timer
+requires:
+  - console

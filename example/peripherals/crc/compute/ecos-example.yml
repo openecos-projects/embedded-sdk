@@ -1,0 +1,8 @@
+schema: 1
+name: crc-compute
+sources:
+  - main.c
+components:
+  - driver-crc
+requires:
+  - console

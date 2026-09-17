@@ -1,0 +1,10 @@
+schema: 1
+id: hal-crc
+name: CRC HAL Contract
+cmake_target: ecos::hal::crc
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - crc

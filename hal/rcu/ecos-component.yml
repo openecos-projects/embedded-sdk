@@ -1,0 +1,10 @@
+schema: 1
+id: hal-rcu
+name: RCU HAL Contract
+cmake_target: ecos::hal::rcu
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - rcu

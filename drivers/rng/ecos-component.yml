@@ -1,0 +1,12 @@
+schema: 1
+id: driver-rng
+name: RNG Driver
+cmake_target: ecos::driver::rng
+sources:
+  - src/rng.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-rng

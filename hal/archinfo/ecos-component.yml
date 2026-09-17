@@ -1,0 +1,10 @@
+schema: 1
+id: hal-archinfo
+name: Archinfo HAL Contract
+cmake_target: ecos::hal::archinfo
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - archinfo

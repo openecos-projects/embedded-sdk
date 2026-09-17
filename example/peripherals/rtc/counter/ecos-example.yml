@@ -1,0 +1,9 @@
+schema: 1
+name: rtc-counter
+sources:
+  - main.c
+components:
+  - driver-rtc
+  - driver-timer
+requires:
+  - console

@@ -1,0 +1,12 @@
+schema: 1
+id: driver-crc
+name: CRC Driver
+cmake_target: ecos::driver::crc
+sources:
+  - src/crc.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-crc

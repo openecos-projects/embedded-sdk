@@ -6,7 +6,10 @@
 - [bsp.md](bsp.md) — BSP：控制台、LED、按键、板级资源
 - [core.md](core.md) — 核心运行时：错误码与日志
 - [gpio.md](gpio.md) / [uart.md](uart.md) / [i2c.md](i2c.md) / [pwm.md](pwm.md) /
-  [timer.md](timer.md) / [qspi.md](qspi.md) — 外设驱动
+  [timer.md](timer.md) / [qspi.md](qspi.md) — 总线与外设驱动
+- [archinfo.md](archinfo.md) / [rng.md](rng.md) / [crc.md](crc.md) /
+  [rcu.md](rcu.md) / [rtc.md](rtc.md) — 芯片服务类驱动（标识、随机数、校验、
+  时钟复位、计数闹钟）
 - [devices.md](devices.md) — 设备驱动（AHT20、AT24C64、蜂鸣器、ESP01S、SGP30、
   PCF8563、ST7735、ST7789、TM1650）
 - [components.md](components.md) — 应用向组件（libc 子集、LightCoroutine、sfud、
@@ -19,7 +22,8 @@ Application（用户应用）
     ↓ 只能调用以下公共层
 BSP（ecos/bsp/*）/ Device Driver（ecos/device/*）/ Component（应用向组件）
     ↓
-Driver（ecos/driver/*，gpio / uart / i2c / pwm / timer / qspi）
+Driver（ecos/driver/*，gpio / uart / i2c / pwm / timer / qspi / archinfo / rng /
+crc / rcu / rtc）
     ↓
 HAL（ecos/hal/*，SDK 内部接口，不承诺稳定）
     ↓
@@ -82,7 +86,7 @@ SoC / LL（寄存器与引脚复用，由 Target/Board 决定）
 | --- | --- |
 | `ecos/error.h` | 错误码类型与判定/控制流宏 |
 | `ecos/log.h` | 日志与 panic |
-| `ecos/driver/<mod>.h` | 外设驱动：gpio、uart、i2c、pwm、timer、qspi |
+| `ecos/driver/<mod>.h` | 外设驱动：gpio、uart、i2c、pwm、timer、qspi、archinfo、rng、crc、rcu、rtc |
 | `ecos/device/<dev>.h` | 设备驱动：aht20、at24c64、buzzer、esp01s_at、sgp30、pcf8563、st7735、st7789、tm1650 |
 | `ecos/bsp/<res>.h` | BSP：console、led、button |
 | `ecos/board_resources.h` | 由 CLI 依板级清单生成（输出到工程的 `.ecos/generated/include/`），描述板载演示资源 |

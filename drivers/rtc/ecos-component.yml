@@ -1,0 +1,12 @@
+schema: 1
+id: driver-rtc
+name: RTC Driver
+cmake_target: ecos::driver::rtc
+sources:
+  - src/rtc.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-rtc

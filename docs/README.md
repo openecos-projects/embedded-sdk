@@ -13,5 +13,10 @@
 - [api/pwm.md](api/pwm.md) — PWM 驱动
 - [api/timer.md](api/timer.md) — Timer 驱动
 - [api/qspi.md](api/qspi.md) — QSPI/SPI 主机驱动
+- [api/archinfo.md](api/archinfo.md) — Archinfo 芯片标识驱动
+- [api/rng.md](api/rng.md) — RNG 随机数驱动
+- [api/crc.md](api/crc.md) — CRC 校验驱动
+- [api/rcu.md](api/rcu.md) — RCU 时钟复位驱动
+- [api/rtc.md](api/rtc.md) — RTC 计数器驱动
 - [api/devices.md](api/devices.md) — 设备驱动：传感器、EEPROM、蜂鸣器、WiFi 模组、RTC、显示屏、数码管
 - [api/components.md](api/components.md) — 应用向组件：libc 子集、LightCoroutine、sfud、fatfs、letter-shell

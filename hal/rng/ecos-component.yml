@@ -1,0 +1,10 @@
+schema: 1
+id: hal-rng
+name: RNG HAL Contract
+cmake_target: ecos::hal::rng
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - rng
