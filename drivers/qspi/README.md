@@ -11,3 +11,7 @@
 
 StarrySky L4C1 的 QSPI0 使用 GPIO0[12..16]、GPIO0[24] 的硬件复用，ST7735 的 DC
 信号由 `display` 资源映射到 GPIO0[31]。
+
+StarrySky T1-Pico（cl1-2512）的 QSPI0 是 DesignWare SSI 形态，只支持
+命令/地址/dummy/数据事务（QSPI 协议）；裸帧写接口一律返回
+`ECOS_ERR_UNSUPPORTED`，`clock_divider` 必须是 ≥2 的偶数。

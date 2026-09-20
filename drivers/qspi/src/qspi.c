@@ -34,10 +34,6 @@ static hal_qspi_cs_t qspi_hal_cs(ecos_qspi_cs_t cs)
 
 static ecos_err_t qspi_map_hal_result(int result)
 {
-    if (result == -1)
-        return ECOS_ERR_INVALID_ARGUMENT;
-    if (result == -2)
-        return ECOS_ERR_TIMEOUT;
     if (result >= 0)
         return (ecos_err_t)result;
     return ecos_err_is_known(result) ? (ecos_err_t)result : ECOS_ERR_IO;

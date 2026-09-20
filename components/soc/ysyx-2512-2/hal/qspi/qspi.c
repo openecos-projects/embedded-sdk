@@ -38,7 +38,7 @@ static int qspi_wait_done(void)
 
     while ((REG_QSPI_0_STATUS & 0xFFFFFFFFu) != QSPI_DONE_STATUS) {
         if (timeout-- == 0u) {
-            return -2;
+            return ECOS_ERR_TIMEOUT;
         }
     }
 
@@ -294,7 +294,7 @@ static inline int qspi_wait_idle(void) {
 
     while ((REG_QSPI_0_STATUS & 0x7F) != FSM_IDLE) {
         if (timeout-- == 0u)
-            return -2;
+            return ECOS_ERR_TIMEOUT;
     }
     return 0;
 }
@@ -415,7 +415,7 @@ int hal_qspi_write(hal_qspi_port_t port,
     uint32_t timeout = QSPI_TIMEOUT;
     while (bytes_remaining > 0) {
         if (timeout-- == 0u)
-            return -2;
+            return ECOS_ERR_TIMEOUT;
         /* 等 FSM 进入 DATA_TX 状态且 FIFO 有空位 */
         if ((REG_QSPI_0_STATUS & 0x7F) == FSM_DATA_TX) {
             if (bytes_remaining >= 4) {
@@ -486,7 +486,7 @@ int hal_qspi_read(hal_qspi_port_t port,
 
         /* --- 3. 等 IDLE 后排水（chunk ≤ FIFO 深度，安全）--- */
         if (qspi_wait_idle() != 0)
-            return -2;
+            return ECOS_ERR_TIMEOUT;
 
         while (chunk_remaining > 0) {
             if (((REG_QSPI_0_STATUS >> 16) & 0x1F) == 0) break;

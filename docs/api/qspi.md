@@ -145,3 +145,7 @@ int main(void)
   驱动（见 [devices.md](devices.md)）间接使用，不建议手写。
 - 命令/地址事务组固定走 CS0；多从机场合只能用帧写组的 `_cs` 版本。
 - 帧写参数 `write_32_repeat` 的 `words` 是 32 位字个数，不是字节数。
+- **Target 差异**：cl1-2512（StarrySky T1-Pico）的 QSPI0 只支持命令/地址
+  事务组（QSPI 协议），帧写组全部返回 `ECOS_ERR_UNSUPPORTED`，因此依赖帧写的
+  显示设备驱动在 T1-Pico 上不可用；其 `clock_divider` 必须是 ≥2 的偶数
+  （DesignWare BAUDR 语义），与 ysyx-2512 接受 0 不同。
