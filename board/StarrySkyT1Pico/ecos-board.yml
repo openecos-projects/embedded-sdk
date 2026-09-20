@@ -16,6 +16,7 @@ build:
     - flash_xip
   components:
     - bsp-starrysky-t1-pico
+    - heap
 
 # 板载 LED 位于 GPIOD4、低电平点亮；Button 位于 GPIOA7，暂未注册为 Button BSP 资源。
 resources:

@@ -5,9 +5,15 @@ RV32IMC/ILP32 build configuration, reset entry, Flash-XIP linker layout,
 register definitions, and the SoC implementations of the public HAL contracts.
 
 The default image executes code from the 16 MiB Flash region at `0x20000000`.
-Initialized data, BSS, and the stack use the 16 KiB DSRAM region at
-`0x01800000`. The legacy T1-Pico SDRAM boot profile remains in the 2.x compatibility
-BSP and is not selected by this Target.
+Initialized data, BSS and the heap use the 16 KiB DSRAM bank at `0x01800000`,
+while the stack uses the 16 KiB ISRAM bank at `0x01000000`; both banks are
+data-accessible SRAM and together form a 32 KiB SRAM pool (they are not
+contiguous, so they remain two linker regions). The 32 MiB SDRAM at
+`0x80000000` is initialized by the startup code before `main` (the controller
+sequence is carried over from the proven 2.x board driver) and registered as
+the heap component's EXTERNAL pool, so large buffers can be allocated with
+`ecos_heap_alloc(ECOS_HEAP_ZONE_EXTERNAL, ...)`; executing from SDRAM remains
+a 2.x-only boot profile.
 
 Create and build a console example with:
 

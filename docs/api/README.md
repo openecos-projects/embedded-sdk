@@ -12,7 +12,7 @@
   时钟复位、计数闹钟）
 - [devices.md](devices.md) — 设备驱动（AHT20、AT24C64、蜂鸣器、ESP01S、SGP30、
   PCF8563、ST7735、ST7789、TM1650）
-- [components.md](components.md) — 应用向组件（libc 子集、LightCoroutine、sfud、
+- [components.md](components.md) — 应用向组件（libc 子集、heap、LightCoroutine、sfud、
   fatfs、letter-shell）
 
 ## 分层架构

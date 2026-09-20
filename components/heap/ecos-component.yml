@@ -1,0 +1,10 @@
+schema: 1
+id: heap
+name: Heap Allocator
+cmake_target: ecos::heap::pool
+sources:
+  - src/heap.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime

@@ -1,7 +1,8 @@
 # 应用向组件
 
-本文记录 `components/` 下可供应用直接使用的组件：libc 子集、LightCoroutine
-协程、sfud 串口 Flash 驱动、fatfs 文件系统、letter-shell 命令行，以及以 shell
+本文记录 `components/` 下可供应用直接使用的组件：libc 子集、heap 动态
+分配、LightCoroutine 协程、sfud 串口 Flash 驱动、fatfs 文件系统、
+letter-shell 命令行，以及以 shell
 命令形式存在的内置应用 fcc / text_editor。
 
 不记录：`soc`（SDK 内部 SoC 层）、`libgcc`（编译器内部例程）、`spi_software`
@@ -47,8 +48,45 @@ assert(expr, fmt, ...);
 `ECOS_PANIC` 打印并停机），发布构建中展开为 `((void)0)`。与标准 C 的
 `assert` 不同，必须提供 `fmt` 参数。
 
-注意：这是 libc **子集**，没有堆分配、文件 IO、浮点格式化等；`memcmp` 的
+注意：这是 libc **子集**，没有文件 IO、浮点格式化等；`memcmp` 的
 返回类型是 `size_t`（标准 C 为 `int`），比较结果请只判断是否为 0。
+堆分配由独立的 heap 组件提供（见下节）。
+
+## heap（动态内存分配）
+
+头文件：`components/heap/include/ecos/heap.h`。
+
+双区堆模型，对齐商用芯片的内部/外部 RAM 分工：
+
+- `ECOS_HEAP_ZONE_INTERNAL`：片上 SRAM 池，延迟低、启动即可用，
+  `ecos_heap_malloc()` 的默认去向；
+- `ECOS_HEAP_ZONE_EXTERNAL`：外部大容量内存池（如 SDRAM），用于显式申请
+  的大缓冲（帧缓冲、算法工作集）。
+
+```c
+typedef enum {
+    ECOS_HEAP_ZONE_INTERNAL = 0,
+    ECOS_HEAP_ZONE_EXTERNAL
+} ecos_heap_zone_t;
+
+ecos_err_t ecos_heap_add_pool(uintptr_t base, size_t size,
+                              ecos_heap_zone_t zone);
+void *ecos_heap_malloc(size_t size);
+void *ecos_heap_alloc(ecos_heap_zone_t zone, size_t size);
+void *ecos_heap_calloc(ecos_heap_zone_t zone, size_t count, size_t size);
+void *ecos_heap_realloc(void *ptr, size_t size);
+void ecos_heap_free(void *ptr);
+size_t ecos_heap_free_bytes(ecos_heap_zone_t zone);
+```
+
+- 内存池由 Target 启动代码在 `main` 之前注册；未注册时分配返回 `NULL`。
+- 分配器为 K&R 风格首次适配空闲链表，4 字节对齐，`free` 合并相邻空闲块。
+- 单线程裸机模型：接口无锁，不要在中断与主流程中并发调用。
+- `ecos_heap_free_bytes()` 返回该 zone 的空闲总量（含碎片，单次最大分配
+  可能更小）。
+- 目前只有 StarrySky T1-Pico 在启动时注册池：INTERNAL = DSRAM 堆区，
+  EXTERNAL = 32 MiB SDRAM（启动代码同时完成 SDRAM 控制器初始化）。
+  其他 Target 上分配返回 `NULL`。
 
 ## LightCoroutine（轻量协程）
 
