@@ -37,3 +37,20 @@ ecos_err_t hal_rcu_get_status(hal_rcu_id_t id, uint32_t *status)
     *status = REG_RCU_0_STAT;
     return ECOS_OK;
 }
+
+ecos_err_t hal_rcu_pll_apply(hal_rcu_id_t id, const hal_rcu_pll_config_t *config)
+{
+    /* ysyx-2512-1 无 PLL，仅提供 RDIV/CTRL 接口。 */
+    (void)id;
+    (void)config;
+    return ECOS_ERR_UNSUPPORTED;
+}
+
+ecos_err_t hal_rcu_pll_get_freq(hal_rcu_id_t id, hal_rcu_clock_domain_t domain,
+                                uint32_t *freq_hz)
+{
+    (void)id;
+    (void)domain;
+    (void)freq_hz;
+    return ECOS_ERR_UNSUPPORTED;
+}

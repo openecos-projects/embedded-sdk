@@ -13,9 +13,15 @@ memory:
   flash:
     origin: 0x20000000
     size: 16M
+  isram:
+    origin: 0x01000000
+    size: 16K
   dsram:
     origin: 0x01800000
     size: 16K
+  sdram:
+    origin: 0x80000000
+    size: 32M
 build:
   cmake: CMakeLists.txt
   toolchain_file: toolchain.cmake
@@ -24,6 +30,7 @@ build:
   startup: startup/start.S
   sources:
     - startup/start.S
+    - startup/early_init.c
   include_dirs:
     - include
   capability_sources:
@@ -31,6 +38,10 @@ build:
       - hal/gpio/gpio.c
     i2c:
       - hal/i2c/i2c.c
+    qspi:
+      - hal/qspi/qspi.c
+    rcu:
+      - hal/rcu/rcu.c
     timer:
       - hal/timer/timer.c
     uart:
@@ -40,6 +51,10 @@ build:
       - ../../../hal/gpio/include
     i2c:
       - ../../../hal/i2c/include
+    qspi:
+      - ../../../hal/qspi/include
+    rcu:
+      - ../../../hal/rcu/include
     timer:
       - ../../../hal/timer/include
     uart:
@@ -56,4 +71,6 @@ capabilities:
   - uart
   - gpio
   - i2c
+  - qspi
+  - rcu
   - timer

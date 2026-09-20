@@ -14,10 +14,11 @@
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | ysyx-2512-1 RCU |
 | StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 支持 | ysyx-2512-1 RCU |
 | StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 支持 | ysyx-2512-2 RCU |
-| StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 不支持 | CL1-2512 无此 IP |
+| StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 运行时不支持 | CL1-2512 无 RDIV/CTRL，init 返回 UNSUPPORTED |
 
 当前示例要求板卡提供 `console` 资源，并要求对应 Target 具备 `rcu` 能力；
-CL1-2512（T1-Pico）未声明该能力，创建工程时会被拒绝。
+CL1-2512（T1-Pico）已声明该能力但仅提供 PLL 接口，`ecos_rcu_init()`
+运行时返回 `ECOS_ERR_UNSUPPORTED`，PLL 时钟切换见 `rcu/pll` 示例。
 
 ## 创建和构建
 

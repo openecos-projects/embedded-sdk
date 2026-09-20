@@ -18,4 +18,8 @@ menu "Peripheral Drivers"
     config DRIVER_TIMER
         bool "Timer Driver Support"
         default y
+
+    config DRIVER_RCU
+        bool "RCU Driver Support"
+        default y
 endmenu
