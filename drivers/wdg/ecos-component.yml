@@ -1,0 +1,12 @@
+schema: 1
+id: driver-wdg
+name: Watchdog Driver
+cmake_target: ecos::driver::wdg
+sources:
+  - src/wdg.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-wdg

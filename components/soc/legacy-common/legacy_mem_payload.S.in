@@ -1,0 +1,6 @@
+.section .rodata, "a"
+.align 3
+.global _payload_start, _payload_end
+_payload_start:
+.incbin "@ECOS_MEM_LOADER_APP_BINARY@"
+_payload_end:

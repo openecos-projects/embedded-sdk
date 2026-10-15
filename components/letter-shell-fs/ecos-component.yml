@@ -1,0 +1,12 @@
+schema: 1
+id: letter-shell-fs
+name: Letter-Shell FatFs commands
+cmake_target: ecos::component::letter_shell_fs
+sources:
+  - src/shell_fs.c
+include_dirs:
+  - include
+dependencies:
+  - letter-shell
+  - fatfs
+  - libc

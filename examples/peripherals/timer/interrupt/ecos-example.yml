@@ -1,0 +1,10 @@
+schema: 1
+name: timer-interrupt
+sources:
+  - main.c
+components:
+  - driver-timer
+  - driver-timer-interrupt
+  - driver-interrupt
+requires:
+  - console

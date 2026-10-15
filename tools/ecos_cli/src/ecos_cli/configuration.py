@@ -142,6 +142,7 @@ def _evaluate_kconfig(
     sources: list[str],
     user_config: Optional[str],
     temporary: Path,
+    profile_values: Optional[dict[str, str]] = None,
 ) -> tuple[str, str, dict[str, str]]:
     if not sources:
         return _empty_kconfig_outputs()
@@ -164,6 +165,17 @@ def _evaluate_kconfig(
         )
         if user_config is not None:
             kconf.load_config(user_config, replace=True)
+        for name, value in (profile_values or {}).items():
+            symbol = kconf.syms.get(name)
+            if symbol is None:
+                raise ConfigurationError(
+                    f"Board profile selects unknown Kconfig symbol: {name}"
+                )
+            if symbol.visibility == 0:
+                raise ConfigurationError(
+                    f"Board profile selects an invisible Kconfig symbol: {name}"
+                )
+            symbol.set_value(value)
         config_path = temporary / KCONFIG_CONFIG_FILE
         header_path = temporary / KCONFIG_HEADER_FILE
         kconf.write_config(str(config_path))
@@ -234,17 +246,59 @@ def _board_resources_header(
             ]
         )
     resources = board.get("resources", {}) if board else {}
+    led = resources.get("led") if _wants("led") else None
+    if led is None:
+        lines.extend(["", "#define ECOS_BOARD_HAS_LED 0"])
+    else:
+        lines.extend(
+            [
+                '#include "ecos/driver/gpio.h"',
+                "",
+                "#define ECOS_BOARD_HAS_LED 1",
+                f"#define ECOS_BOARD_LED_COUNT {len(led['instances'])}u",
+                "#define ECOS_BOARD_LED_ACTIVE_LEVEL "
+                + ("ECOS_GPIO_LEVEL_HIGH" if led["active_level"] == "high"
+                   else "ECOS_GPIO_LEVEL_LOW"),
+            ]
+        )
+        for item in led["instances"]:
+            index = item["id"]
+            lines.extend(
+                [
+                    f"#define ECOS_BOARD_LED_{index}_PORT ECOS_GPIO_PORT_{item['controller']}",
+                    f"#define ECOS_BOARD_LED_{index}_PIN {item['pin']}u",
+                ]
+            )
+    soft_spi = resources.get("soft-spi-bus") if _wants("soft-spi-bus") else None
+    if soft_spi is None:
+        lines.extend(["", "#define ECOS_BOARD_HAS_SOFT_SPI_BUS 0"])
+    else:
+        lines.extend(
+            [
+                '#include "ecos/driver/gpio.h"',
+                "",
+                "#define ECOS_BOARD_HAS_SOFT_SPI_BUS 1",
+                "#define ECOS_BOARD_SOFT_SPI_CHIP_SELECT \\",
+                f"    {{ ECOS_GPIO_PORT_{soft_spi['chip_select']['controller']}, {soft_spi['chip_select']['pin']}u }}",
+                "#define ECOS_BOARD_SOFT_SPI_CLOCK \\",
+                f"    {{ ECOS_GPIO_PORT_{soft_spi['clock']['controller']}, {soft_spi['clock']['pin']}u }}",
+                "#define ECOS_BOARD_SOFT_SPI_MOSI \\",
+                f"    {{ ECOS_GPIO_PORT_{soft_spi['mosi']['controller']}, {soft_spi['mosi']['pin']}u }}",
+                "#define ECOS_BOARD_SOFT_SPI_MISO \\",
+                f"    {{ ECOS_GPIO_PORT_{soft_spi['miso']['controller']}, {soft_spi['miso']['pin']}u }}",
+                f"#define ECOS_BOARD_SOFT_SPI_MODE {soft_spi['mode']}u",
+            ]
+        )
     qspi_bus = resources.get("qspi-bus") or resources.get("qspi0")
     qspi_requested = (
         _wants("qspi-bus") or _wants("qspi0") or _wants("display")
+        or _wants("display-st7789")
     )
     if qspi_bus is None or not qspi_requested:
         lines.extend(["", "#define ECOS_BOARD_HAS_QSPI_BUS 0"])
     else:
         lines.extend(
             [
-                '#include "ecos/driver/qspi.h"',
-                "",
                 "#define ECOS_BOARD_HAS_QSPI_BUS 1",
                 "#define ECOS_BOARD_QSPI_BUS_CONTROLLER "
                 f"((ecos_qspi_id_t){qspi_bus['controller']}u)",
@@ -252,13 +306,26 @@ def _board_resources_header(
                 f"{qspi_bus['clock_divider']}u",
             ]
         )
-    display = board.get("resources", {}).get("display") if board else None
-    if display is None or not _wants("display"):
+    display = resources.get("display") or resources.get("display-st7789")
+    if requested is not None:
+        if "display-st7789" in requested:
+            display = resources.get("display-st7789")
+        elif "display" not in requested:
+            display = None
+    if display is None:
         lines.extend(["", "#define ECOS_BOARD_HAS_DISPLAY 0"])
     else:
         dc_gpio = display["dc_gpio"]
         reset_gpio = display["reset_gpio"]
         backlight_gpio = display["backlight_gpio"]
+        reset_port = (
+            f"ECOS_GPIO_PORT_{reset_gpio['controller']}"
+            if reset_gpio is not None else "ECOS_GPIO_PORT_COUNT"
+        )
+        backlight_port = (
+            f"ECOS_GPIO_PORT_{backlight_gpio['controller']}"
+            if backlight_gpio is not None else "ECOS_GPIO_PORT_COUNT"
+        )
         lines.extend(
             [
                 '#include "ecos/driver/gpio.h"',
@@ -270,14 +337,12 @@ def _board_resources_header(
                 f"ECOS_GPIO_PORT_{dc_gpio['controller']}",
                 "#define ECOS_BOARD_DISPLAY_DC_PIN "
                 f"{dc_gpio['pin']}u",
-                "#define ECOS_BOARD_DISPLAY_RESET_PORT "
-                f"ECOS_GPIO_PORT_{reset_gpio['controller']}",
+                "#define ECOS_BOARD_DISPLAY_RESET_PORT " + reset_port,
                 "#define ECOS_BOARD_DISPLAY_RESET_PIN "
-                f"{reset_gpio['pin']}u",
-                "#define ECOS_BOARD_DISPLAY_BACKLIGHT_PORT "
-                f"ECOS_GPIO_PORT_{backlight_gpio['controller']}",
+                f"{reset_gpio['pin'] if reset_gpio is not None else 0}u",
+                "#define ECOS_BOARD_DISPLAY_BACKLIGHT_PORT " + backlight_port,
                 "#define ECOS_BOARD_DISPLAY_BACKLIGHT_PIN "
-                f"{backlight_gpio['pin']}u",
+                f"{backlight_gpio['pin'] if backlight_gpio is not None else 0}u",
                 "#define ECOS_BOARD_DISPLAY_WIDTH "
                 f"{display['width']}u",
                 "#define ECOS_BOARD_DISPLAY_HEIGHT "
@@ -465,6 +530,18 @@ def validate_project(
     """Validate and resolve a project without writing derived files."""
 
     resolved = resolve_project(context, project_root=project_root)
+    build = resolved["build"]
+    components = [
+        {
+            "id": item["id"],
+            "cmake_target": item["cmake_target"],
+            "sources": item["sources"],
+            "include_dirs": item["include_dirs"],
+            "dependencies": item["dependencies"],
+            "private_dependencies": item["private_dependencies"],
+        }
+        for item in resolved["components"]
+    ]
     return {
         "path": resolved["project"]["root"],
         "sdk": {
@@ -476,6 +553,26 @@ def validate_project(
         "profile": resolved["project"]["profile"],
         "example": resolved["project"]["example"],
         "components": [item["id"] for item in resolved["components"]],
+        "graph": {
+            "application": {
+                "example": resolved["example"]["name"],
+                "sources": build["application_sources"],
+                "include_dirs": build["application_include_dirs"],
+                "defines": build["application_defines"],
+            },
+            "target": {
+                "id": resolved["target"]["id"],
+                "cmake": build["cmake"],
+                "sources": build["target_sources"],
+                "capability_sources": build["target_capability_sources"],
+                "include_dirs": build["target_include_dirs"],
+                "capability_include_dirs": build["target_capability_include_dirs"],
+                "linker_script": build["linker_script"],
+            },
+            "components": components,
+            "roots": resolved["component_roots"],
+            "outputs": build["outputs"],
+        },
         "requirements": resolved["requirements"],
         "toolchain": resolved["toolchain"],
         "source_fingerprint": resolved["source_fingerprint"],
@@ -502,6 +599,13 @@ def configure_project(
             kconfig_sources,
             resolved["kconfig"]["user_config"],
             Path(temporary_name),
+            (
+                resolved["board"].get("profile_configs", {}).get(
+                    resolved["project"]["profile"], {}
+                )
+                if resolved.get("board") is not None
+                else {}
+            ),
         )
     configuration_fingerprint = _configuration_fingerprint(
         resolved["source_fingerprint"], config_content

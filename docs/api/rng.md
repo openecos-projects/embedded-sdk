@@ -3,7 +3,7 @@
 硬件随机数发生器：配置种子后读取 32 位随机字。
 
 头文件：`drivers/rng/include/ecos/driver/rng.h`。
-示例：`example/peripherals/rng/random`。
+示例：`examples/peripherals/rng/random`。
 
 ## 类型与常量
 
@@ -66,5 +66,5 @@ int main(void)
   （TRNG）用于安全场景。
 - 播种后建议给硬件若干周期再读取第一个值（示例中用 `ecos_timer_delay_ms`
   延时 1 ms）。
-- 目前仅 ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
+- ysyx-l3-1、ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
 - 不要与 2.x 遗留头文件 `hal/rng/hal_rng.h` 混用。

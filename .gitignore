@@ -11,6 +11,7 @@
 !.github/
 !.github/workflows/
 !.github/workflows/release.yml
+!.github/workflows/ci.yml
 
 !src/
 !src/**
@@ -27,14 +28,13 @@ docs/StarrySkyL4_C1_Board_Adaptation.md
 docs/abstract-machine.md
 docs/branching.md
 docs/bsp_import.md
-docs/cli.md
 docs/hal_v2_design_guideline.md
 docs/menuconfig.md
 docs/releasing.md
 docs/sdk-3.0-development-boundary.md
 
-!board
-!board/**
+!boards/
+!boards/**
 
 !hal
 !hal/**
@@ -51,11 +51,11 @@ docs/sdk-3.0-development-boundary.md
 !devices
 !devices/**
 
-!example 
-!example/**
+!examples/
+!examples/**
 
 # llm-chat 示例的模型权重与词表由用户自行下载，不入库
-example/ai/llm-chat/*.bin
+examples/ai/llm-chat/*.bin
 
 !bin/
 !bin/**
@@ -65,6 +65,7 @@ example/ai/llm-chat/*.bin
 !tools/ecos.py
 !tools/install.py
 !tools/release.py
+!tools/ci_host_smoke.py
 !tools/sdk-manifest.json
 !tools/fixdep
 !tools/fixdep/**
@@ -77,6 +78,10 @@ example/ai/llm-chat/*.bin
 !tools/toolchains/*.json
 !tools/ecos_cli/
 !tools/ecos_cli/**
+!tools/vscode-ecos/
+!tools/vscode-ecos/**
+tools/vscode-ecos/node_modules/
+tools/vscode-ecos/out/
 
 !environments/
 !environments/**

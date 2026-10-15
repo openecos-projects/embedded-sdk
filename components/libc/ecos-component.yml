@@ -1,0 +1,12 @@
+schema: 1
+id: libc
+name: Minimal C Library
+cmake_target: ecos::libc::runtime
+sources:
+  - src/string.c
+  - src/stdio.c
+include_dirs:
+  - include
+  - ../../hal/sys_uart
+dependencies:
+  - libgcc

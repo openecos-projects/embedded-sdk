@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ECOS SDK identity manifest, version 1",
+  "description": "SDK identity, CLI compatibility, resource roots, toolchain and release selection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sdk_id",
+    "sdk_version",
+    "channel",
+    "cli_compatibility",
+    "layout",
+    "toolchain"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "sdk_id": {"$ref": "#/$defs/identifier"},
+    "sdk_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "channel": {"enum": ["development", "release"]},
+    "cli_compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "schema_version"],
+      "properties": {
+        "major": {"type": "integer", "minimum": 0},
+        "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "layout": {
+      "type": "object",
+      "required": [
+        "boards", "components", "drivers", "devices", "docs",
+        "examples", "hal", "templates", "cli"
+      ],
+      "additionalProperties": {"$ref": "#/$defs/relativePath"}
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "core_components": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "kconfig": {"$ref": "#/$defs/relativePath"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "release"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "release": {"type": "string", "minLength": 1}
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paths"],
+      "properties": {
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relativePath"}
+        },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relativePath"}
+        }
+      }
+    }
+  },
+  "if": {"properties": {"channel": {"const": "release"}}, "required": ["channel"]},
+  "then": {"required": ["release"]},
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "not": {"enum": [".", ".."]}
+    },
+    "relativePath": {"type": "string", "minLength": 1}
+  }
+}

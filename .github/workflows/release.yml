@@ -15,8 +15,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify supported hosts and SDK matrix
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   release:
     name: Test, package, and publish
+    needs: verify
     if: github.event.deleted == false
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -50,19 +57,29 @@ jobs:
       - name: Run test suite
         run: python -m unittest discover -s tools/ecos_cli/tests -p "test_*.py"
 
-      - name: Validate packaged installer
+      - name: Install packaged SDK and build a firmware
         run: |
           archive="dist/ecos-embedded-sdk-${GITHUB_REF_NAME#v}.tar.gz"
+          version="${GITHUB_REF_NAME#v}"
           smoke_root="$RUNNER_TEMP/ecos-release-smoke"
           install_root="$RUNNER_TEMP/ecos-release-install"
           mkdir -p "$smoke_root"
           tar -xzf "$archive" -C "$smoke_root"
-          python "$smoke_root/ecos-embedded-sdk-${GITHUB_REF_NAME#v}/tools/install.py" \
-            --dry-run \
+          package_root="$smoke_root/ecos-embedded-sdk-$version"
+          python "$package_root/tools/install.py" \
+            --mode release \
             --skip-toolchain \
             --shell none \
             --prefix "$install_root" \
             --registry "$RUNNER_TEMP/ecos-release-registry.json"
+          python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
+            project create hello --name release-hello --path "$smoke_root" \
+            --board starrysky-l4-c1
+          python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
+            build --project "$smoke_root/release-hello"
+          printf 'CONFIG_BUILD_OPT_SIZE=y\n' > "$smoke_root/release-hello/.ecos/project.config"
+          python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
+            build --project "$smoke_root/release-hello"
 
       - name: Generate artifact attestations
         uses: actions/attest@v4
@@ -70,22 +87,23 @@ jobs:
           subject-path: |
             dist/ecos-embedded-sdk-*.tar.gz
             dist/ecos-embedded-sdk-*.zip
+            dist/ecos-embedded-sdk-*.spdx.json
 
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
-          assets=(dist/SHA256SUMS dist/*.tar.gz dist/*.zip)
+          assets=(dist/SHA256SUMS dist/*.tar.gz dist/*.zip dist/*.spdx.json)
           if gh release view "$tag" >/dev/null 2>&1; then
             existing="$RUNNER_TEMP/ecos-existing-release"
             mkdir -p "$existing"
-            gh release download "$tag" --pattern SHA256SUMS --dir "$existing"
+            gh release download "$tag" --dir "$existing"
             if ! cmp -s dist/SHA256SUMS "$existing/SHA256SUMS"; then
               echo "refusing to replace immutable assets for $tag" >&2
               exit 1
             fi
-            gh release upload "$tag" "${assets[@]}" --clobber
+            (cd "$existing" && sha256sum --check SHA256SUMS)
           else
             release_options=(--verify-tag --generate-notes --title "ECOS Embedded SDK ${tag#v}")
             if [[ "$tag" == *-* ]]; then

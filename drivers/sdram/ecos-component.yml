@@ -1,0 +1,14 @@
+schema: 1
+id: driver-sdram
+name: SDRAM Driver
+cmake_target: ecos::driver::sdram
+sources:
+  - src/sdram.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-sdram
+requires:
+  - sdram

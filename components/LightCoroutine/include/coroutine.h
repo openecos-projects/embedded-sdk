@@ -1,6 +1,5 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
-#include <stdio.h>
 #include <stdint.h>
 #include "conf.h"
 #include "yield.h"
@@ -24,5 +23,10 @@ void delete_task(task_t* task_handler);
 void suspend_task(task_t* task_handler);
 void resume_task(task_t* task_handler);
 void task_scheduler(int round);
+
+#ifdef USE_CTX
+/* Context helpers are part of the implementation used by yield.h macros. */
+#include "context.h"
+#endif
 
 #endif

@@ -1,0 +1,20 @@
+schema: 1
+id: fatfs
+name: FatFs filesystem
+cmake_target: ecos::component::fatfs
+sources:
+  - src/ff.c
+  - src/ffunicode.c
+  - src/ffsystem.c
+  - src/diskio.c
+  - src/ffinit.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - libc
+  - libgcc
+private_dependencies:
+  - sfud
+requires:
+  - qspi

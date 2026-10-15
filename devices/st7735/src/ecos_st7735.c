@@ -167,19 +167,22 @@ ecos_err_t ecos_st7735_init(ecos_st7735_t *display,
     ST7735_TRY(ecos_gpio_configure(
         config->dc_port, config->dc_pin, &gpio_config
     ));
-    ST7735_TRY(ecos_gpio_configure(
-        config->reset_port, config->reset_pin, &gpio_config
-    ));
-    ST7735_TRY(ecos_gpio_configure(
-        config->backlight_port, config->backlight_pin, &gpio_config
-    ));
-    /* The board owns the panel reset and backlight policy: both stay high. */
-    ST7735_TRY(ecos_gpio_set_level(
-        config->reset_port, config->reset_pin, ECOS_GPIO_LEVEL_HIGH
-    ));
-    ST7735_TRY(ecos_gpio_set_level(
-        config->backlight_port, config->backlight_pin, ECOS_GPIO_LEVEL_HIGH
-    ));
+    if (config->reset_port != ECOS_GPIO_PORT_COUNT) {
+        ST7735_TRY(ecos_gpio_configure(
+            config->reset_port, config->reset_pin, &gpio_config
+        ));
+        ST7735_TRY(ecos_gpio_set_level(
+            config->reset_port, config->reset_pin, ECOS_GPIO_LEVEL_HIGH
+        ));
+    }
+    if (config->backlight_port != ECOS_GPIO_PORT_COUNT) {
+        ST7735_TRY(ecos_gpio_configure(
+            config->backlight_port, config->backlight_pin, &gpio_config
+        ));
+        ST7735_TRY(ecos_gpio_set_level(
+            config->backlight_port, config->backlight_pin, ECOS_GPIO_LEVEL_HIGH
+        ));
+    }
     ST7735_TRY(ecos_gpio_set_level(
         config->dc_port, config->dc_pin, ECOS_GPIO_LEVEL_LOW
     ));

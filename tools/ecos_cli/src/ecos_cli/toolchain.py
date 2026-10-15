@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -157,7 +158,26 @@ def selection_data(manifest: dict[str, Any], host: str) -> dict[str, Any]:
 
 
 def default_prefix() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return base / "ECOS" / "toolchains"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "ECOS" / "toolchains"
+    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "ecos" / "toolchains"
+
+
+def legacy_prefix() -> Path:
     return Path.home() / ".local" / "ecos-sdk"
+
+
+def shared_install_root(manifest: dict[str, Any], prefix: Path, host: str) -> Path:
+    for field, value in (("id", manifest["id"]), ("release", manifest["release"]), ("host", host)):
+        if not isinstance(value, str) or value in {".", ".."} or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9._-]*", value
+        ):
+            raise ManifestError(f"unsafe toolchain {field}: {value!r}")
+    return prefix / manifest["id"] / manifest["release"] / host
 
 
 def default_cache_root() -> Path:
@@ -379,7 +399,12 @@ def probe_compiler(
 
 
 def installation_status(
-    manifest: dict[str, Any], prefix: Path, host: str, custom: Optional[Path] = None
+    manifest: dict[str, Any],
+    prefix: Path,
+    host: str,
+    custom: Optional[Path] = None,
+    *,
+    legacy: bool = False,
 ) -> dict[str, Any]:
     if custom is not None:
         root = custom.expanduser().resolve()
@@ -392,7 +417,11 @@ def installation_status(
             "compiler": probe,
         }
 
-    root = prefix / manifest["install_path"]
+    root = (
+        prefix / manifest["install_path"]
+        if legacy
+        else shared_install_root(manifest, prefix, host)
+    )
     marker_path = root / ".ecos-toolchain.json"
     marker: Optional[dict[str, Any]] = None
     if marker_path.is_file():
@@ -419,10 +448,28 @@ def installation_status(
         "pinned": True,
         "state": state,
         "root": str(root),
-        "active_root": str(prefix / manifest["active_path"]),
+        "active_root": str(prefix / manifest["active_path"] if legacy else root),
+        "layout": "legacy" if legacy else "shared",
         "marker": marker,
         "compiler": probe,
     }
+
+
+def compatible_installation_status(
+    manifest: dict[str, Any],
+    prefix: Path,
+    host: str,
+    *,
+    legacy_roots: tuple[Path, ...] = (),
+) -> dict[str, Any]:
+    status = installation_status(manifest, prefix, host)
+    if status["state"] != "missing":
+        return status
+    for legacy_root in legacy_roots:
+        older = installation_status(manifest, legacy_root, host, legacy=True)
+        if older["state"] == "installed":
+            return older
+    return status
 
 
 def add_legacy_aliases(root: Path, manifest: dict[str, Any]) -> None:
@@ -496,11 +543,9 @@ def install_toolchain(
     asset = select_asset(manifest, host)
     prefix = prefix.expanduser().resolve()
     cache = cache.expanduser().resolve()
-    target = prefix / manifest["install_path"]
-    active = prefix / manifest["active_path"]
+    target = shared_install_root(manifest, prefix, host)
     current = installation_status(manifest, prefix, host)
     if current["state"] == "installed" and not force:
-        activate_install(target, active)
         current["changed"] = False
         return current
     if current["state"] == "invalid" and not force:
@@ -558,7 +603,6 @@ def install_toolchain(
             else:
                 shutil.rmtree(target)
         staging.replace(target)
-    activate_install(target, active, force=force)
     result = installation_status(manifest, prefix, host)
     result["changed"] = True
     result["archive"] = str(archive)

@@ -1,0 +1,189 @@
+{
+  "name": "ecos-embedded-sdk",
+  "displayName": "ECOS Embedded SDK",
+  "description": "ECOS SDK project and build integration",
+  "version": "0.1.0",
+  "publisher": "ecos-embedded",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/.ecos/project.yml",
+    "onView:ecos.projects",
+    "onTaskType:ecos"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Project queries remain available; SDK commands that write files or access devices require workspace trust.",
+      "restrictedConfigurations": [
+        "ecos.cliPath"
+      ]
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "ecos.refresh",
+        "title": "ECOS: Refresh Projects"
+      },
+      {
+        "command": "ecos.selectBoard",
+        "title": "ECOS: Select Board"
+      },
+      {
+        "command": "ecos.selectProfile",
+        "title": "ECOS: Select Profile"
+      },
+      {
+        "command": "ecos.configure",
+        "title": "ECOS: Configure"
+      },
+      {
+        "command": "ecos.build",
+        "title": "ECOS: Build"
+      },
+      {
+        "command": "ecos.clean",
+        "title": "ECOS: Clean"
+      },
+      {
+        "command": "ecos.flash",
+        "title": "ECOS: Flash"
+      },
+      {
+        "command": "ecos.monitor",
+        "title": "ECOS: Monitor"
+      },
+      {
+        "command": "ecos.toolchainStatus",
+        "title": "ECOS: Toolchain Status"
+      },
+      {
+        "command": "ecos.toolchainInstall",
+        "title": "ECOS: Install Toolchain"
+      },
+      {
+        "command": "ecos.showSchema",
+        "title": "ECOS: Show Manifest Schema"
+      },
+      {
+        "command": "ecos.debug",
+        "title": "ECOS: Debug"
+      }
+    ],
+    "configuration": {
+      "title": "ECOS SDK",
+      "properties": {
+        "ecos.cliPath": {
+          "type": "string",
+          "default": "ecos",
+          "description": "Path to the host-installed ECOS CLI in the workspace extension host."
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "ecos.projects",
+          "name": "ECOS Projects"
+        }
+      ]
+    },
+    "taskDefinitions": [
+      {
+        "type": "ecos",
+        "required": [
+          "operation",
+          "project"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "configure",
+              "build",
+              "clean",
+              "flash",
+              "monitor"
+            ]
+          },
+          "project": {
+            "type": "string"
+          }
+        }
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "ecos.refresh",
+          "when": "view == ecos.projects",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "ecos.selectBoard",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.selectProfile",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.configure",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.build",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.clean",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.flash",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.monitor",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.toolchainInstall",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.toolchainStatus",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "ecos.debug",
+          "when": "isWorkspaceTrusted"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test out/test/*.test.js",
+    "package": "npm run compile && vsce package --pre-release --no-dependencies --allow-missing-repository --out out/ecos-embedded-sdk-0.1.0.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "@types/vscode": "1.102.0",
+    "@vscode/vsce": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}

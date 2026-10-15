@@ -3,7 +3,7 @@
 面向显示控制器的裸帧写，以及 SPI-Flash 风格的命令/地址/dummy 事务。
 
 头文件：`drivers/qspi/include/ecos/driver/qspi.h`。
-示例：`example/peripherals/spi_master/st7789`（配合 ST7789 设备驱动）。
+示例：`examples/peripherals/spi_master/st7789`（配合 ST7789 设备驱动）。
 
 ## 类型与常量
 

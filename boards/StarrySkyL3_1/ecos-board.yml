@@ -1,0 +1,89 @@
+schema: 2
+id: starrysky-l3-1
+name: StarrySky L3.1
+aliases:
+  - l3_1
+  - l3-1
+category: StarrySkyL3_1
+arch: riscv
+target: ysyx-l3-1
+
+build:
+  default_profile: flash-xip
+  profiles:
+    flash-xip:
+      kconfig:
+        LINK_TARGET_XIP: y
+    mem:
+      kconfig:
+        LINK_TARGET_MEM: y
+  components:
+    - bsp-legacy-console
+    - bsp-legacy-led
+
+resources:
+  console:
+    driver: driver-uart
+    instance: 0
+  led:
+    driver: driver-gpio
+    active_level: high
+    instances:
+      - id: 0
+        controller: 0
+        pin: 26
+      - id: 1
+        controller: 0
+        pin: 27
+  i2c-bus:
+    driver: driver-i2c
+    controller: 0
+  qspi-bus:
+    driver: driver-qspi
+    controller: 0
+    clock_divider: 3
+  display:
+    driver: device-st7735
+    bus: qspi-bus
+    chip_select: 0
+    dc_gpio:
+      controller: 1
+      pin: 6
+    width: 128
+    height: 128
+    rotation: 0
+    horizontal_offset: 2
+    vertical_offset: 3
+  display-st7789:
+    driver: device-st7789
+    bus: qspi-bus
+    chip_select: 0
+    dc_gpio:
+      controller: 1
+      pin: 6
+    reset_gpio:
+      controller: 1
+      pin: 7
+    width: 240
+    height: 240
+    rotation: 2
+  pwm-output:
+    driver: driver-pwm
+    controller: 0
+    channel: 0
+    gpio:
+      controller: 1
+      pin: 14
+
+monitor:
+  baudrate: 115200
+
+files:
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.S
+  build_conf: build_conf.mk
+
+kconfig:
+  board: sdk/board.kconfig

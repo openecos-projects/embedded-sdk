@@ -1,0 +1,40 @@
+schema: 2
+id: starrysky-l3
+name: StarrySky L3
+aliases:
+  - l3
+category: StarrySkyL3
+arch: riscv
+target: ysyx-l3
+
+build:
+  default_profile: flash-xip
+  profiles:
+    flash-xip:
+      kconfig:
+        LINK_TARGET_FLASH: y
+    mem:
+      kconfig:
+        LINK_TARGET_MEM: y
+  components:
+    - bsp-legacy-console
+
+resources:
+  console:
+    driver: driver-uart
+    instance: 0
+  i2c-bus:
+    driver: driver-i2c
+    controller: 0
+
+monitor:
+  baudrate: 115200
+
+files:
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.s
+
+kconfig:
+  board: sdk/board.kconfig

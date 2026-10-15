@@ -12,23 +12,41 @@ from unittest.mock import patch
 
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src"
+SDK_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(SOURCE_ROOT))
 
 from ecos_cli import installer  # noqa: E402
+from ecos_cli.cli import main as cli_main  # noqa: E402
 from ecos_cli.sdk_registry import SdkRegistry  # noqa: E402
 
+FIXTURE_SDK_DIRECTORIES = (
+    "components", "drivers", "hal", "templates", "environments",
+    "third_party", "boards", "examples", "docs", "devices",
+)
+FIXTURE_RELEASE_PATHS = (
+    "LICENSE",
+    *FIXTURE_SDK_DIRECTORIES,
+    "tools/ecos_cli/src",
+    "tools/ecos_cli/pyproject.toml",
+    "tools/ecos.py",
+    "tools/install.py",
+    "tools/sdk-manifest.json",
+)
 
-def create_sdk_fixture(root: Path, version: str = "3.0.0") -> None:
-    for relative in installer.SDK_DIRECTORIES:
+
+def create_sdk_fixture(
+    root: Path, version: str = "3.0.0", *, channel: str = "release"
+) -> None:
+    for relative in FIXTURE_SDK_DIRECTORIES:
         directory = root / relative
         directory.mkdir(parents=True)
         (directory / "source.txt").write_text(relative, encoding="utf-8")
 
-    source_user_bsp = root / "board" / "UserBSP"
+    source_user_bsp = root / "boards" / "UserBSP"
     source_user_bsp.mkdir()
     (source_user_bsp / "sdk-default.txt").write_text("default", encoding="utf-8")
 
-    for relative in installer.TOOL_DIRECTORIES:
+    for relative in ("fixdep", "kconfig", "scripts", "toolchains", "ecos_cli"):
         directory = root / "tools" / relative
         directory.mkdir(parents=True)
         (directory / "source.txt").write_text(relative, encoding="utf-8")
@@ -37,20 +55,29 @@ def create_sdk_fixture(root: Path, version: str = "3.0.0") -> None:
         "generated", encoding="utf-8"
     )
     (root / "tools" / "ecos.py").write_text("# fixture\n", encoding="utf-8")
+    (root / "tools" / "install.py").write_text("# fixture\n", encoding="utf-8")
+    (root / "tools" / "ecos_cli" / "pyproject.toml").write_text(
+        "# fixture\n", encoding="utf-8"
+    )
+    (root / "LICENSE").write_text("fixture\n", encoding="utf-8")
     (root / "tools" / "ecos_cli" / "src").mkdir()
+    fake_cli = root / "tools" / "ecos_cli" / "src" / "ecos_cli"
+    fake_cli.mkdir()
+    (fake_cli / "__init__.py").write_text('__version__ = "3.0.0.dev0"\n', encoding="utf-8")
+    (fake_cli / "cli.py").write_text("def main():\n    return 0\n", encoding="utf-8")
     manifest = {
         "schema_version": 1,
         "sdk_id": "ecos-embedded-sdk",
         "sdk_version": version,
-        "channel": "development",
+        "channel": channel,
         "cli_compatibility": {"major": 3, "schema_version": "1.0"},
         "layout": {
-            "boards": "board",
+        "boards": "boards",
             "components": "components",
             "drivers": "drivers",
             "devices": "devices",
             "docs": "docs",
-            "examples": "example",
+            "examples": "examples",
             "hal": "hal",
             "templates": "templates",
             "cli": "tools/ecos_cli/src",
@@ -58,6 +85,10 @@ def create_sdk_fixture(root: Path, version: str = "3.0.0") -> None:
         "toolchain": {
             "id": "xpack-riscv-none-elf-gcc",
             "release": "15.2.0-1",
+        },
+        "release": {
+            "paths": list(FIXTURE_RELEASE_PATHS),
+            "exclude": ["boards/UserBSP"],
         },
     }
     (root / "tools" / "sdk-manifest.json").write_text(
@@ -97,6 +128,69 @@ def fake_host_dependency_install(prefix: Path, **_: object) -> dict[str, object]
 
 
 class SdkInstallerTest(unittest.TestCase):
+    def test_dry_run_bootstraps_without_third_party_python_packages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            environment = os.environ.copy()
+            environment.pop("PYTHONPATH", None)
+            environment.pop("PYTHONHOME", None)
+            result = subprocess.run(
+                [
+                    sys.executable, "-S", str(SDK_ROOT / "tools/install.py"),
+                    "--dry-run", "--skip-toolchain", "--shell", "none",
+                    "--host-prefix", str(root / "host"),
+                    "--registry", str(root / "registry.json"),
+                    "--format", "json",
+                ],
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["status"], "ok")
+            self.assertFalse((root / "host").exists())
+            self.assertFalse((root / "registry.json").exists())
+
+    def test_development_mode_registers_checkout_without_copying_sdk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            install_base = root / "SDKs"
+            host_prefix = root / "host"
+            registry_path = root / "registry.json"
+            create_sdk_fixture(source, channel="development")
+            manifest_path = source / "tools/sdk-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            del manifest["release"]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            with patch.object(
+                installer,
+                "install_python_dependencies",
+                side_effect=fake_python_dependency_install,
+            ), patch.object(
+                installer,
+                "install_host_dependencies",
+                side_effect=fake_host_dependency_install,
+            ), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                result = installer.main(
+                    [
+                        "--prefix", str(install_base),
+                        "--host-prefix", str(host_prefix),
+                        "--skip-toolchain", "--shell", "none",
+                        "--registry", str(registry_path),
+                    ],
+                    sdk_root=source,
+                )
+
+            self.assertEqual(result, 0)
+            self.assertFalse(install_base.exists())
+            self.assertTrue((host_prefix / "bin/ecos").is_file())
+            entry = SdkRegistry(registry_path).registrations()["3.0.0"]
+            self.assertEqual(entry["kind"], "checkout")
+            self.assertEqual(entry["root"], str(source.resolve()))
+
     def test_default_install_base_is_platform_specific(self):
         home = Path("/users/test")
         self.assertEqual(
@@ -213,7 +307,7 @@ class SdkInstallerTest(unittest.TestCase):
                 f"{old_sdk_bin}:{prefix / 'bin'}:/usr/bin:/bin"
             )
             environment["ECOS_SDK_HOME"] = str(
-                installer.toolchain.default_prefix().resolve()
+                installer.toolchain.legacy_prefix().resolve()
             )
 
             result = subprocess.run(
@@ -340,6 +434,8 @@ class SdkInstallerTest(unittest.TestCase):
                     [
                         "--prefix",
                         str(install_base),
+                        "--host-prefix",
+                        str(root / "host"),
                         "--skip-toolchain",
                         "--shell",
                         "bash",
@@ -378,8 +474,10 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(registry["sdks"]["3.0.0"]["root"], str(prefix.resolve()))
             for filename in ("ecos.bash", "_ecos", "ecos.fish", "ecos.ps1"):
                 self.assertTrue(
-                    prefix.joinpath("share/ecos/completions", filename).is_file()
+                    (root / "host").joinpath("share/ecos/completions", filename).is_file()
                 )
+            self.assertFalse((prefix / "bin").exists())
+            self.assertTrue((root / "host/bin/ecos").is_file())
 
     def test_two_versions_install_side_by_side_under_one_base(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -406,6 +504,8 @@ class SdkInstallerTest(unittest.TestCase):
                             [
                                 "--prefix",
                                 str(install_base),
+                                "--host-prefix",
+                                str(root / "host"),
                                 "--skip-toolchain",
                                 "--shell",
                                 "none",
@@ -439,6 +539,8 @@ class SdkInstallerTest(unittest.TestCase):
             arguments = [
                 "--prefix",
                 str(install_base),
+                "--host-prefix",
+                str(root / "host"),
                 "--skip-toolchain",
                 "--shell",
                 "none",
@@ -548,6 +650,8 @@ class SdkInstallerTest(unittest.TestCase):
                     [
                         "--prefix",
                         str(prefix),
+                        "--host-prefix",
+                        str(root / "host"),
                         "--skip-toolchain",
                         "--dry-run",
                         "--shell",
@@ -575,6 +679,8 @@ class SdkInstallerTest(unittest.TestCase):
                     [
                         "--prefix",
                         str(prefix),
+                        "--host-prefix",
+                        str(root / "host"),
                         "--skip-toolchain",
                         "--dry-run",
                         "--format",
@@ -608,6 +714,8 @@ class SdkInstallerTest(unittest.TestCase):
                     [
                         "--prefix",
                         str(prefix),
+                        "--host-prefix",
+                        str(root / "host"),
                         "--dry-run",
                         "--format",
                         "json",
@@ -630,53 +738,172 @@ class SdkInstallerTest(unittest.TestCase):
             )
             self.assertFalse(prefix.exists())
 
-    def test_core_install_preserves_user_bsp_and_generates_launchers(self):
+    def test_core_install_is_staged_and_keeps_host_cli_separate(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk_root = root / "source"
             prefix = root / "installed"
+            host_prefix = root / "host"
             create_sdk_fixture(sdk_root)
-            user_bsp = prefix / "board" / "UserBSP"
-            user_bsp.mkdir(parents=True)
-            (user_bsp / "user-board.txt").write_text("user", encoding="utf-8")
-            legacy_bin = prefix / "bin"
-            legacy_bin.mkdir(parents=True)
-            (legacy_bin / "ecos-board").write_text("#!/bin/sh\n", encoding="utf-8")
 
-            result = installer.install_sdk_core(sdk_root, prefix)
+            result = installer.install_sdk_core(
+                sdk_root, prefix, host_prefix=host_prefix
+            )
+            installer.install_host_cli(sdk_root, host_prefix)
 
             self.assertEqual(result["prefix"], str(prefix.resolve()))
+            self.assertEqual(result["sdk_installation"]["state"], "installed")
             self.assertEqual(
                 (prefix / "components" / "source.txt").read_text(encoding="utf-8"),
                 "components",
             )
-            self.assertEqual(
-                (prefix / "board" / "UserBSP" / "user-board.txt").read_text(
-                    encoding="utf-8"
-                ),
-                "user",
-            )
-            self.assertTrue(prefix.joinpath("board/UserBSP/sdk-default.txt").is_file())
+            self.assertFalse(prefix.joinpath("boards/UserBSP").exists())
             self.assertFalse(prefix.joinpath("tools/ecos_cli/build").exists())
-            self.assertTrue(prefix.joinpath("bin/ecos").is_file())
-            self.assertTrue(prefix.joinpath("bin/ecos.cmd").is_file())
-            self.assertTrue(prefix.joinpath("tools/sdk-manifest.json").is_file())
-            self.assertFalse(prefix.joinpath("bin/ecos-board").exists())
-            self.assertEqual(
-                {path.name for path in prefix.joinpath("bin").iterdir()},
-                {"ecos", "ecos.cmd"},
+            self.assertFalse(prefix.joinpath("tools/fixdep").exists())
+            self.assertFalse(prefix.joinpath("tools/kconfig").exists())
+            self.assertFalse(prefix.joinpath("tools/scripts").exists())
+            self.assertTrue(host_prefix.joinpath("bin/ecos").is_file())
+            self.assertTrue(host_prefix.joinpath("bin/ecos.cmd").is_file())
+            launch = json.loads(
+                host_prefix.joinpath(installer.HOST_LAUNCH_RELATIVE_PATH).read_text(
+                    encoding="utf-8"
+                )
             )
+            self.assertEqual(launch["schema_version"], 1)
+            self.assertEqual(launch["script"], str((host_prefix / "bin/ecos").resolve()))
+            self.assertTrue(prefix.joinpath("tools/sdk-manifest.json").is_file())
+            self.assertTrue(prefix.joinpath(installer.INSTALL_MARKER).is_file())
+            self.assertFalse(prefix.joinpath("bin").exists())
             self.assertTrue(
-                prefix.joinpath("share/ecos/completions/ecos.bash").is_file()
+                host_prefix.joinpath("share/ecos/completions/ecos.bash").is_file()
             )
             self.assertIn(
                 "Installed ECOS Python CLI launcher",
-                prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
+                host_prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
             )
             self.assertIn(
-                'DEPENDENCY_ROOT = SDK_ROOT / "lib" / "ecos" / "python"',
-                prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
+                'DEPENDENCY_ROOT = HOST_ROOT / "lib" / "ecos" / "python"',
+                host_prefix.joinpath("bin/ecos").read_text(encoding="utf-8"),
             )
+
+            repeated = installer.install_sdk_core(
+                sdk_root, prefix, host_prefix=host_prefix
+            )
+            self.assertEqual(repeated["sdk_installation"]["state"], "reused")
+            (sdk_root / "components/source.txt").write_text("changed", encoding="utf-8")
+            with self.assertRaisesRegex(installer.InstallerError, "different content"):
+                installer.install_sdk_core(sdk_root, prefix, host_prefix=host_prefix)
+            self.assertEqual(
+                (prefix / "components/source.txt").read_text(encoding="utf-8"),
+                "components",
+            )
+
+    def test_old_user_bsp_is_migrated_before_legacy_install_conflict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk_root = root / "source"
+            prefix = root / "installed"
+            host_prefix = root / "host"
+            create_sdk_fixture(sdk_root)
+            user_bsp = prefix / "boards" / "UserBSP"
+            shared_user_bsp = root / "user-boards"
+            user_bsp.mkdir(parents=True)
+            (user_bsp / "user-board.txt").write_text("user", encoding="utf-8")
+
+            with patch.dict(os.environ, {"ECOS_USER_BSP_ROOT": str(shared_user_bsp)}):
+                with self.assertRaisesRegex(installer.InstallerError, "no valid installation marker"):
+                    installer.install_sdk_core(sdk_root, prefix, host_prefix=host_prefix)
+
+            migrated = shared_user_bsp / "user-board.txt"
+            self.assertEqual(migrated.read_text(encoding="utf-8"), "user")
+            self.assertEqual(
+                (user_bsp / "user-board.txt").read_text(encoding="utf-8"), "user"
+            )
+
+    def test_release_uninstall_previews_and_removes_only_managed_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            installed = root / "SDKs" / "3.0.0"
+            other_version = root / "SDKs" / "3.1.0"
+            create_sdk_fixture(source)
+            installation = installer.install_sdk_core(
+                source, installed, host_prefix=root / "host"
+            )
+            other_version.mkdir()
+            (other_version / "keep.txt").write_text("keep", encoding="utf-8")
+            registry = SdkRegistry(root / "sdks.json")
+            registry.register(installed, kind="release", activate=True)
+            self.assertEqual(
+                registry.registrations()["3.0.0"]["digest"],
+                installation["sdk_installation"]["digest"],
+            )
+
+            with patch.dict(os.environ, {"ECOS_SDK_REGISTRY": str(registry.path)}):
+                preview_output = StringIO()
+                with redirect_stdout(preview_output):
+                    preview_code = cli_main(
+                        ["sdk", "uninstall", "3.0.0", "--dry-run", "--format", "json"]
+                    )
+                self.assertEqual(preview_code, 0)
+                preview = json.loads(preview_output.getvalue())["data"]
+                self.assertTrue(preview["dry_run"])
+                self.assertFalse(preview["changed"])
+                self.assertEqual(preview["root"], str(installed))
+                self.assertTrue(installed.is_dir())
+                self.assertEqual(registry.active_name(), "3.0.0")
+
+                output = StringIO()
+                with redirect_stdout(output):
+                    code = cli_main(["sdk", "uninstall", "3.0.0", "--format", "json"])
+
+            self.assertEqual(code, 0, output.getvalue())
+            self.assertFalse(installed.exists())
+            self.assertTrue((other_version / "keep.txt").is_file())
+            self.assertEqual(registry.registrations(), {})
+            self.assertIsNone(registry.active_name())
+
+    def test_release_uninstall_rejects_modified_content_and_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            installed = root / "SDKs" / "3.0.0"
+            create_sdk_fixture(source)
+            installer.install_sdk_core(source, installed, host_prefix=root / "host")
+            registry = SdkRegistry(root / "sdks.json")
+            registry.register(installed, kind="release", name="release")
+            registry.register(source, kind="checkout", name="dev")
+            (installed / "components/source.txt").write_text("modified", encoding="utf-8")
+
+            with self.assertRaisesRegex(installer.InstallerError, "content has changed"):
+                installer.uninstall_sdk_release(registry, "release")
+            with self.assertRaisesRegex(installer.InstallerError, "not a release"):
+                installer.uninstall_sdk_release(registry, "dev")
+            self.assertTrue(installed.is_dir())
+            self.assertEqual(set(registry.registrations()), {"release", "dev"})
+
+    def test_registry_rejects_same_release_version_with_different_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first_source = root / "first-source"
+            second_source = root / "second-source"
+            create_sdk_fixture(first_source)
+            create_sdk_fixture(second_source)
+            (second_source / "components/source.txt").write_text(
+                "different", encoding="utf-8"
+            )
+            first = root / "first" / "3.0.0"
+            second = root / "second" / "3.0.0"
+            installer.install_sdk_core(first_source, first, host_prefix=root / "host")
+            installer.install_sdk_core(second_source, second, host_prefix=root / "host")
+            registry = SdkRegistry(root / "sdks.json")
+            registry.register(first, name="first", kind="release")
+
+            with self.assertRaisesRegex(
+                installer.SdkRegistrationConflict, "different digest"
+            ):
+                registry.register(second, name="second", kind="release")
+            self.assertEqual(set(registry.registrations()), {"first"})
 
     def test_installs_private_python_dependencies_atomically_and_reuses_them(self):
         with tempfile.TemporaryDirectory() as directory:

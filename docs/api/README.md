@@ -10,10 +10,13 @@
 - [archinfo.md](archinfo.md) / [rng.md](rng.md) / [crc.md](crc.md) /
   [rcu.md](rcu.md) / [rtc.md](rtc.md) — 芯片服务类驱动（标识、随机数、校验、
   时钟复位、计数闹钟）
+- [clint.md](clint.md) / [interrupt.md](interrupt.md) / [sdram.md](sdram.md) — T1-Pico
+  的机器计时器、中断和 SDRAM 初始化
+- [gpio-interrupt.md](gpio-interrupt.md) / [timer-interrupt.md](timer-interrupt.md) — GPIO
+  外部中断和 Timer 周期回调
 - [devices.md](devices.md) — 设备驱动（AHT20、AT24C64、蜂鸣器、ESP01S、SGP30、
   PCF8563、ST7735、ST7789、TM1650）
-- [components.md](components.md) — 应用向组件（libc 子集、heap、LightCoroutine、sfud、
-  fatfs、letter-shell）
+- [components.md](components.md) — libc、heap、LightCoroutine、sfud、FatFs、Letter-Shell、letter-shell-fs、soft-spi、text-editor 与 fcc 使用说明
 
 ## 分层架构
 
@@ -23,7 +26,7 @@ Application（用户应用）
 BSP（ecos/bsp/*）/ Device Driver（ecos/device/*）/ Component（应用向组件）
     ↓
 Driver（ecos/driver/*，gpio / uart / i2c / pwm / timer / qspi / archinfo / rng /
-crc / rcu / rtc）
+crc / rcu / rtc / clint / interrupt / sdram）
     ↓
 HAL（ecos/hal/*，SDK 内部接口，不承诺稳定）
     ↓
@@ -33,10 +36,9 @@ SoC / LL（寄存器与引脚复用，由 Target/Board 决定）
 **应用只能使用以下公共 API：**
 
 - 外设驱动：`drivers/` 发布的 `ecos/driver/*.h`
-- 板级支持包：`board/include/ecos/bsp/*.h` 与生成的 `ecos/board_resources.h`
+- 板级支持包：`boards/include/ecos/bsp/*.h` 与生成的 `ecos/board_resources.h`
 - 设备驱动：`devices/` 发布的 `ecos/device/*.h`
-- 应用向组件：`components/` 中的 libc 子集、LightCoroutine、sfud、fatfs、
-  letter-shell（见 [components.md](components.md)）
+- 应用向组件：构建图中的 libc 子集、heap、LightCoroutine、sfud、FatFs、Letter-Shell、letter-shell-fs、soft-spi 和 text-editor（见 [components.md](components.md)）
 - 核心运行时：`ecos/error.h`、`ecos/log.h`
 
 **应用不得直接使用：**
@@ -86,14 +88,14 @@ SoC / LL（寄存器与引脚复用，由 Target/Board 决定）
 | --- | --- |
 | `ecos/error.h` | 错误码类型与判定/控制流宏 |
 | `ecos/log.h` | 日志与 panic |
-| `ecos/driver/<mod>.h` | 外设驱动：gpio、uart、i2c、pwm、timer、qspi、archinfo、rng、crc、rcu、rtc |
+| `ecos/driver/<mod>.h` | 外设驱动：gpio、gpio_interrupt、uart、i2c、pwm、timer、timer_interrupt、qspi、archinfo、rng、crc、rcu、rtc、ps2、wdg、clint、interrupt、sdram |
 | `ecos/device/<dev>.h` | 设备驱动：aht20、at24c64、buzzer、esp01s_at、sgp30、pcf8563、st7735、st7789、tm1650 |
 | `ecos/bsp/<res>.h` | BSP：console、led、button |
 | `ecos/board_resources.h` | 由 CLI 依板级清单生成（输出到工程的 `.ecos/generated/include/`），描述板载演示资源 |
 
 ## 标准应用骨架
 
-`example/` 下的每个示例都是同一个形状：初始化控制台 → 用
+`examples/` 下的每个示例都是同一个形状：初始化控制台 → 用
 `ECOS_PANIC_ON_ERROR` 处理每一步错误 → 用 `ECOS_LOGI` 输出进度 →
 用 `ecos_timer_delay_ms` 做阻塞延时 → 末尾空转。
 
@@ -118,8 +120,8 @@ int main(void)
 }
 ```
 
-可直接参考的最小示例：`example/get_start/hello`（控制台输出）、
-`example/get_start/blink`（LED + 定时器）。
+可直接参考的最小示例：`examples/get_start/hello`（控制台输出）、
+`examples/get_start/blink`（LED + 定时器）。
 
 ## 2.x 遗留头文件警告
 

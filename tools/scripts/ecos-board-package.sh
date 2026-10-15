@@ -7,7 +7,7 @@ ecos_board_registry_dir() {
     if [[ -n "${ECOS_BOARD_REGISTRY:-}" ]]; then
         echo "$ECOS_BOARD_REGISTRY"
     else
-        echo "$ECOS_SDK_HOME/board/UserBSP"
+        echo "$ECOS_SDK_HOME/boards/UserBSP"
     fi
 }
 

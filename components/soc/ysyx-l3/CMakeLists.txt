@@ -1,0 +1,7 @@
+set(ECOS_SOC_ROOT "${CMAKE_CURRENT_LIST_DIR}")
+set(ECOS_SOC_MARCH "rv64ifd_zifencei")
+set(ECOS_SOC_ABI "lp64")
+set(ECOS_SOC_LINK_MACHINE "elf64lriscv")
+set(ECOS_SOC_MEM_LINKER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/linker/sections-mem.lds")
+set(ECOS_USE_MEM_LOADER ON)
+include("${CMAKE_CURRENT_LIST_DIR}/../legacy-common/CMakeLists.txt")

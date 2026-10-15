@@ -3,7 +3,7 @@
 7 位地址 I2C 主机收发，支持重复起始（repeated START）的写-读组合事务。
 
 头文件：`drivers/i2c/include/ecos/driver/i2c.h`。
-示例：`example/peripherals/i2c/scan`。
+示例：`examples/peripherals/i2c/scan`。
 
 ## 类型与常量
 

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-/* 初始化序列移植自 2.x 板级驱动 board/StarrySkyT1Pico/driver/sdram/sdram.c，
+/* 初始化序列移植自 2.x 板级驱动 boards/StarrySkyT1Pico/driver/sdram/sdram.c，
  * 在 T1-Pico 硬件上验证过。 */
 #define SDRAM_COMMAND_NOP        0x0000000Bu
 #define SDRAM_COMMAND_PRECHARGE  0x00000009u

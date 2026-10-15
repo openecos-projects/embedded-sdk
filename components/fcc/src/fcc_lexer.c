@@ -1,6 +1,8 @@
 #include "fcc.h"
 #include "string.h"
 
+#include <limits.h>
+
 /* ===== Character predicates ===== */
 static int is_alpha(int c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
@@ -44,7 +46,7 @@ static TokenType lookup_single(int c) {
 
 /* ===== Peek current character ===== */
 static int lexer_peek(Lexer *lex) {
-    if (lex->pos >= (int)strlen(lex->src)) return -1;
+    if (lex->pos >= lex->length) return -1;
     return (unsigned char)lex->src[lex->pos];
 }
 
@@ -66,7 +68,7 @@ static void lexer_skip_whitespace(Lexer *lex) {
             lexer_advance(lex);
         } else if (c == '/') {
             /* Check for // comment */
-            if (lex->pos + 1 < (int)strlen(lex->src)
+            if (lex->pos + 1 < lex->length
                 && lex->src[lex->pos + 1] == '/') {
                 while (lexer_peek(lex) >= 0 && lexer_peek(lex) != '\n')
                     lexer_advance(lex);
@@ -116,10 +118,15 @@ void lexer_next(Lexer *lex) {
     /* Number */
     if (is_digit(c)) {
         int value = 0;
+        int overflow = 0;
         while (is_digit(lexer_peek(lex))) {
-            value = value * 10 + (lexer_advance(lex) - '0');
+            int digit = lexer_advance(lex) - '0';
+            if (value > (INT_MAX - digit) / 10)
+                overflow = 1;
+            if (!overflow)
+                value = value * 10 + digit;
         }
-        lex->current.type  = TOK_NUMBER;
+        lex->current.type  = overflow ? TOK_INVALID : TOK_NUMBER;
         lex->current.value = value;
         lex->current.line  = tok_line;
         return;
@@ -180,7 +187,7 @@ void lexer_next(Lexer *lex) {
             lexer_advance(lex);
             lex->current.type = TOK_AND;
         } else {
-            lex->current.type = TOK_EOF; /* bitwise & not supported */
+            lex->current.type = TOK_INVALID; /* bitwise & not supported */
         }
         lex->current.value = 0;
         lex->current.line  = tok_line;
@@ -192,7 +199,7 @@ void lexer_next(Lexer *lex) {
             lexer_advance(lex);
             lex->current.type = TOK_OR;
         } else {
-            lex->current.type = TOK_EOF;
+            lex->current.type = TOK_INVALID;
         }
         lex->current.value = 0;
         lex->current.line  = tok_line;
@@ -211,7 +218,7 @@ void lexer_next(Lexer *lex) {
 
     /* Unknown character */
     lexer_advance(lex);
-    lex->current.type  = TOK_EOF;
+    lex->current.type  = TOK_INVALID;
     lex->current.value = 0;
     lex->current.line  = tok_line;
 }
@@ -220,6 +227,7 @@ void lexer_next(Lexer *lex) {
 void lexer_init(Lexer *lex, const char *src) {
     lex->src  = src;
     lex->pos  = 0;
+    lex->length = (int)strlen(src);
     lex->line = 1;
     lexer_next(lex); /* prime first token */
 }

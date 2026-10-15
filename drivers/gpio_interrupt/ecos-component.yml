@@ -1,0 +1,15 @@
+schema: 1
+id: driver-gpio-interrupt
+name: GPIO Interrupt Driver
+cmake_target: ecos::driver::gpio_interrupt
+sources:
+  - src/gpio_interrupt.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio
+private_dependencies:
+  - hal-gpio-interrupt
+requires:
+  - gpio-interrupt

@@ -12,8 +12,15 @@ python3 tools/ecos.py toolchain detect
 python3 tools/ecos.py toolchain status --format json
 python3 tools/ecos.py toolchain install --dry-run
 python3 tools/ecos.py project list
+python3 tools/ecos.py board list --format json
+python3 tools/ecos.py target describe ysyx-2512-1 --format json
+python3 tools/ecos.py component describe driver-gpio --format json
+python3 tools/ecos.py schema describe board --format json
+python3 tools/ecos.py schema validate board boards/StarrySkyL3_1/ecos-board.yml
 python3 tools/ecos.py project create hello --path ~/workspace
 python3 tools/ecos.py project create hello --name my-app --path ~/workspace
+python3 tools/ecos.py project info --project ~/workspace/my-app --format json
+python3 tools/ecos.py project set-profile memory --project ~/workspace/my-app
 python3 tools/ecos.py project create hello --target ysyx-2512-1 --path ~/workspace
 python3 tools/ecos.py project create hello --path ~/workspace --dry-run
 python3 tools/ecos.py project set-board starrysky-l4-c1 --project ~/workspace/hello
@@ -22,6 +29,8 @@ python3 tools/ecos.py validate --project ~/workspace/hello
 python3 tools/ecos.py configure --project ~/workspace/hello
 python3 tools/ecos.py menuconfig --project ~/workspace/hello
 python3 tools/ecos.py build --project ~/workspace/hello
+python3 tools/ecos.py clean --project ~/workspace/hello --dry-run
+python3 tools/ecos.py doctor --project ~/workspace/hello --format json
 python3 tools/ecos.py flash --project ~/workspace/hello
 python3 tools/ecos.py monitor --project ~/workspace/hello --port /dev/ttyUSB0
 python3 tools/ecos.py completion bash
@@ -32,17 +41,17 @@ python3 tools/ecos.py completion powershell
 
 `tools/install.py` 会自动识别当前 Shell，将四类补全文件安装到
 `share/ecos/completions/`，并以 `ECOS SDK` 标记块幂等配置对应的用户启动文件。
-安装器还会把锁定的 `PyYAML`、Kconfiglib、PySerial、CMake 和 Ninja wheel 安装到
-版本目录的私有依赖目录，
-构建时优先使用这些 SDK-local 工具，不依赖系统级 CMake/Ninja 或交叉编译器 PATH。
+安装器还会把锁定的 `PyYAML`、JSON Schema、Kconfiglib、PySerial、CMake 和 Ninja wheel 安装到
+主机级私有依赖目录，构建时优先使用这些受管工具，不依赖系统级 CMake/Ninja 或交叉编译器 PATH。
 可用 `--shell` 覆盖识别结果、`--shell-profile` 指定启动文件或用 `--shell none`
 禁用配置。
 
-安装器从 `tools/sdk-manifest.json` 读取版本号。`--prefix` 是版本目录的父目录，实际安装
-目标会自动追加版本号；当前 `--prefix ~/ecos-sdks` 对应 `~/ecos-sdks/3.0.0`。不传参数时，
-GNU/Linux、macOS 和 Windows 分别使用平台用户数据目录下的 `ecos/sdk` 或 `ECOS/SDKs`。
+安装器从 `tools/sdk-manifest.json` 读取版本号和模式。当前仓库为 `development` 通道，
+默认注册 checkout 而不复制 SDK；正式 `release` 制品才部署到版本目录。
+在 release 模式下，`--prefix` 是版本目录的父目录，实际安装目标自动追加清单版本号。
+完整路径、共享工具链及用户 BSP 布局见 [`docs/install.md`](../../docs/install.md)。
 
-安装器不复制源码仓库的 `bin/`。安装目录下的 `bin/ecos` 与 `bin/ecos.cmd` 由 Python
+安装器不复制源码仓库的 `bin/`。主机级 `bin/ecos` 与 `bin/ecos.cmd` 由 Python
 安装器生成；2.x 的 `ecos-board`、`ecos-init_project` 等 Shell 脚本不会进入安装结果，也
 不会出现在 3.0 帮助或自动补全中。
 

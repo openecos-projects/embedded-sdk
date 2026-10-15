@@ -1,0 +1,12 @@
+schema: 1
+id: driver-ps2
+name: PS2 Driver
+cmake_target: ecos::driver::ps2
+sources:
+  - src/ps2.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-ps2

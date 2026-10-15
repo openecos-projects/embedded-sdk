@@ -5,9 +5,7 @@
 #include <stddef.h>
 
 /* ===== Editor Buffer Limits ===== */
-#define MAX_FILE_SIZE   (24 * 1024)  /* reduced from 32KB to leave stack headroom;
-                                       128KB SRAM with ~60KB BSS only leaves ~6KB
-                                       stack — not enough for FIL.buf[4096] */
+#define MAX_FILE_SIZE   (24 * 1024)
 #define MAX_LINES       8192
 #define MAX_FILENAME    256
 #define LINE_NUM_WIDTH  5
@@ -54,7 +52,7 @@
 
 /* ===== Editor State ===== */
 typedef struct {
-    char     buffer[MAX_FILE_SIZE];       /* text buffer, \n-separated lines */
+    char     buffer[MAX_FILE_SIZE + 1];   /* text buffer plus trailing NUL */
     uint16_t line_offsets[MAX_LINES];     /* byte offset of each line start */
     uint16_t line_count;                  /* number of lines */
     uint16_t text_length;                 /* total bytes in buffer */
@@ -76,8 +74,8 @@ int editCmd(int argc, char *argv[]);
 
 /* ===== Internal API (exposed for modular compilation) ===== */
 void editor_render(EditorState *ed);
-void editor_build_line_offsets(EditorState *ed);
+int  editor_build_line_offsets(EditorState *ed);
 int  editor_line_length(EditorState *ed, uint16_t line_idx);
-void editor_construct_path(EditorState *ed, const char *user_path);
+int  editor_construct_path(EditorState *ed, const char *user_path);
 
 #endif /* __TEXT_EDITOR_H__ */

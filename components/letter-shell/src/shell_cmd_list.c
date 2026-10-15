@@ -24,7 +24,7 @@
 
 #if SHELL_USING_CMD_EXPORT != 1
 
-extern int shellSetVar(char *name, int value);
+extern int shellSetVar(char *name, size_t value);
 extern void shellUp(Shell *shell);
 extern void shellDown(Shell *shell);
 extern void shellRight(Shell *shell);
@@ -45,7 +45,17 @@ extern int fccCmd(int argc, char *argv[]);
 extern int shellExecute(int argc, char *argv[]);
 #endif
 
-SHELL_AGENCY_FUNC(shellRun, shellGetCurrent(), (const char *)(uintptr_t)p1);
+static void agencyshellRun(size_t command, size_t p2, size_t p3, size_t p4,
+                           size_t p5, size_t p6, size_t p7)
+{
+    (void)p2;
+    (void)p3;
+    (void)p4;
+    (void)p5;
+    (void)p6;
+    (void)p7;
+    (void)shellRun(shellGetCurrent(), (const char *)command);
+}
 
 
 /**
@@ -178,7 +188,7 @@ const ShellCommand shellCommandList[] =
                     envShort, 
                     &envShort, 
                     a default variable in env),
-    SHELL_VAR_ITEM(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_VAR_STRING),
+    SHELL_VAR_ITEM(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_VAR_STRING)|SHELL_CMD_READ_ONLY,
                     envString, 
                     envString, 
                     a default variable in env),
@@ -186,9 +196,9 @@ const ShellCommand shellCommandList[] =
                     envChar, 
                     &envChar, 
                     a default variable in env),
-    SHELL_VAR_ITEM(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_VAR_INT),
+    SHELL_VAR_ITEM(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_VAR_POINT)|SHELL_CMD_READ_ONLY,
                     envFunc, 
-                    &envFunc, 
+                    exec_func,
                     a default variable in env),
 
                    

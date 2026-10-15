@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .resources.schemas import SCHEMA_KINDS
 
 SUPPORTED_SHELLS = ("bash", "zsh", "fish", "powershell")
 COMPLETION_FILENAMES = {
@@ -17,18 +18,28 @@ ROOT_COMMANDS = (
     "sdk",
     "toolchain",
     "project",
+    "board",
+    "target",
+    "component",
+    "driver",
+    "device",
+    "schema",
     "validate",
     "configure",
     "menuconfig",
     "build",
+    "clean",
+    "doctor",
     "flash",
     "monitor",
     "completion",
     "help",
 )
 TOOLCHAIN_COMMANDS = ("detect", "status", "install")
-SDK_COMMANDS = ("register", "list", "current", "use", "pin", "unregister", "doctor")
-PROJECT_COMMANDS = ("list", "create", "set-board", "set-target")
+SDK_COMMANDS = ("register", "list", "current", "use", "pin", "unregister", "uninstall", "doctor")
+PROJECT_COMMANDS = ("list", "info", "create", "set-board", "set-target", "set-profile")
+RESOURCE_COMMANDS = ("list", "describe")
+SCHEMA_COMMANDS = ("list", "describe", "validate")
 
 
 def _bash() -> str:
@@ -36,6 +47,9 @@ def _bash() -> str:
     toolchains = " ".join(TOOLCHAIN_COMMANDS)
     sdks = " ".join(SDK_COMMANDS)
     projects = " ".join(PROJECT_COMMANDS)
+    resources = " ".join(RESOURCE_COMMANDS)
+    schemas = " ".join(SCHEMA_COMMANDS)
+    schema_kinds = " ".join(SCHEMA_KINDS)
     return f'''# ECOS completion for Bash
 _ecos_complete() {{
     local cur cmd sub candidates
@@ -51,10 +65,26 @@ _ecos_complete() {{
         candidates="{sdks}"
     elif [[ "$cmd" == "project" && $COMP_CWORD -eq 2 ]]; then
         candidates="{projects}"
+    elif [[ "$cmd" == "schema" && $COMP_CWORD -eq 2 ]]; then
+        candidates="{schemas}"
+    elif [[ "$cmd" == "schema" && ( "$sub" == "describe" || "$sub" == "validate" ) && $COMP_CWORD -eq 3 ]]; then
+        candidates="{schema_kinds}"
+    elif [[ "$cmd" == "schema" && "$cur" == -* ]]; then
+        candidates="--format --help"
+    elif [[ "$cmd" == "board" || "$cmd" == "target" || "$cmd" == "component" || "$cmd" == "driver" || "$cmd" == "device" ]]; then
+        if (( COMP_CWORD == 2 )); then
+            candidates="{resources}"
+        elif [[ "$cur" == -* ]]; then
+            candidates="--format --help"
+        fi
     elif [[ "$cmd" == "completion" && $COMP_CWORD -eq 2 ]]; then
         candidates="bash zsh fish powershell"
     elif [[ "$cmd" == "build" && "$cur" == -* ]]; then
         candidates="--project --clean --format --help"
+    elif [[ "$cmd" == "clean" && "$cur" == -* ]]; then
+        candidates="--project --dry-run --format --help"
+    elif [[ "$cmd" == "doctor" && "$cur" == -* ]]; then
+        candidates="--project --format --help"
     elif [[ "$cmd" == "validate" && "$cur" == -* ]]; then
         candidates="--project --format --help"
     elif [[ "$cmd" == "configure" && "$cur" == -* ]]; then
@@ -76,13 +106,15 @@ _ecos_complete() {{
             register) candidates="--name --kind --activate --replace --format --help" ;;
             current) candidates="--project --sdk --format --help" ;;
             pin) candidates="--project --format --help" ;;
+            uninstall) candidates="--dry-run --format --help" ;;
             *) candidates="--format --help" ;;
         esac
     elif [[ "$cmd" == "project" && "$cur" == -* ]]; then
         case "$sub" in
             list) candidates="--format --help" ;;
             create) candidates="--name --path --board --target --profile --dry-run --force --format --help" ;;
-            set-board|set-target) candidates="--project --format --help" ;;
+            info) candidates="--project --format --help" ;;
+            set-board|set-target|set-profile) candidates="--project --dry-run --format --help" ;;
         esac
     else
         return 0
@@ -98,6 +130,9 @@ def _zsh() -> str:
     toolchains = " ".join(TOOLCHAIN_COMMANDS)
     sdks = " ".join(SDK_COMMANDS)
     projects = " ".join(PROJECT_COMMANDS)
+    resources = " ".join(RESOURCE_COMMANDS)
+    schemas = " ".join(SCHEMA_COMMANDS)
+    schema_kinds = " ".join(SCHEMA_KINDS)
     return f'''#compdef ecos
 # ECOS completion for Zsh
 _ecos() {{
@@ -110,10 +145,26 @@ _ecos() {{
         candidates=({sdks})
     elif [[ "$words[2]" == "project" && $CURRENT -eq 3 ]]; then
         candidates=({projects})
+    elif [[ "$words[2]" == "schema" && $CURRENT -eq 3 ]]; then
+        candidates=({schemas})
+    elif [[ "$words[2]" == "schema" && ( "$words[3]" == "describe" || "$words[3]" == "validate" ) && $CURRENT -eq 4 ]]; then
+        candidates=({schema_kinds})
+    elif [[ "$words[2]" == "schema" && "$PREFIX" == -* ]]; then
+        candidates=(--format --help)
+    elif [[ "$words[2]" == "board" || "$words[2]" == "target" || "$words[2]" == "component" || "$words[2]" == "driver" || "$words[2]" == "device" ]]; then
+        if (( CURRENT == 3 )); then
+            candidates=({resources})
+        elif [[ "$PREFIX" == -* ]]; then
+            candidates=(--format --help)
+        fi
     elif [[ "$words[2]" == "completion" && $CURRENT -eq 3 ]]; then
         candidates=(bash zsh fish powershell)
     elif [[ "$words[2]" == "build" && "$PREFIX" == -* ]]; then
         candidates=(--project --clean --format --help)
+    elif [[ "$words[2]" == "clean" && "$PREFIX" == -* ]]; then
+        candidates=(--project --dry-run --format --help)
+    elif [[ "$words[2]" == "doctor" && "$PREFIX" == -* ]]; then
+        candidates=(--project --format --help)
     elif [[ "$words[2]" == "validate" && "$PREFIX" == -* ]]; then
         candidates=(--project --format --help)
     elif [[ "$words[2]" == "configure" && "$PREFIX" == -* ]]; then
@@ -135,13 +186,15 @@ _ecos() {{
             register) candidates=(--name --kind --activate --replace --format --help) ;;
             current) candidates=(--project --sdk --format --help) ;;
             pin) candidates=(--project --format --help) ;;
+            uninstall) candidates=(--dry-run --format --help) ;;
             *) candidates=(--format --help) ;;
         esac
     elif [[ "$words[2]" == "project" && "$PREFIX" == -* ]]; then
         case "$words[3]" in
             list) candidates=(--format --help) ;;
             create) candidates=(--name --path --board --target --profile --dry-run --force --format --help) ;;
-            set-board|set-target) candidates=(--project --format --help) ;;
+            info) candidates=(--project --format --help) ;;
+            set-board|set-target|set-profile) candidates=(--project --dry-run --format --help) ;;
         esac
     else
         return 0
@@ -169,6 +222,15 @@ def _fish() -> str:
         f"complete -c ecos -f -n '__fish_seen_subcommand_from project' -a {command}"
         for command in PROJECT_COMMANDS
     )
+    resource_lines = "\n".join(
+        f"complete -c ecos -f -n '__fish_seen_subcommand_from {resource}' -a {command}"
+        for resource in ("board", "target", "component", "driver", "device")
+        for command in RESOURCE_COMMANDS
+    )
+    schema_lines = "\n".join(
+        f"complete -c ecos -f -n '__fish_seen_subcommand_from schema' -a {command}"
+        for command in SCHEMA_COMMANDS
+    )
     completion_lines = "\n".join(
         f"complete -c ecos -f -n '__fish_seen_subcommand_from completion' -a {shell}"
         for shell in SUPPORTED_SHELLS
@@ -178,14 +240,17 @@ def _fish() -> str:
 {toolchain_lines}
 {sdk_lines}
 {project_lines}
+{resource_lines}
+{schema_lines}
 {completion_lines}
-complete -c ecos -f -n '__fish_seen_subcommand_from sdk; and __fish_seen_subcommand_from register list current use pin unregister doctor' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from sdk; and __fish_seen_subcommand_from register list current use pin unregister uninstall doctor' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from register' -l name -r
 complete -c ecos -f -n '__fish_seen_subcommand_from register' -l kind -a 'checkout release'
 complete -c ecos -f -n '__fish_seen_subcommand_from register' -l activate
 complete -c ecos -f -n '__fish_seen_subcommand_from register' -l replace
 complete -c ecos -f -n '__fish_seen_subcommand_from current pin' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from current' -l sdk -r
+complete -c ecos -f -n '__fish_seen_subcommand_from uninstall' -l dry-run
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l name -r
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l path -r
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l board -r
@@ -195,11 +260,20 @@ complete -c ecos -f -n '__fish_seen_subcommand_from create' -l dry-run
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l force
 complete -c ecos -f -n '__fish_seen_subcommand_from create' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from project; and __fish_seen_subcommand_from list' -l format -a 'text json'
-complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l project -r
-complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from board target component driver device; and __fish_seen_subcommand_from list describe' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from schema; and __fish_seen_subcommand_from describe validate' -a '{" ".join(SCHEMA_KINDS)}'
+complete -c ecos -f -n '__fish_seen_subcommand_from schema; and __fish_seen_subcommand_from list describe validate' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from info set-board set-target set-profile' -l project -r
+complete -c ecos -f -n '__fish_seen_subcommand_from set-board set-target set-profile' -l dry-run
+complete -c ecos -f -n '__fish_seen_subcommand_from info set-board set-target set-profile' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l clean
 complete -c ecos -f -n '__fish_seen_subcommand_from build' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from clean' -l project -r
+complete -c ecos -f -n '__fish_seen_subcommand_from clean' -l dry-run
+complete -c ecos -f -n '__fish_seen_subcommand_from clean' -l format -a 'text json'
+complete -c ecos -f -n '__fish_seen_subcommand_from doctor' -l project -r
+complete -c ecos -f -n '__fish_seen_subcommand_from doctor' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l project -r
 complete -c ecos -f -n '__fish_seen_subcommand_from validate configure flash monitor' -l format -a 'text json'
 complete -c ecos -f -n '__fish_seen_subcommand_from menuconfig' -l project -r
@@ -224,6 +298,9 @@ def _powershell() -> str:
     toolchains = ", ".join(f"'{value}'" for value in TOOLCHAIN_COMMANDS)
     sdks = ", ".join(f"'{value}'" for value in SDK_COMMANDS)
     projects = ", ".join(f"'{value}'" for value in PROJECT_COMMANDS)
+    resources = ", ".join(f"'{value}'" for value in RESOURCE_COMMANDS)
+    schemas = ", ".join(f"'{value}'" for value in SCHEMA_COMMANDS)
+    schema_kinds = ", ".join(f"'{value}'" for value in SCHEMA_KINDS)
     return f'''# ECOS completion for PowerShell
 Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
     param($wordToComplete, $commandAst, $cursorPosition)
@@ -241,10 +318,24 @@ Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
         $candidates = @({sdks})
     }} elseif ($command -eq 'project' -and $words.Count -le 3) {{
         $candidates = @({projects})
+    }} elseif ($command -eq 'schema' -and $words.Count -le 3) {{
+        $candidates = @({schemas})
+    }} elseif ($command -eq 'schema' -and $subcommand -in @('describe', 'validate') -and $words.Count -le 4) {{
+        $candidates = @({schema_kinds})
+    }} elseif ($command -eq 'schema' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--format', '--help')
+    }} elseif ($command -in @('board', 'target', 'component', 'driver', 'device') -and $words.Count -le 3) {{
+        $candidates = @({resources})
+    }} elseif ($command -in @('board', 'target', 'component', 'driver', 'device') -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--format', '--help')
     }} elseif ($command -eq 'completion' -and $words.Count -le 3) {{
         $candidates = @('bash', 'zsh', 'fish', 'powershell')
     }} elseif ($command -eq 'build' -and $wordToComplete.StartsWith('-')) {{
         $candidates = @('--project', '--clean', '--format', '--help')
+    }} elseif ($command -eq 'clean' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--dry-run', '--format', '--help')
+    }} elseif ($command -eq 'doctor' -and $wordToComplete.StartsWith('-')) {{
+        $candidates = @('--project', '--format', '--help')
     }} elseif ($command -eq 'validate' -and $wordToComplete.StartsWith('-')) {{
         $candidates = @('--project', '--format', '--help')
     }} elseif ($command -eq 'configure' -and $wordToComplete.StartsWith('-')) {{
@@ -266,14 +357,17 @@ Register-ArgumentCompleter -Native -CommandName ecos -ScriptBlock {{
             'register' {{ '--name', '--kind', '--activate', '--replace', '--format', '--help' }}
             'current' {{ '--project', '--sdk', '--format', '--help' }}
             'pin' {{ '--project', '--format', '--help' }}
+            'uninstall' {{ '--dry-run', '--format', '--help' }}
             default {{ '--format', '--help' }}
         }}
     }} elseif ($command -eq 'project' -and $wordToComplete.StartsWith('-')) {{
         $candidates = switch ($subcommand) {{
             'list' {{ '--format', '--help' }}
             'create' {{ '--name', '--path', '--board', '--target', '--profile', '--dry-run', '--force', '--format', '--help' }}
-            'set-board' {{ '--project', '--format', '--help' }}
-            'set-target' {{ '--project', '--format', '--help' }}
+            'info' {{ '--project', '--format', '--help' }}
+            'set-board' {{ '--project', '--dry-run', '--format', '--help' }}
+            'set-target' {{ '--project', '--dry-run', '--format', '--help' }}
+            'set-profile' {{ '--project', '--dry-run', '--format', '--help' }}
         }}
     }}
 

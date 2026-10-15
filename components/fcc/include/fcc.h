@@ -4,12 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ===== Code Buffer ===== */
-/* Internal SRAM — must be executable; PSRAM (0x40000000+) is data-only.
- * Offset by 64 KB to keep clear of any boot/reserved area. */
-#define FCC_CODE_BASE    0x30010000
+/* ===== Generated Program Limits ===== */
 #define FCC_CODE_MAX     (32 * 1024)
-#define FCC_GLOBAL_BASE  (FCC_CODE_BASE + FCC_CODE_MAX)
 
 /* ===== Source Buffer ===== */
 #define FCC_SRC_MAX     (32 * 1024)
@@ -20,6 +16,7 @@ enum {
     REG_RA   = 1,
     REG_SP   = 2,
     REG_S0   = 8,
+    REG_S1   = 9,
     REG_T0   = 5,
     REG_T1   = 6,
     REG_T2   = 7,
@@ -36,6 +33,7 @@ enum {
 /* ===== Token Types ===== */
 typedef enum {
     TOK_EOF = 0,
+    TOK_INVALID,
     /* Keywords */
     TOK_INT, TOK_RETURN, TOK_IF, TOK_ELSE, TOK_WHILE,
     /* Literals & identifiers */
@@ -77,12 +75,14 @@ typedef struct {
 typedef struct {
     const char *src;
     int         pos;
+    int         length;
     int         line;
     Token       current;
 } Lexer;
 
 /* ===== Symbol Table ===== */
 #define MAX_VARS  256
+#define FCC_GLOBAL_MAX (MAX_VARS * sizeof(uint32_t))
 
 typedef struct {
     char name[64];
@@ -107,6 +107,10 @@ typedef struct {
     Lexer     lexer;
     uint32_t *code;
     uint32_t  code_size;   /* bytes */
+    uint32_t  code_capacity;
+    uint32_t *globals;
+    uint32_t  global_base;
+    uint32_t  global_capacity;
     int       error;
     /* Symbol table */
     VarInfo   vars[MAX_VARS];
@@ -119,6 +123,8 @@ typedef struct {
     int       func_count;
     char      current_func_name[64]; /* name of function being compiled */
     int       current_func_param_count;
+    int       return_fixups[64];
+    int       return_count;
     /* Built-in symbols */
     uint32_t  exec_func_addr;
 } Compiler;
@@ -129,5 +135,6 @@ void lexer_next(Lexer *lex);
 
 /* ===== Public API ===== */
 int fccCmd(int argc, char *argv[]);
+int fccRunCmd(int argc, char *argv[]);
 
 #endif /* __FCC_H__ */

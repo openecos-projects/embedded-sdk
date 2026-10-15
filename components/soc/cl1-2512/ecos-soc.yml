@@ -34,31 +34,58 @@ build:
   include_dirs:
     - include
   capability_sources:
+    clint:
+      - hal/clint/clint.c
     gpio:
       - hal/gpio/gpio.c
+    gpio-interrupt:
+      - hal/gpio/gpio_interrupt.c
     i2c:
       - hal/i2c/i2c.c
+    interrupt:
+      - hal/interrupt/interrupt.c
+      - hal/interrupt/trap.S
     qspi:
       - hal/qspi/qspi.c
     rcu:
       - hal/rcu/rcu.c
+    rcu-pll:
+      - hal/rcu/rcu.c
     timer:
       - hal/timer/timer.c
+    timer-interrupt:
+      - hal/timer/timer_interrupt.c
     uart:
       - hal/uart/uart.c
+    sdram:
+      - hal/sdram/sdram.c
   capability_include_dirs:
+    clint:
+      - ../../../hal/clint/include
     gpio:
       - ../../../hal/gpio/include
+    gpio-interrupt:
+      - ../../../hal/gpio/include
+      - ../../../hal/gpio_interrupt/include
     i2c:
       - ../../../hal/i2c/include
+    interrupt:
+      - ../../../hal/interrupt/include
     qspi:
       - ../../../hal/qspi/include
     rcu:
       - ../../../hal/rcu/include
+    rcu-pll:
+      - ../../../hal/rcu/include
     timer:
+      - ../../../hal/timer/include
+    timer-interrupt:
+      - ../../../hal/interrupt/include
       - ../../../hal/timer/include
     uart:
       - ../../../hal/uart/include
+    sdram:
+      - ../../../hal/sdram/include
   outputs:
     - elf
     - bin
@@ -68,9 +95,15 @@ build:
     - size
     - compile_commands
 capabilities:
+  - clint
   - uart
   - gpio
+  - gpio-interrupt
+  - interrupt
   - i2c
   - qspi
   - rcu
+  - rcu-pll
   - timer
+  - timer-interrupt
+  - sdram

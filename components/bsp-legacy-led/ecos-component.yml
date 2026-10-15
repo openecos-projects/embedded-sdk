@@ -1,0 +1,14 @@
+schema: 1
+id: bsp-legacy-led
+name: Legacy StarrySky LED BSP
+cmake_target: ecos::bsp::legacy_led
+sources:
+  - src/led.c
+include_dirs:
+  - ../../boards/include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - driver-gpio
+requires:
+  - led

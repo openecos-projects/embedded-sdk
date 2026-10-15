@@ -3,7 +3,12 @@
 
 #include <stdint.h>
 #include "stdio.h"
-#include "generated/autoconf.h"
+
+#if defined(__has_include)
+#  if __has_include("generated/autoconf.h")
+#    include "generated/autoconf.h"
+#  endif
+#endif
 
 #ifndef CONFIG_BUILD_DEBUG
 

@@ -8,3 +8,5 @@ sources:
   - src/log_compat.c
 include_dirs:
   - include
+dependencies:
+  - libc

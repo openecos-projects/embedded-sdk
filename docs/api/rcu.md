@@ -4,7 +4,7 @@
 切换并查询各时钟域频率。
 
 头文件：`drivers/rcu/include/ecos/driver/rcu.h`。
-示例：`example/peripherals/rcu/status`、`example/peripherals/rcu/pll`。
+示例：`examples/peripherals/rcu/status`、`examples/peripherals/rcu/pll`。
 
 ## 类型与常量
 

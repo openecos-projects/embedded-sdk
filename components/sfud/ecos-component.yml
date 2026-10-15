@@ -1,0 +1,16 @@
+schema: 1
+id: sfud
+name: Serial Flash Universal Driver
+cmake_target: ecos::component::sfud
+sources:
+  - src/sfud.c
+  - src/sfud_port.c
+  - src/sfud_sfdp.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-qspi
+requires:
+  - qspi

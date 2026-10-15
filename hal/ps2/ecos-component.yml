@@ -1,0 +1,11 @@
+schema: 1
+id: hal-ps2
+name: PS2 HAL Contract
+cmake_target: ecos::hal::ps2
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - ps2
+  - gpio

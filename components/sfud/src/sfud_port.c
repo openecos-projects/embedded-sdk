@@ -26,8 +26,7 @@
  */
 
 #include <sfud.h>
-#include "hal_qspi.h"
-#include "hal_timer.h"
+#include "ecos/hal/qspi.h"
 
 /* ================================================================
  *  spi_write_read — SFUD 核心 SPI 传输函数

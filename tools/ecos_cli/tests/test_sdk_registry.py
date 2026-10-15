@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,7 +14,11 @@ SOURCE_ROOT = Path(__file__).parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
 from ecos_cli.cli import ExitCode, main  # noqa: E402
-from ecos_cli.sdk_manifest import load_manifest  # noqa: E402
+from ecos_cli.sdk_manifest import (  # noqa: E402
+    SdkManifestError,
+    load_manifest,
+    validate_sdk_root,
+)
 from ecos_cli.sdk_registry import (  # noqa: E402
     SdkRegistrationConflict,
     SdkRegistry,
@@ -31,12 +36,12 @@ REPOSITORY_ROOT = Path(__file__).parents[3]
 
 def create_sdk(root: Path, version: str) -> Path:
     layout = {
-        "boards": "board",
+        "boards": "boards",
         "components": "components",
         "drivers": "drivers",
         "devices": "devices",
         "docs": "docs",
-        "examples": "example",
+        "examples": "examples",
         "hal": "hal",
         "templates": "templates",
         "cli": "tools/ecos_cli/src",
@@ -66,6 +71,82 @@ class SdkRegistryTest(unittest.TestCase):
         manifest = load_manifest(REPOSITORY_ROOT)
         self.assertTrue(manifest["sdk_version"])
         self.assertEqual(manifest["sdk_id"], "ecos-embedded-sdk")
+
+    def test_checkout_registration_records_git_revision_when_available(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = SdkRegistry(Path(directory) / "sdks.json")
+            entry = registry.register(
+                REPOSITORY_ROOT, name="current", kind="checkout"
+            )["entry"]
+
+            self.assertRegex(entry["revision"], r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+
+    def test_checkout_revision_refresh_does_not_require_replace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk", "3.0.0")
+            subprocess.run(["git", "init", "-q", str(sdk)], check=True)
+            for key, value in (
+                ("user.name", "SDK Test"),
+                ("user.email", "sdk-test@example.com"),
+            ):
+                subprocess.run(
+                    ["git", "-C", str(sdk), "config", key, value], check=True
+                )
+            subprocess.run(["git", "-C", str(sdk), "add", "."], check=True)
+            subprocess.run(
+                ["git", "-C", str(sdk), "commit", "-qm", "initial"], check=True
+            )
+            registry = SdkRegistry(root / "sdks.json")
+            first = registry.register(sdk, name="dev", kind="checkout")
+
+            (sdk / "README.md").write_text("updated\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(sdk), "add", "README.md"], check=True)
+            subprocess.run(
+                ["git", "-C", str(sdk), "commit", "-qm", "updated"], check=True
+            )
+            refreshed = registry.register(sdk, name="dev", kind="checkout")
+
+            self.assertTrue(refreshed["changed"])
+            self.assertNotEqual(first["entry"]["revision"], refreshed["entry"]["revision"])
+
+    def test_rejects_sdk_with_incompatible_cli_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = create_sdk(Path(directory) / "sdk", "3.0.0")
+            manifest_path = sdk / "tools/sdk-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["cli_compatibility"]["schema_version"] = "2.0"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            with self.assertRaisesRegex(SdkManifestError, "requires ECOS CLI schema"):
+                load_manifest(sdk)
+
+    def test_runtime_rejects_sdk_manifest_outside_formal_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = create_sdk(Path(directory) / "sdk", "3.0.0")
+            manifest_path = sdk / "tools/sdk-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["unexpected"] = "value"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            with self.assertRaisesRegex(SdkManifestError, "Additional properties"):
+                load_manifest(sdk)
+
+    def test_declared_build_kconfig_must_exist_in_sdk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = create_sdk(Path(directory) / "sdk", "3.0.0")
+            manifest_path = sdk / "tools/sdk-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["build"] = {"kconfig": "tools/ecos_cli/src/ecos_cli/resources/Kconfig.build"}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            with self.assertRaisesRegex(SdkManifestError, "missing build Kconfig"):
+                validate_sdk_root(sdk)
+
+            kconfig = sdk / manifest["build"]["kconfig"]
+            kconfig.parent.mkdir(parents=True)
+            kconfig.write_text("config SDK_TEST\n    bool\n", encoding="utf-8")
+            self.assertEqual(validate_sdk_root(sdk)[0], sdk)
 
     def test_registry_default_paths_are_platform_specific(self):
         home = Path("/users/test")
@@ -191,7 +272,7 @@ class SdkRegistryTest(unittest.TestCase):
             self.assertEqual(context.registration_name, "release")
             self.assertEqual(context.root, release.resolve())
 
-    def test_resolver_prefers_enclosing_checkout_to_legacy_environment(self):
+    def test_resolver_does_not_promote_project_checkout_above_environment(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             checkout = create_sdk(root / "checkout", "3.1.0")
@@ -202,10 +283,11 @@ class SdkRegistryTest(unittest.TestCase):
             context = SdkResolver(
                 SdkRegistry(root / "sdks.json"),
                 environ={"ECOS_SDK_HOME": str(environment)},
+                checkout_hint=checkout,
             ).resolve(project=project)
 
-            self.assertEqual(context.root, checkout.resolve())
-            self.assertEqual(context.source, "workspace-checkout")
+            self.assertEqual(context.root, environment.resolve())
+            self.assertEqual(context.source, "environment:ECOS_SDK_HOME")
 
     def test_invalid_high_priority_environment_does_not_fall_back(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -261,7 +343,7 @@ class SdkRegistryTest(unittest.TestCase):
             self.assertEqual(payload["data"]["name"], "dev")
             self.assertEqual(payload["data"]["entry"]["sdk_version"], "3.0.0")
 
-    def test_release_sdk_is_default_toolchain_prefix(self):
+    def test_release_sdk_uses_shared_toolchain_prefix(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk = create_sdk(root / "sdk", "3.0.0")
@@ -274,6 +356,7 @@ class SdkRegistryTest(unittest.TestCase):
                 / "tools/ecos_cli/src/ecos_cli/resources/toolchains"
                 / "xpack-riscv-none-elf-gcc.json"
             )
+            shared_prefix = root / "shared-toolchains"
             output = StringIO()
             with mock.patch.dict(
                 os.environ,
@@ -283,6 +366,8 @@ class SdkRegistryTest(unittest.TestCase):
                 },
             ), mock.patch(
                 "ecos_cli.sdk_resolver.Path.cwd", return_value=root
+            ), mock.patch(
+                "ecos_cli.cli.toolchain.default_prefix", return_value=shared_prefix
             ), redirect_stdout(output):
                 result = main(
                     [
@@ -300,7 +385,16 @@ class SdkRegistryTest(unittest.TestCase):
 
             payload = json.loads(output.getvalue())
             self.assertEqual(result, ExitCode.OK)
-            self.assertEqual(payload["data"]["prefix"], str(sdk.resolve()))
+            self.assertEqual(payload["data"]["prefix"], str(shared_prefix.resolve()))
+            self.assertEqual(
+                payload["data"]["install_root"],
+                str(
+                    shared_prefix
+                    / "xpack-riscv-none-elf-gcc"
+                    / "15.2.0-1"
+                    / "linux-x86_64"
+                ),
+            )
 
 
 if __name__ == "__main__":

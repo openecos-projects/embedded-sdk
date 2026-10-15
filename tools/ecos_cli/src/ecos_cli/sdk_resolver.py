@@ -61,16 +61,6 @@ def find_project_pin(start: Path) -> Optional[tuple[Path, dict[str, Any]]]:
     return None
 
 
-def find_sdk_checkout(start: Path) -> Optional[Path]:
-    current = start.expanduser().resolve()
-    if current.is_file():
-        current = current.parent
-    for directory in (current, *current.parents):
-        if (directory / sdk_manifest.MANIFEST_RELATIVE_PATH).is_file():
-            return directory
-    return None
-
-
 def write_project_pin(project: Path, context: SdkContext) -> dict[str, Any]:
     project_root = project.expanduser().resolve()
     if not project_root.is_dir():
@@ -199,19 +189,6 @@ class SdkResolver:
                 )
             return context
 
-        workspace_checkout = find_sdk_checkout(project or Path.cwd())
-        if workspace_checkout:
-            try:
-                return sdk_manifest.context_from_root(
-                    workspace_checkout,
-                    kind="checkout",
-                    source="workspace-checkout",
-                )
-            except sdk_manifest.SdkManifestError as exc:
-                raise SdkResolutionError(
-                    f"SDK checkout containing the current path is invalid: {exc}"
-                ) from exc
-
         configured = self.environ.get("ECOS_SDK_HOME")
         if configured:
             try:
@@ -235,9 +212,11 @@ class SdkResolver:
                 active, registry["sdks"][active], "active-registration"
             )
 
-        if self.checkout_hint:
+        if self.checkout_hint and (
+            self.checkout_hint / sdk_manifest.MANIFEST_RELATIVE_PATH
+        ).is_file():
             try:
-                return sdk_manifest.context_from_root(
+                context = sdk_manifest.context_from_root(
                     self.checkout_hint,
                     kind="checkout",
                     source="checkout-entry",
@@ -246,6 +225,8 @@ class SdkResolver:
                 raise SdkResolutionError(
                     f"SDK checkout inferred from CLI entry is invalid: {exc}"
                 ) from exc
+            if context.channel == "development":
+                return context
 
         raise SdkResolutionError(
             "no SDK is selected; register one with 'ecos sdk register PATH --activate'"

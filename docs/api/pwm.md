@@ -3,7 +3,7 @@
 脉宽调制输出：配置周期与分频，按通道设置占空比。
 
 头文件：`drivers/pwm/include/ecos/driver/pwm.h`。
-示例：`example/peripherals/pwm/basic`、`example/peripherals/pwm/buzzer`。
+示例：`examples/peripherals/pwm/basic`、`examples/peripherals/pwm/buzzer`。
 
 ## 类型与常量
 

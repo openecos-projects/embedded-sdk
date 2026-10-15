@@ -54,7 +54,8 @@ cl1-2512（T1-Pico）无 RDIV/CTRL 寄存器，`ecos_rcu_init()`/`ecos_rcu_deini
 | AHB / SDRAM | 100 MHz |
 | APB | 20 MHz（保持，UART 不受影响） |
 
-无 PLL 的 SoC（ysyx-2512-1/2）调用 PLL 接口返回 `ECOS_ERR_UNSUPPORTED`。
+无 PLL 的 SoC（ysyx-2512-1/2、ysyx-l3 和 ysyx-l3-1）调用 PLL 接口返回
+`ECOS_ERR_UNSUPPORTED`。
 
 ```c
 #include "ecos/driver/rcu.h"

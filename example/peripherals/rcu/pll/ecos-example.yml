@@ -1,9 +1,0 @@
-schema: 1
-name: rcu-pll
-sources:
-  - main.c
-components:
-  - driver-rcu
-  - driver-timer
-requires:
-  - console

@@ -13,10 +13,8 @@
 #define __SHELL_EXT_H__
 
 #include "shell.h"
-#include "stdint.h"
-#include "libgcc.h"
+#include <stdint.h>
 #include <stddef.h>
-#include "generated/autoconf.h"
 
 /**
  * @brief 数字类型

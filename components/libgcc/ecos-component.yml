@@ -1,0 +1,11 @@
+schema: 1
+id: libgcc
+name: RISC-V Compiler Runtime Helpers
+cmake_target: ecos::libgcc::runtime
+sources:
+  - src/div.S
+  - src/lshrdi3.c
+  - src/muldi3.S
+  - src/mulsi3.c
+include_dirs:
+  - include

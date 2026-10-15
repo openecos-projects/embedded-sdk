@@ -13,13 +13,12 @@
 #include "shell.h"
 #include "shell_ext.h"
 #include "string.h"
-#include "assert.h"
 
 extern ShellCommand* shellSeekCommand(Shell *shell,
                                       const char *cmd,
                                       ShellCommand *base,
                                       unsigned short compareLength);
-extern int shellGetVarValue(Shell *shell, ShellCommand *command);
+extern size_t shellGetVarValue(Shell *shell, ShellCommand *command);
 
 #if SHELL_SUPPORT_ARRAY_PARAM == 1
 extern int shellSplit(char *string, unsigned short strLen, char *array[], char splitKey, short maxNum);
@@ -148,7 +147,7 @@ static ShellNumType shellExtNumType(char *string)
  * @param code 字符
  * @return char 数字
  */
-static char shellExtToNum(char code)
+static int shellExtToNum(char code)
 {
     if ((code >= '0') && (code <= '9'))
     {
@@ -164,7 +163,7 @@ static char shellExtToNum(char code)
     }
     else
     {
-        return 0;
+        return -1;
     }
 }
 
@@ -257,7 +256,7 @@ static char* shellExtParseString(char *string)
  * @param string 字符串参数
  * @return size_t 解析出的数字
  */
-static size_t shellExtParseNumber(char *string)
+static int shellExtParseNumber(char *string, size_t *result)
 {
     ShellNumType type = NUM_TYPE_DEC;
     char radix = 10;
@@ -265,8 +264,6 @@ static size_t shellExtParseNumber(char *string)
     char offset = 0;
     signed char sign = 1;
     size_t valueInt = 0;
-    float valueFloat = 0.0;
-    size_t devide = 0;
 
     if (*string == '-')
     {
@@ -274,6 +271,10 @@ static size_t shellExtParseNumber(char *string)
     }
 
     type = shellExtNumType(string + ((sign == -1) ? 1 : 0));
+    if (type == NUM_TYPE_FLOAT)
+    {
+        return -1;
+    }
 
     switch ((char)type)
     {
@@ -297,30 +298,24 @@ static size_t shellExtParseNumber(char *string)
     }
 
     p = string + offset + ((sign == -1) ? 1 : 0);
+    if (*p == 0)
+    {
+        return -1;
+    }
 
     while (*p)
     {
-        if (*p == '.')
+        int digit = shellExtToNum(*p);
+        if (digit < 0 || digit >= radix ||
+            valueInt > (SIZE_MAX - (size_t)digit) / (size_t)radix)
         {
-            devide = 1;
-            p++;
-            continue;
+            return -1;
         }
-        valueInt = valueInt * radix + shellExtToNum(*p);
-        devide *= 10;
+        valueInt = valueInt * (size_t)radix + (size_t)digit;
         p++;
     }
-    if (type == NUM_TYPE_FLOAT && devide != 0)
-    {
-        // valueFloat = (float)valueInt / devide * sign;
-        assert(0,"[Error] Letter-shell: Not support for float\n");
-        valueFloat = 0;
-        return *(size_t *)(&valueFloat);
-    }
-    else
-    {
-        return valueInt * sign;
-    }
+    *result = valueInt * sign;
+    return 0;
 }
 
 
@@ -372,8 +367,7 @@ int shellExtParsePara(Shell *shell, char *string, char *type, size_t *result)
         }
         else if (*string == '-' || (*string >= '0' && *string <= '9'))
         {
-            *result = shellExtParseNumber(string);
-            return 0;
+            return shellExtParseNumber(string, result);
         }
         else if (*string == '$' && *(string + 1))
         {
@@ -406,11 +400,13 @@ int shellExtParsePara(Shell *shell, char *string, char *type, size_t *result)
         else if (strcmp("q", type) == 0
                  || strcmp("h", type) == 0
                  || strcmp("i", type) == 0
-                 || strcmp("f", type) == 0
                  || strcmp("p", type) == 0)
         {
-            *result = shellExtParseNumber(string);
-            return 0;
+            return shellExtParseNumber(string, result);
+        }
+        else if (strcmp("f", type) == 0)
+        {
+            return -1;
         }
         else if (strcmp("s", type) == 0)
         {
@@ -848,4 +844,3 @@ int shellExtRun(Shell *shell, ShellCommand *command, int argc, char *argv[])
 
     return ret;
 }
-

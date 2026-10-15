@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ECOS Board manifest, version 2",
+  "description": "Board identity, Target selection, build profiles and logical hardware resources.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "target"],
+  "properties": {
+    "schema": {"const": 2},
+    "id": {"$ref": "#/$defs/selection"},
+    "name": {"$ref": "#/$defs/text"},
+    "aliases": {"$ref": "#/$defs/selections"},
+    "category": {"$ref": "#/$defs/text"},
+    "arch": {"$ref": "#/$defs/text"},
+    "target": {"$ref": "#/$defs/selection"},
+    "debug": {"$ref": "#/$defs/debug"},
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default_profile": {"$ref": "#/$defs/selection"},
+        "components": {"$ref": "#/$defs/selections"},
+        "profiles": {
+          "oneOf": [
+            {"$ref": "#/$defs/selections"},
+            {
+              "type": "object",
+              "propertyNames": {"$ref": "#/$defs/selection"},
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kconfig": {
+                    "type": "object",
+                    "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+                    "additionalProperties": {
+                      "oneOf": [
+                        {"$ref": "#/$defs/text"},
+                        {"type": "integer"},
+                        {"type": "boolean"}
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/selection"},
+      "properties": {
+        "gpio-demo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["driver", "input", "output"],
+          "properties": {
+            "driver": {"const": "driver-gpio"},
+            "input": {"$ref": "#/$defs/gpioInput"},
+            "output": {"$ref": "#/$defs/gpioOutput"}
+          }
+        },
+        "led": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["driver", "active_level", "instances"],
+          "properties": {
+            "driver": {"const": "driver-gpio"},
+            "active_level": {"$ref": "#/$defs/level"},
+            "instances": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "controller", "pin"],
+                "properties": {
+                  "id": {"type": "integer", "minimum": 0, "maximum": 1},
+                  "controller": {"type": "integer", "minimum": 0, "maximum": 3},
+                  "pin": {"type": "integer", "minimum": 0, "maximum": 255}
+                }
+              }
+            }
+          }
+        },
+        "qspi-bus": {"$ref": "#/$defs/qspiBus"},
+        "qspi0": {"$ref": "#/$defs/qspiBus"},
+        "soft-spi-bus": {"$ref": "#/$defs/softSpiBus"},
+        "display": {"$ref": "#/$defs/display"},
+        "display-st7789": {"$ref": "#/$defs/display"}
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["driver"],
+        "properties": {"driver": {"$ref": "#/$defs/selection"}}
+      }
+    },
+    "kconfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "board": {"$ref": "#/$defs/text"},
+        "drivers": {"$ref": "#/$defs/text"}
+      }
+    },
+    "flash": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {"$ref": "#/$defs/text"},
+        "artifact": {"$ref": "#/$defs/selection"},
+        "volume_label": {"$ref": "#/$defs/text"},
+        "copy_count": {"type": "integer", "minimum": 1},
+        "settle_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "monitor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baudrate": {"type": "integer", "minimum": 1},
+        "vid": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "pid": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "serial_number": {"$ref": "#/$defs/text"}
+      }
+    },
+    "files": {"$ref": "#/$defs/legacyPaths"},
+    "paths": {"$ref": "#/$defs/legacyPaths"},
+    "abstract_machine": {"$ref": "#/$defs/legacyPaths"}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "selection": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "not": {"enum": [".", ".."]}
+    },
+    "selections": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/selection"}
+    },
+    "level": {"enum": ["low", "high"]},
+    "gpio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller", "pin"],
+      "properties": {
+        "controller": {"type": "integer", "minimum": 0, "maximum": 3},
+        "pin": {"type": "integer", "minimum": 0, "maximum": 255}
+      }
+    },
+    "gpioInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller", "pin", "label", "idle_level"],
+      "properties": {
+        "controller": {"type": "integer", "minimum": 0, "maximum": 3},
+        "pin": {"type": "integer", "minimum": 0, "maximum": 255},
+        "label": {"type": "string", "minLength": 1, "pattern": "^[ -~]+$"},
+        "idle_level": {"$ref": "#/$defs/level"}
+      }
+    },
+    "gpioOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller", "pin", "label", "initial_level"],
+      "properties": {
+        "controller": {"type": "integer", "minimum": 0, "maximum": 3},
+        "pin": {"type": "integer", "minimum": 0, "maximum": 255},
+        "label": {"type": "string", "minLength": 1, "pattern": "^[ -~]+$"},
+        "initial_level": {"$ref": "#/$defs/level"}
+      }
+    },
+    "qspiBus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "controller"],
+      "properties": {
+        "driver": {"const": "driver-qspi"},
+        "controller": {"type": "integer", "minimum": 0, "maximum": 255},
+        "clock_divider": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+      }
+    },
+    "softSpiBus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "chip_select", "clock", "mosi", "miso", "mode"],
+      "properties": {
+        "driver": {"const": "soft-spi"},
+        "chip_select": {"$ref": "#/$defs/softSpiGpio"},
+        "clock": {"$ref": "#/$defs/softSpiGpio"},
+        "mosi": {"$ref": "#/$defs/softSpiGpio"},
+        "miso": {"$ref": "#/$defs/softSpiGpio"},
+        "mode": {"type": "integer", "minimum": 0, "maximum": 3}
+      }
+    },
+    "softSpiGpio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller", "pin"],
+      "properties": {
+        "controller": {"type": "integer", "minimum": 0, "maximum": 3},
+        "pin": {"type": "integer", "minimum": 0, "maximum": 31}
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "bus", "chip_select", "dc_gpio", "width", "height", "rotation"],
+      "properties": {
+        "driver": {"enum": ["device-st7735", "st7735", "device-st7789", "st7789"]},
+        "bus": {"enum": ["qspi-bus", "qspi0"]},
+        "chip_select": {"type": "integer", "minimum": 0, "maximum": 3},
+        "dc_gpio": {"$ref": "#/$defs/gpio"},
+        "reset_gpio": {"$ref": "#/$defs/gpio"},
+        "backlight_gpio": {"$ref": "#/$defs/gpio"},
+        "width": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "height": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "rotation": {"type": "integer", "minimum": 0, "maximum": 3},
+        "horizontal_offset": {"type": "integer", "minimum": 0, "maximum": 255},
+        "vertical_offset": {"type": "integer", "minimum": 0, "maximum": 255}
+      }
+    },
+    "legacyPaths": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/text"}
+    },
+    "debug": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "server_address"],
+      "properties": {
+        "adapter": {"const": "cppdbg"},
+        "server_address": {"type": "string", "pattern": "^\\S+:\\d+$"},
+        "stop_at_entry": {"type": "boolean"}
+      }
+    }
+  }
+}

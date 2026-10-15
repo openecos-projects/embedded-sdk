@@ -87,11 +87,17 @@ static FuncInfo *func_lookup(Compiler *comp, const char *name) {
     return NULL;
 }
 
+static void parse_error(Compiler *comp, const char *msg);
+
 /* Mark a function as defined (records its code label) and patch forward calls. */
 static int func_define(Compiler *comp, const char *name, int label_id, int params) {
     FuncInfo *f = func_lookup(comp, name);
     if (f && f->label_id >= 0) {
         /* Already defined — duplicate */
+        return -1;
+    }
+    if (f && f->fwd_count > 0 && f->params != params) {
+        parse_error(comp, "function argument count mismatch");
         return -1;
     }
     if (f == NULL) {
@@ -165,43 +171,14 @@ static void parse_primary(Compiler *comp) {
         name_buf[63] = '\0';
         char *name = name_buf;
 
-        /* Check if this is a function call: ident followed by '(' */
-        /* Peek ahead — we need to check the next token type.
-         * Since we don't have a peek, we check the source.
-         * Actually, we can look ahead: if we advance past the ident,
-         * and the current token is '(', it's a call. But that changes
-         * lexer state. Better: check if name is known as a function
-         * (built-in or user-defined) and the next token is '('. */
-        /* Strategy: advance past the ident, check if next is '('.
-         * If yes, it's a call. If no, rewind is not possible with
-         * our simple lexer — instead, handle both paths:
-         *
-         * Path A (call): advance, parse_call handles '('
-         * Path B (variable): don't advance yet, load the variable
-         *
-         * We can distinguish by checking the source character after
-         * the identifier. The lexer's `pos` points to the character
-         * after the identifier name and any whitespace.
-         */
-
-        /* Simple approach: if the source has '(' after the ident,
-         * treat as function call (parse_call handles forward declarations).
-         * Otherwise treat as variable. */
-        int is_func = 0;
-        if (strcmp(name, "exec_func") == 0) {
-            is_func = 1;
-        } else {
-            FuncInfo *f = func_lookup(comp, name);
-            if (f != NULL) is_func = 1;
-        }
-
-        /* Determine if next token is '(' */
+        /* The lexer position follows the identifier; inspect the next
+         * non-whitespace character to allow calls defined later. */
         int next_is_call = 0;
         {
             Lexer *lex = &comp->lexer;
             int check_pos = lex->pos;
             const char *src = lex->src;
-            int src_len = (int)strlen(src);
+            int src_len = lex->length;
             while (check_pos < src_len
                    && (src[check_pos] == ' ' || src[check_pos] == '\t'
                        || src[check_pos] == '\r' || src[check_pos] == '\n'))
@@ -210,8 +187,7 @@ static void parse_primary(Compiler *comp) {
                 next_is_call = 1;
         }
 
-        if (is_func && next_is_call) {
-            /* Function call — known function (or exec_func) followed by '(' */
+        if (next_is_call) {
             advance(comp);
             parse_call(comp, name);
             return;
@@ -281,6 +257,10 @@ static void parse_call(Compiler *comp, const char *name) {
     }
 
     if (is_exec_func) {
+        if (arg_count != 3) {
+            parse_error(comp, "exec_func requires 3 arguments");
+            return;
+        }
         /* Built-in exec_func: load its address and call indirectly */
         cg_li(REG_T1, (int)comp->exec_func_addr);
         cg_call_indirect(REG_T1);
@@ -305,6 +285,9 @@ static void parse_call(Compiler *comp, const char *name) {
             }
             /* Remember param count for this forward declaration */
             f->params = arg_count;
+        } else if (f->params != arg_count) {
+            parse_error(comp, "function argument count mismatch");
+            return;
         } else if (f->label_id >= 0) {
             /* Already defined — backward call */
             cg_emit_call_back(f->label_id);
@@ -381,6 +364,7 @@ static void parse_or(Compiler *comp) {
         int fix_jmp  = cg_emit_j();               /* jump over eval_b */
         cg_patch(fix_eval);                       /* here: eval b (a == 0) */
         parse_and(comp);                          /* evaluate b */
+        cg_not_op(); cg_not_op();                  /* normalize to 0 or 1 */
         cg_patch(fix_jmp);                        /* merge */
     }
 }
@@ -392,6 +376,7 @@ static void parse_and(Compiler *comp) {
         advance(comp);                            /* skip '&&' */
         int fix_skip = cg_and_begin();            /* pop a, beqz → false */
         parse_cmp(comp);                          /* evaluate b */
+        cg_not_op(); cg_not_op();                  /* normalize to 0 or 1 */
         int fix_jmp  = cg_emit_j();               /* jump over false path */
         cg_patch(fix_skip);                       /* false path: push 0 */
         cg_push_imm(0);
@@ -477,6 +462,15 @@ static void parse_stmt_loop(Compiler *comp) {
             parse_or(comp);
             cg_pop(REG_A0);
             expect(comp, TOK_SEMI, "';'");
+            if (comp->return_count >= 64) {
+                parse_error(comp, "too many return statements");
+            } else {
+                int fixup = cg_emit_j();
+                if (fixup < 0)
+                    parse_error(comp, "too many fixups");
+                else
+                    comp->return_fixups[comp->return_count++] = fixup;
+            }
         } else if (comp->lexer.current.type == TOK_IDENT) {
             /* Could be assignment or function call */
             /* Copy name to avoid clobbering by nested lexer_next */
@@ -490,21 +484,13 @@ static void parse_stmt_loop(Compiler *comp) {
             Lexer *lex = &comp->lexer;
             int check_pos = lex->pos;
             const char *src = lex->src;
-            int src_len = (int)strlen(src);
+            int src_len = lex->length;
             while (check_pos < src_len
                    && (src[check_pos] == ' ' || src[check_pos] == '\t'
                        || src[check_pos] == '\r' || src[check_pos] == '\n'))
                 check_pos++;
 
-            int is_func = 0;
-            if (strcmp(name, "exec_func") == 0) {
-                is_func = 1;
-            } else {
-                FuncInfo *f = func_lookup(comp, name);
-                if (f != NULL) is_func = 1;
-            }
-
-            if (is_func && check_pos < src_len && src[check_pos] == '(') {
+            if (check_pos < src_len && src[check_pos] == '(') {
                 /* Function call as statement (result discarded) */
                 advance(comp); /* consume the identifier */
                 parse_call(comp, name);
@@ -546,7 +532,9 @@ static void parse_local_decl(Compiler *comp) {
         parse_error(comp, "expected variable name");
         return;
     }
-    char *name = tok_name(comp);
+    char name[64];
+    strncpy(name, tok_name(comp), sizeof(name) - 1u);
+    name[sizeof(name) - 1u] = '\0';
     for (int i = comp->local_base; i < comp->var_count; i++) {
         if (strcmp(comp->vars[i].name, name) == 0) {
             parse_error(comp, "duplicate variable");
@@ -556,6 +544,10 @@ static void parse_local_decl(Compiler *comp) {
     advance(comp);
 
     VarInfo *v = sym_add(comp, name, 0);
+    if (v == NULL) {
+        parse_error(comp, "too many variables");
+        return;
+    }
     v->offset = comp->local_bytes;
     comp->local_bytes += 4;
 
@@ -591,7 +583,9 @@ static void parse_function_body(Compiler *comp, const char *name) {
                 return;
             }
 
-            char *pname = tok_name(comp);
+            char pname[64];
+            strncpy(pname, tok_name(comp), sizeof(pname) - 1u);
+            pname[sizeof(pname) - 1u] = '\0';
 
             /* Check for duplicate parameter name */
             for (int i = comp->local_base; i < comp->var_count; i++) {
@@ -608,6 +602,10 @@ static void parse_function_body(Compiler *comp, const char *name) {
             }
 
             VarInfo *v = sym_add(comp, pname, 0);
+            if (v == NULL) {
+                parse_error(comp, "too many variables");
+                return;
+            }
             v->offset = comp->local_bytes;
             comp->local_bytes += 4;
             param_count++;
@@ -622,8 +620,13 @@ static void parse_function_body(Compiler *comp, const char *name) {
 
     /* Record function definition before parsing body (for recursion support) */
     int func_label = cg_label();
+    if (func_label < 0) {
+        parse_error(comp, "too many labels");
+        return;
+    }
     if (func_define(comp, name, func_label, param_count) < 0) {
-        parse_error(comp, "duplicate function");
+        if (!comp->error)
+            parse_error(comp, "duplicate function");
         return;
     }
 
@@ -634,11 +637,15 @@ static void parse_function_body(Compiler *comp, const char *name) {
         parse_local_decl(comp);
     }
 
-    int frame = 16 + comp->local_bytes;
+    int frame = (16 + comp->local_bytes + 15) & ~15;
+    comp->return_count = 0;
     cg_prologue_params(frame, param_count);
 
     parse_stmt_loop(comp);
 
+    cg_li(REG_A0, 0);
+    for (int i = 0; i < comp->return_count; i++)
+        cg_patch(comp->return_fixups[i]);
     cg_epilogue(frame);
     comp->var_count = comp->local_base;
 
@@ -691,18 +698,29 @@ static void parse_program(Compiler *comp) {
                 parse_error(comp, "duplicate global variable");
                 break;
             }
+            if ((uint32_t)comp->next_global > comp->global_capacity - 4u) {
+                parse_error(comp, "too many global variables");
+                break;
+            }
             VarInfo *v = sym_add(comp, name, 1);
-            v->offset = FCC_GLOBAL_BASE + comp->next_global;
+            if (v == NULL) {
+                parse_error(comp, "too many variables");
+                break;
+            }
+            v->offset = (int)(comp->global_base + (uint32_t)comp->next_global);
             comp->next_global += 4;
 
             if (comp->lexer.current.type == TOK_ASSIGN) {
                 advance(comp);
+                int negative = comp->lexer.current.type == TOK_MINUS;
+                if (negative) advance(comp);
                 if (comp->lexer.current.type != TOK_NUMBER) {
                     parse_error(comp, "global init must be constant");
                     break;
                 }
-                cg_li(REG_T0, comp->lexer.current.value);
-                cg_store_global(v->offset);
+                uint32_t value = (uint32_t)comp->lexer.current.value;
+                comp->globals[(comp->next_global - 4) / 4] =
+                    negative ? 0u - value : value;
                 advance(comp);
             }
             expect(comp, TOK_SEMI, "';'");
@@ -722,9 +740,17 @@ static void parse_program(Compiler *comp) {
 }
 
 int fcc_compile(Compiler *comp) {
+    if (comp == NULL || comp->code == NULL || comp->globals == NULL ||
+        comp->code_capacity < 4u || comp->code_capacity > FCC_CODE_MAX ||
+        comp->global_capacity < 4u || comp->global_capacity > FCC_GLOBAL_MAX ||
+        comp->global_base == 0u || (comp->global_base & 3u) != 0u ||
+        comp->global_base > UINT32_MAX - comp->global_capacity)
+        return -1;
+
+    memset(comp->globals, 0, comp->global_capacity);
+    comp->error = 0;
     codegen_init(comp);
     cg_reset_labels();
-    comp->error       = 0;
     comp->var_count   = 0;
     comp->func_count  = 0;
     comp->next_global = 0;

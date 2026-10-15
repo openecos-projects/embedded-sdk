@@ -3,11 +3,12 @@
 BSP（板级支持包）把具体板卡上的控制台串口、LED、按键和演示资源封装成与板卡
 无关的接口，是应用最先初始化的模块。
 
-头文件：`board/include/ecos/bsp/console.h`、`led.h`、`button.h`；
+头文件：`boards/include/ecos/bsp/console.h`、`led.h`、`button.h`；
 生成的 `ecos/board_resources.h`（由 CLI 依板级清单生成到工程的
 `.ecos/generated/include/`）。
 
-示例：`example/get_start/hello`、`example/get_start/blink`。
+示例：`examples/get_start/hello`、`examples/get_start/blink`、
+`examples/peripherals/button/state`。
 
 ## 控制台 console
 
@@ -66,10 +67,13 @@ typedef enum {
 } bsp_button_state_t;
 
 ecos_err_t bsp_button_init(void);
+int bsp_button_get_count(void);
 int bsp_button_get_state(bsp_button_t button);
 ```
 
 - `bsp_button_init()` — 把所有板载按键配置为 GPIO 输入。
+- `bsp_button_get_count()` — 返回当前 Board 的板载按键数；`BSP_BUTTON_COUNT` 是
+  公共接口允许的最大编号上界，不表示每块板都有两个按键。
 - `bsp_button_get_state()` — 返回 `BSP_BUTTON_RELEASED`（0）或
   `BSP_BUTTON_PRESSED`（1），失败返回负错误码。无消抖、无中断，需要消抖时
   由应用轮询实现。
@@ -100,6 +104,21 @@ QSPI 总线资源：
 #define ECOS_BOARD_QSPI_BUS_CLOCK_DIVIDER 3u                 /* 时钟分频 */
 ```
 
+软件 SPI 资源：
+
+```c
+#define ECOS_BOARD_HAS_SOFT_SPI_BUS 1
+#define ECOS_BOARD_SOFT_SPI_CHIP_SELECT { ECOS_GPIO_PORT_0, 0u }
+#define ECOS_BOARD_SOFT_SPI_CLOCK       { ECOS_GPIO_PORT_0, 1u }
+#define ECOS_BOARD_SOFT_SPI_MOSI        { ECOS_GPIO_PORT_0, 2u }
+#define ECOS_BOARD_SOFT_SPI_MISO        { ECOS_GPIO_PORT_0, 3u }
+#define ECOS_BOARD_SOFT_SPI_MODE        0u
+```
+
+`soft-spi-bus` 的四个引脚和 mode 来自 Board 清单；应用将这些宏填入
+`ecos_soft_spi_config_t`，不得重新写板卡 GPIO 编号。资源头只依赖公共 GPIO 头，
+没有选择 `soft-spi` 组件的其他 Example 也可以安全包含 `board_resources.h`。
+
 板载显示屏资源（配合 ST7735/ST7789 设备驱动的 config 结构体逐字段使用）：
 
 ```c
@@ -117,6 +136,29 @@ QSPI 总线资源：
 #define ECOS_BOARD_DISPLAY_HORIZONTAL_OFFSET 2u /* 显存水平偏移 */
 #define ECOS_BOARD_DISPLAY_VERTICAL_OFFSET 3u   /* 显存垂直偏移 */
 ```
+
+`display` 对应 ST7735，`display-st7789` 对应 ST7789；例程按所需面板选择对应资源，
+生成器仍输出同一组 `ECOS_BOARD_DISPLAY_*` 宏。固定接线、没有软件控制的 RST 或 BLK
+可在 Board 清单中省略；对应的 `*_PORT` 宏为 `ECOS_GPIO_PORT_COUNT`，设备驱动不会
+访问该引脚。
+
+ST7735 面板也可以通过 `bsp-display-st7735` 组件使用统一的 BSP Display 接口，
+应用无需处理上述引脚和 QSPI 配置：
+
+```c
+#include "ecos/bsp/display.h"
+
+ecos_err_t bsp_display_init(void);
+ecos_err_t bsp_display_deinit(void);
+ecos_err_t bsp_display_fill_rect(uint16_t x, uint16_t y,
+                                 uint16_t width, uint16_t height,
+                                 uint16_t rgb565);
+uint16_t bsp_display_width(void);
+uint16_t bsp_display_height(void);
+```
+
+`bsp_display_fill_rect()` 的颜色是 RGB565；未初始化、超出屏幕边界等错误会作为
+`ecos_err_t` 返回。`display-donut` 例程通过这组接口展示完整的 BSP/设备/QSPI 链路。
 
 ## 最小使用骨架
 

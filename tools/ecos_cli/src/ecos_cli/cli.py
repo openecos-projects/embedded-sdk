@@ -9,14 +9,18 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from . import __version__
+from . import __schema_version__, __version__
+from . import artifacts
 from . import build
 from . import completion
 from . import configuration
+from . import doctor
 from . import flashing
+from . import installer
 from . import monitoring
 from . import project
 from . import project_model
+from . import schema_contract
 from . import sdk_manifest
 from . import toolchain
 from .progress import ConsoleProgress
@@ -25,7 +29,7 @@ from .sdk_registry import SdkRegistry, SdkRegistryError
 from .sdk_resolver import SdkResolutionError, SdkResolver, write_project_pin
 
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = __schema_version__
 
 
 class ExitCode(IntEnum):
@@ -137,11 +141,7 @@ def create_toolchain_parser(sdk_context: SdkContext) -> argparse.ArgumentParser:
         description="Detect, inspect, and install the SDK-pinned RISC-V toolchain.",
     )
     commands = parser.add_subparsers(dest="toolchain_command", required=True)
-    default_toolchain_prefix = (
-        sdk_context.root
-        if sdk_context.kind == "release"
-        else toolchain.default_prefix()
-    )
+    default_toolchain_prefix = toolchain.default_prefix()
 
     detect = commands.add_parser("detect", help="detect the host and select its pinned asset")
     _add_selection_options(detect)
@@ -297,7 +297,17 @@ def run_toolchain(argv: Sequence[str], sdk_context: SdkContext) -> int:
 
         prefix = args.prefix.expanduser().resolve()
         if args.toolchain_command == "status":
-            status = toolchain.installation_status(manifest, prefix, host, args.custom)
+            if args.custom is not None:
+                status = toolchain.installation_status(manifest, prefix, host, args.custom)
+            elif prefix == toolchain.default_prefix().resolve():
+                legacy_roots = (toolchain.legacy_prefix(),)
+                if sdk_context.kind == "release":
+                    legacy_roots += (sdk_context.root,)
+                status = toolchain.compatible_installation_status(
+                    manifest, prefix, host, legacy_roots=legacy_roots
+                )
+            else:
+                status = toolchain.installation_status(manifest, prefix, host)
             diagnostics: list[dict[str, Any]] = []
             if status["provider"] == "custom":
                 diagnostics.append(
@@ -329,6 +339,13 @@ def run_toolchain(argv: Sequence[str], sdk_context: SdkContext) -> int:
                     )
                 )
             data = {"selection": selection, "installation": status}
+            if status["state"] == "installed":
+                debugger_name = manifest["tool_prefix"] + "gdb"
+                if sys.platform == "win32":
+                    debugger_name += ".exe"
+                debugger = Path(status["active_root"]) / "bin" / debugger_name
+                if debugger.is_file():
+                    status["debugger"] = str(debugger.resolve())
             if args.output_format == "json":
                 emit_json(envelope(command, "ok", data, diagnostics))
             else:
@@ -352,8 +369,8 @@ def run_toolchain(argv: Sequence[str], sdk_context: SdkContext) -> int:
             plan = {
                 "selection": selection,
                 "prefix": str(prefix),
-                "install_root": str(prefix / manifest["install_path"]),
-                "active_root": str(prefix / manifest["active_path"]),
+                "install_root": str(toolchain.shared_install_root(manifest, prefix, host)),
+                "active_root": str(toolchain.shared_install_root(manifest, prefix, host)),
                 "archive": str(archive),
                 "download_required": args.archive is None and not archive.is_file(),
                 "force": args.force,
@@ -427,6 +444,10 @@ def create_sdk_parser() -> argparse.ArgumentParser:
     unregister = commands.add_parser("unregister", help="remove an SDK registration")
     unregister.add_argument("name")
 
+    uninstall = commands.add_parser("uninstall", help="remove a verified release installation")
+    uninstall.add_argument("name")
+    uninstall.add_argument("--dry-run", action="store_true")
+
     commands.add_parser("doctor", help="validate all registered SDK paths")
 
     for command_parser in commands.choices.values():
@@ -467,6 +488,11 @@ def _print_sdk_data(command: str, data: dict[str, Any], console: ConsoleProgress
     if command == "pin":
         console.info(f"Project SDK pinned: {data['pin']['registration']}")
         console.info(f"Pin file: {data['path']}")
+        return
+    if command == "uninstall":
+        action = "Would remove" if data["dry_run"] else "Removed"
+        console.info(f"{action} SDK release: {data['root']}")
+        console.info(f"Registration: {data['name']}")
         return
     if command == "doctor":
         console.info(f"Registry: {data['registry']}")
@@ -534,6 +560,10 @@ def run_sdk(argv: Sequence[str], *, global_sdk: Optional[str] = None) -> int:
             data = write_project_pin(args.project, context)
         elif args.sdk_command == "unregister":
             data = registry.unregister(args.name)
+        elif args.sdk_command == "uninstall":
+            data = installer.uninstall_sdk_release(
+                registry, args.name, dry_run=args.dry_run
+            )
         else:
             data = registry.doctor()
 
@@ -553,7 +583,12 @@ def run_sdk(argv: Sequence[str], *, global_sdk: Optional[str] = None) -> int:
             console = ConsoleProgress()
             _print_sdk_data(args.sdk_command, data, console)
         return int(ExitCode.OK)
-    except (SdkRegistryError, sdk_manifest.SdkManifestError, SdkResolutionError) as exc:
+    except (
+        SdkRegistryError,
+        sdk_manifest.SdkManifestError,
+        SdkResolutionError,
+        installer.InstallerError,
+    ) as exc:
         return emit_error(
             command,
             args.output_format,
@@ -608,6 +643,113 @@ def _project_error(
     else:
         code = "ECOS_PROJECT_MODEL_INVALID"
     return emit_error(command, output_format, code, str(exc), ExitCode.CONFIG)
+
+
+def run_resource(
+    argv: Sequence[str], sdk_context: SdkContext, resource: str
+) -> int:
+    parser = EcosArgumentParser(
+        prog=f"ecos {resource}",
+        description=f"Inspect SDK {resource} manifests and capabilities.",
+    )
+    commands = parser.add_subparsers(dest="resource_command", required=True)
+    listing = commands.add_parser("list", help=f"list SDK {resource}s")
+    description = commands.add_parser("describe", help=f"describe one SDK {resource}")
+    description.add_argument("id", metavar="ID")
+    for command in (listing, description):
+        command.add_argument(
+            "--format", choices=("text", "json"), default="text", dest="output_format"
+        )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            resource, _requested_output_format(argv), "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc), ExitCode.USAGE,
+        )
+
+    command_name = f"{resource}.{args.resource_command}"
+    operations = {
+        "board": (project_model.list_boards, project_model.describe_board, "boards"),
+        "target": (project_model.list_targets, project_model.describe_target, "targets"),
+        "component": (
+            project_model.list_components, project_model.describe_component, "components"
+        ),
+        "driver": (project_model.list_drivers, project_model.describe_driver, "drivers"),
+        "device": (project_model.list_devices, project_model.describe_device, "devices"),
+    }
+    list_items, describe_item, collection_name = operations[resource]
+    try:
+        data = (
+            list_items(sdk_context)
+            if args.resource_command == "list"
+            else describe_item(sdk_context, args.id)
+        )
+    except (project.ProjectError, project_model.ProjectModelError) as exc:
+        return _project_error(command_name, args.output_format, exc)
+
+    if args.output_format == "json":
+        emit_json(envelope(command_name, "ok", data))
+    elif args.resource_command == "list":
+        console = ConsoleProgress()
+        for item in data[collection_name]:
+            console.info(f"{item['id']}  {item['name']}")
+    else:
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+    return int(ExitCode.OK)
+
+
+def run_schema(argv: Sequence[str]) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos schema", description="Inspect and validate packaged manifest schemas."
+    )
+    commands = parser.add_subparsers(dest="schema_command", required=True)
+    listing = commands.add_parser("list", help="list available manifest schemas")
+    description = commands.add_parser("describe", help="show one JSON Schema")
+    description.add_argument("kind", choices=tuple(schema_contract.SCHEMA_FILES))
+    validation = commands.add_parser("validate", help="validate one YAML or JSON manifest")
+    validation.add_argument("kind", choices=tuple(schema_contract.SCHEMA_FILES))
+    validation.add_argument("path", type=Path, metavar="PATH")
+    for command in (listing, description, validation):
+        command.add_argument(
+            "--format", choices=("text", "json"), default="text", dest="output_format"
+        )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "schema", _requested_output_format(argv), "ECOS_USAGE_INVALID_ARGUMENTS",
+            str(exc), ExitCode.USAGE,
+        )
+
+    command_name = f"schema.{args.schema_command}"
+    try:
+        if args.schema_command == "list":
+            data = schema_contract.list_schemas()
+        elif args.schema_command == "describe":
+            data = schema_contract.describe_schema(args.kind)
+        else:
+            data = schema_contract.validate_file(args.kind, args.path)
+    except schema_contract.SchemaValidationError as exc:
+        item = diagnostic(
+            "ECOS_SCHEMA_INVALID", "error", str(exc), resource=exc.kind,
+            field=exc.field, actual=exc.actual, expected=exc.expected,
+            suggestion="Check the manifest against 'ecos schema describe KIND'.",
+        )
+        if args.output_format == "json":
+            emit_json(envelope(command_name, "error", None, [item]))
+        else:
+            ConsoleProgress().error(f"[{item['code']}] {item['message']}")
+        return int(ExitCode.CONFIG)
+
+    if args.output_format == "json":
+        emit_json(envelope(command_name, "ok", data))
+    elif args.schema_command == "list":
+        for item in data["schemas"]:
+            print(f"{item['kind']} v{item['version']}  {item['manifest']}")
+    else:
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+    return int(ExitCode.OK)
 
 
 def run_validate(argv: Sequence[str], sdk_context: SdkContext) -> int:
@@ -728,6 +870,89 @@ def run_menuconfig(argv: Sequence[str], sdk_context: SdkContext) -> int:
         return _project_error("menuconfig", "text", exc)
 
 
+def run_clean(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos clean",
+        description="Remove recognized CMake build outputs from an ECOS project.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument("--dry-run", action="store_true", help="show what would be removed")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "clean", _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS", str(exc), ExitCode.USAGE,
+        )
+    try:
+        data = build.clean_project(project_root=args.project, dry_run=args.dry_run)
+    except project.ProjectError as exc:
+        return _project_error("clean", args.output_format, exc)
+    except build.BuildConfigurationError as exc:
+        return emit_error(
+            "clean", args.output_format,
+            "ECOS_CLEAN_UNRECOGNIZED_OUTPUT", str(exc), ExitCode.CONFIG,
+        )
+    except build.BuildOutputError as exc:
+        return emit_error(
+            "clean", args.output_format,
+            "ECOS_CLEAN_FAILED", str(exc), ExitCode.EXTERNAL_TOOL,
+        )
+    if args.output_format == "json":
+        emit_json(envelope("clean", "ok", data))
+    else:
+        console = ConsoleProgress()
+        if not data["paths"]:
+            console.info(f"No build outputs found: {data['path']}")
+        elif args.dry_run:
+            console.info(f"Would remove: {data['paths'][0]}")
+        else:
+            console.info(f"Build outputs removed: {data['paths'][0]}")
+    return int(ExitCode.OK)
+
+
+def run_doctor(argv: Sequence[str], sdk_context: SdkContext) -> int:
+    parser = EcosArgumentParser(
+        prog="ecos doctor",
+        description="Inspect project, build tools, toolchain, and Board connections.",
+    )
+    parser.add_argument("--project", type=Path, default=Path.cwd(), metavar="DIRECTORY")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
+    try:
+        args = parser.parse_args(list(argv))
+    except UsageError as exc:
+        return emit_error(
+            "doctor", _requested_output_format(argv),
+            "ECOS_USAGE_INVALID_ARGUMENTS", str(exc), ExitCode.USAGE,
+        )
+    data = doctor.inspect_environment(sdk_context, project_root=args.project)
+    if args.output_format == "json":
+        emit_json(envelope(
+            "doctor", "ok" if data["valid"] else "error",
+            {key: value for key, value in data.items() if key != "diagnostics"},
+            data["diagnostics"],
+        ))
+    else:
+        console = ConsoleProgress()
+        for name, check in data["checks"].items():
+            if name == "host_tools":
+                for tool_name, item in check.items():
+                    console.info(f"{tool_name}: {item['state']}")
+            else:
+                console.info(f"{name}: {check['state']}")
+        for item in data["diagnostics"]:
+            if item["severity"] == "error":
+                console.error(f"[{item['code']}] {item['message']}")
+            else:
+                console.warning(f"[{item['code']}] {item['message']}")
+    return int(ExitCode.OK if data["valid"] else ExitCode.CONFIG)
+
+
 def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
     parser = EcosArgumentParser(
         prog="ecos build",
@@ -756,14 +981,18 @@ def run_build(argv: Sequence[str], sdk_context: SdkContext) -> int:
         )
     try:
         data = build.build_project(
-            sdk_context, project_root=args.project, clean=args.clean
+            sdk_context, project_root=args.project, clean=args.clean,
+            json_output=args.output_format == "json",
         )
         if args.output_format == "json":
             emit_json(envelope("build", "ok", data))
         else:
             console = ConsoleProgress()
             if data["clean"]:
-                console.info(f"Build outputs removed: {data['path']}/build")
+                if data["removed"]:
+                    console.info(f"Build outputs removed: {data['paths'][0]}")
+                else:
+                    console.info(f"No build outputs found: {data['path']}")
             else:
                 console.info(f"Project built: {data['path']}")
                 console.info(f"Target: {data['target']}")
@@ -1016,6 +1245,11 @@ def create_project_parser() -> argparse.ArgumentParser:
         dest="output_format",
         help="output format",
     )
+    info = commands.add_parser("info", help="inspect the selected project")
+    info.add_argument("--project", type=Path, default=Path.cwd())
+    info.add_argument(
+        "--format", choices=("text", "json"), default="text", dest="output_format"
+    )
 
     create = commands.add_parser("create", help="create a project from an SDK example")
     create.add_argument("example", metavar="EXAMPLE", help="SDK Example name")
@@ -1050,9 +1284,11 @@ def create_project_parser() -> argparse.ArgumentParser:
     for command_name, argument_name, help_text in (
         ("set-board", "board", "select a Board and its mapped Target"),
         ("set-target", "target", "select a Target/SoC and clear the Board"),
+        ("set-profile", "profile", "select a project configuration profile"),
     ):
         selection = commands.add_parser(command_name, help=help_text)
         selection.add_argument(argument_name, metavar=argument_name.upper())
+        selection.add_argument("--dry-run", action="store_true", help="validate without writing project metadata")
         selection.add_argument(
             "--project",
             type=Path,
@@ -1068,6 +1304,62 @@ def create_project_parser() -> argparse.ArgumentParser:
             help="output format",
         )
     return parser
+
+
+def _project_info(sdk_context: SdkContext, root: Path) -> dict[str, Any]:
+    root = root.expanduser().resolve()
+    resolved = project_model.resolve_project(sdk_context, project_root=root)
+    source_fingerprint = resolved["source_fingerprint"]
+
+    def read_json(path: Path) -> Optional[dict[str, Any]]:
+        if not path.is_file():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise project.ProjectMetadataError(f"cannot read {path}: {exc}") from exc
+        if not isinstance(value, dict):
+            raise project.ProjectMetadataError(f"expected JSON object in {path}")
+        return value
+
+    generated_root = root / ".ecos" / "generated"
+    generated = read_json(generated_root / "resolved-project.json")
+    configured = (
+        generated is not None
+        and generated.get("source_fingerprint") == source_fingerprint
+    )
+    artifact_data = read_json(root / "build" / "artifacts.json")
+    fingerprint_path = generated_root / "configuration.fingerprint"
+    configuration_fingerprint = (
+        fingerprint_path.read_text(encoding="utf-8").strip()
+        if fingerprint_path.is_file() else None
+    )
+    built = bool(
+        configured
+        and artifact_data is not None
+        and artifact_data.get("source_fingerprint") == source_fingerprint
+        and artifact_data.get("configuration_fingerprint") == configuration_fingerprint
+    )
+    outputs: dict[str, str] = {}
+    if built:
+        try:
+            verified = artifacts.load_manifest(root)
+            outputs["elf"] = str((root / verified["files"]["elf"]["path"]).resolve())
+        except artifacts.ArtifactError:
+            built = False
+    selected = resolved["project"]
+    return {
+        "path": str(root),
+        "name": selected["name"],
+        "example": selected["example"],
+        "sdk": {key: resolved["sdk"][key] for key in ("id", "version", "kind")},
+        "board": selected["board"],
+        "target": selected["target"],
+        "profile": selected["profile"],
+        "configured": configured,
+        "built": built,
+        "outputs": outputs,
+    }
 
 
 def _print_project_data(data: dict[str, Any], console: ConsoleProgress) -> None:
@@ -1119,7 +1411,7 @@ def _print_project_list(data: dict[str, Any], console: ConsoleProgress) -> None:
 
 
 def _print_project_selection(data: dict[str, Any], console: ConsoleProgress) -> None:
-    console.info(f"Project updated: {data['path']}")
+    console.info(f"Project {'would update' if data['dry_run'] else 'updated'}: {data['path']}")
     console.info(f"Board: {data['board'] or 'none'}")
     console.info(f"Target: {data['target']}")
 
@@ -1145,6 +1437,8 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
     try:
         if args.project_command == "list":
             data = project_model.list_examples(sdk_context)
+        elif args.project_command == "info":
+            data = _project_info(sdk_context, args.project)
         elif args.project_command == "create":
             example_name = project.normalize_example_name(args.example)
             source = project.resolve_example(sdk_context, example_name)
@@ -1152,11 +1446,13 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
                 sdk_context, source, example_name
             )
             validator = None
-            if not args.dry_run and (
-                args.board is not None or args.target is not None
-            ):
+            plan_validator = None
+            if args.board is not None or args.target is not None:
                 validator = lambda root: project_model.resolve_project(
                     sdk_context, project_root=root
+                )
+                plan_validator = lambda source, metadata: project_model.resolve_project(
+                    sdk_context, example_source=source, metadata_override=metadata
                 )
             data = project.create_project(
                 sdk_context,
@@ -1169,12 +1465,14 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
                 dry_run=args.dry_run,
                 force=args.force,
                 validator=validator,
+                plan_validator=plan_validator,
             )
         elif args.project_command == "set-board":
             data = project.set_board(
                 sdk_context,
                 args.board,
                 project_root=args.project,
+                dry_run=args.dry_run,
                 validator=lambda metadata: project_model.resolve_project(
                     sdk_context,
                     project_root=args.project,
@@ -1186,6 +1484,19 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
                 sdk_context,
                 args.target,
                 project_root=args.project,
+                dry_run=args.dry_run,
+                validator=lambda metadata: project_model.resolve_project(
+                    sdk_context,
+                    project_root=args.project,
+                    metadata_override=metadata,
+                ),
+            )
+        elif args.project_command == "set-profile":
+            data = project.set_profile(
+                sdk_context,
+                args.profile,
+                project_root=args.project,
+                dry_run=args.dry_run,
                 validator=lambda metadata: project_model.resolve_project(
                     sdk_context,
                     project_root=args.project,
@@ -1198,6 +1509,16 @@ def run_project(argv: Sequence[str], sdk_context: SdkContext) -> int:
             _print_project_list(data, ConsoleProgress())
         elif args.project_command == "create":
             _print_project_data(data, ConsoleProgress())
+        elif args.project_command == "info":
+            console = ConsoleProgress()
+            for key in ("path", "name", "example", "board", "target", "profile"):
+                console.info(f"{key}: {data[key]}")
+            console.info(f"SDK: {data['sdk']['id']} {data['sdk']['version']}")
+            console.info(f"Configured: {data['configured']}; built: {data['built']}")
+        elif args.project_command == "set-profile":
+            console = ConsoleProgress()
+            console.info(f"Project updated: {data['path']}")
+            console.info(f"Profile: {data['profile']}")
         else:
             _print_project_selection(data, ConsoleProgress())
         return int(ExitCode.OK)
@@ -1302,15 +1623,26 @@ def print_help() -> None:
     print("  sdk use NAME                     Set the globally active SDK")
     print("  sdk pin NAME                     Pin an SDK to the current project")
     print("  sdk unregister NAME              Remove an SDK registration")
+    print("  sdk uninstall NAME               Remove a verified release installation")
     print("  sdk doctor                       Validate registered SDK paths")
+    print("  board list|describe              Inspect Board resources and profiles")
+    print("  target list|describe             Inspect Target ISA and capabilities")
+    print("  component list|describe          Inspect Component dependencies")
+    print("  driver list|describe             Inspect public Driver dependencies")
+    print("  device list|describe             Inspect Device Driver bus dependencies")
+    print("  schema list|describe|validate    Inspect and check manifest schemas")
     print("  project list                     List SDK examples and compatible Boards")
     print("  project create EXAMPLE           Create a project from an SDK example")
+    print("  project info                     Inspect the selected project state")
     print("  project set-board BOARD          Select a Board and its mapped Target")
     print("  project set-target TARGET        Select a Target and clear the Board")
+    print("  project set-profile PROFILE      Select a Board configuration profile")
     print("  validate                          Validate project manifests and capabilities")
     print("  configure                         Generate CMake and Kconfig project state")
     print("  menuconfig                        Interactively configure the current project")
     print("  build                             Build the selected project Target")
+    print("  clean                             Remove recognized project build outputs")
+    print("  doctor                            Inspect project and host readiness")
     print("  flash                             Flash the validated firmware artifact")
     print("  monitor                           Monitor and assert Board serial output")
     print("  toolchain detect                  Detect host and select the pinned asset")
@@ -1372,6 +1704,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     command, command_args = arguments[0], arguments[1:]
     if command == "sdk":
         return run_sdk(command_args, global_sdk=sdk_selector)
+    if command == "schema":
+        if sdk_selector is not None:
+            try:
+                SdkResolver(
+                    checkout_hint=Path(__file__).resolve().parents[4]
+                ).resolve(explicit=sdk_selector)
+            except SdkResolutionError as exc:
+                return emit_error(
+                    "schema", _requested_output_format(command_args),
+                    "ECOS_SDK_RESOLUTION_FAILED", str(exc), ExitCode.CONFIG,
+                )
+        return run_schema(command_args)
     if command == "toolchain":
         try:
             context = SdkResolver(
@@ -1402,7 +1746,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 suggestion="Run 'ecos sdk current' to inspect SDK selection.",
             )
         return run_project(command_args, context)
-    if command in {"validate", "configure", "menuconfig", "build", "flash", "monitor"}:
+    if command in {"board", "target", "component", "driver", "device"}:
+        try:
+            context = SdkResolver(
+                checkout_hint=Path(__file__).resolve().parents[4]
+            ).resolve(explicit=sdk_selector)
+        except SdkResolutionError as exc:
+            return emit_error(
+                command,
+                _requested_output_format(command_args),
+                "ECOS_SDK_RESOLUTION_FAILED",
+                str(exc),
+                ExitCode.CONFIG,
+                suggestion="Run 'ecos sdk current' to inspect SDK selection.",
+            )
+        return run_resource(command_args, context, command)
+    if command in {"validate", "configure", "menuconfig", "build", "clean", "doctor", "flash", "monitor"}:
         try:
             context = SdkResolver(
                 checkout_hint=Path(__file__).resolve().parents[4]
@@ -1421,6 +1780,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "configure": run_configure,
             "menuconfig": run_menuconfig,
             "build": run_build,
+            "clean": run_clean,
+            "doctor": run_doctor,
             "flash": run_flash,
             "monitor": run_monitor,
         }

@@ -14,8 +14,11 @@
 #include "stdio.h"
 #include "stdarg.h"
 #include "shell_ext.h"
-#include "generated/autoconf.h"
 #include "shell_port.h"
+
+#ifndef CONFIG_FIRMWARE_VERSION
+#define CONFIG_FIRMWARE_VERSION "3.0.0"
+#endif
 
 
 #if SHELL_USING_CMD_EXPORT == 1
@@ -376,11 +379,7 @@ static void shellWritePrompt(Shell *shell, unsigned char newline)
         }
         shellWriteString(shell, shell->info.user->data.user.name);
         shellWriteString(shell, ":");
-#ifdef CONFIG_COMPONENT_FLASH_FS
         shellWriteString(shell, shell->info.path ? shell->info.path : "/");
-#else
-        shellWriteString(shell, "/");
-#endif
         shellWriteString(shell, "$ ");
     }
     else
@@ -1074,11 +1073,12 @@ ShellCommand* shellSeekCommand(Shell *shell,
  * 
  * @param shell shell对象
  * @param command 命令
- * @return int 变量值
+ * @return size_t 变量值
  */
-int shellGetVarValue(Shell *shell, ShellCommand *command)
+size_t shellGetVarValue(Shell *shell, ShellCommand *command)
 {
-    int value = 0;
+    size_t value = 0;
+    (void)shell;
     switch (command->attr.attrs.type)
     {
     case SHELL_TYPE_VAR_INT:
@@ -1092,7 +1092,7 @@ int shellGetVarValue(Shell *shell, ShellCommand *command)
         break;
     case SHELL_TYPE_VAR_STRING:
     case SHELL_TYPE_VAR_POINT:
-        value = (size_t)(command->data.var.value);
+        value = (size_t)command->data.var.value;
         break;
     case SHELL_TYPE_VAR_NODE: {
         int (*func)(void *) = (int (*)(void *))(((ShellNodeVarAttr *)command->data.var.value)->get);
@@ -1111,10 +1111,10 @@ int shellGetVarValue(Shell *shell, ShellCommand *command)
  * 
  * @param shell shell对象
  * @param command 命令
- * @param value 值
- * @return int 返回变量值
+ * @param value size_t 值
+ * @return int 返回状态
  */
-int shellSetVarValue(Shell *shell, ShellCommand *command, int value)
+int shellSetVarValue(Shell *shell, ShellCommand *command, size_t value)
 {
     if (command->attr.attrs.readOnly)
     {
@@ -1125,16 +1125,16 @@ int shellSetVarValue(Shell *shell, ShellCommand *command, int value)
         switch (command->attr.attrs.type)
         {
         case SHELL_TYPE_VAR_INT:
-            *((int *)(command->data.var.value)) = value;
+            *((int *)(command->data.var.value)) = (int)value;
             break;
         case SHELL_TYPE_VAR_SHORT:
-            *((short *)(command->data.var.value)) = value;
+            *((short *)(command->data.var.value)) = (short)value;
             break;
         case SHELL_TYPE_VAR_CHAR:
-            *((char *)(command->data.var.value)) = value;
+            *((char *)(command->data.var.value)) = (char)value;
             break;
         case SHELL_TYPE_VAR_STRING:
-            shellStringCopy(((char *)(command->data.var.value)), (char *) (size_t) value);
+            shellStringCopy((char *)command->data.var.value, (char *)value);
             break;
         case SHELL_TYPE_VAR_POINT:
             shellWriteString(shell, shellText[SHELL_TEXT_POINT_CANNOT_MODIFY]);
@@ -1145,12 +1145,12 @@ int shellSetVarValue(Shell *shell, ShellCommand *command, int value)
                 if (((ShellNodeVarAttr *)command->data.var.value)->var)
                 {
                     int (*func)(void *, int) = (int (*)(void *, int))(((ShellNodeVarAttr *)command->data.var.value)->set);
-                    func(((ShellNodeVarAttr *)command->data.var.value)->var, value);
+                    func(((ShellNodeVarAttr *)command->data.var.value)->var, (int)value);
                 }
                 else
                 {
                     int (*func)(int) = (int (*)(int))(((ShellNodeVarAttr *)command->data.var.value)->set);
-                    func(value);
+                    func((int)value);
                 }
             }
             break;
@@ -1172,7 +1172,7 @@ int shellSetVarValue(Shell *shell, ShellCommand *command, int value)
 static int shellShowVar(Shell *shell, ShellCommand *command)
 {
     char buffer[12] = "00000000000";
-    int value = shellGetVarValue(shell, command);
+    size_t value = shellGetVarValue(shell, command);
     
     shellWriteString(shell, command->data.var.name);
     shellWriteString(shell, " = ");
@@ -1181,27 +1181,40 @@ static int shellShowVar(Shell *shell, ShellCommand *command)
     {
     case SHELL_TYPE_VAR_STRING:
         shellWriteString(shell, "\"");
-        shellWriteString(shell, (char *) (size_t) value);
+        shellWriteString(shell, (char *)value);
         shellWriteString(shell, "\"");
         break;
+    case SHELL_TYPE_VAR_POINT: {
+        char hex[sizeof(size_t) * 2 + 1];
+        const char digits[] = "0123456789abcdef";
+        for (size_t i = 0; i < sizeof(size_t) * 2; i++)
+        {
+            unsigned int shift = (unsigned int)((sizeof(size_t) * 2 - i - 1) * 4);
+            hex[i] = digits[(value >> shift) & 0xfu];
+        }
+        hex[sizeof(size_t) * 2] = 0;
+        shellWriteString(shell, "0x");
+        shellWriteString(shell, hex);
+        break;
+    }
     // case SHELL_TYPE_VAR_INT:
     // case SHELL_TYPE_VAR_SHORT:
     // case SHELL_TYPE_VAR_CHAR:
     // case SHELL_TYPE_VAR_POINT:
     default:
-        shellWriteString(shell, &buffer[11 - shellToDec(value, buffer)]);
+        shellWriteString(shell, &buffer[11 - shellToDec((int)value, buffer)]);
         shellWriteString(shell, ", 0x");
         for (short i = 0; i < 11; i++)
         {
             buffer[i] = '0';
         }
-        shellToHex(value, buffer);
+        shellToHex((unsigned int)value, buffer);
         shellWriteString(shell, buffer);
         break;
     }
 
     shellWriteString(shell, "\r\n");
-    return value;
+    return (int)value;
 }
 
 
@@ -1209,10 +1222,10 @@ static int shellShowVar(Shell *shell, ShellCommand *command)
  * @brief shell设置变量
  * 
  * @param name 变量名
- * @param value 变量值
- * @return int 返回变量值
+ * @param value size_t 变量值
+ * @return int 返回状态
  */
-int shellSetVar(char *name, int value)
+int shellSetVar(char *name, size_t value)
 {
     Shell *shell = shellGetCurrent();
     if (shell == NULL)

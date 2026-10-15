@@ -6,6 +6,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import sys
 import tempfile
 import time
@@ -80,6 +81,16 @@ def _validate_entry(name: str, entry: Any) -> dict[str, Any]:
         if not isinstance(entry[field], str) or not entry[field]:
             raise SdkRegistryError(
                 f"SDK registration {name} field {field} must be a non-empty string"
+            )
+    for field, lengths in (("revision", (40, 64)), ("digest", (64,))):
+        value = entry.get(field)
+        if value is not None and (
+            not isinstance(value, str)
+            or len(value) not in lengths
+            or re.fullmatch(r"[0-9a-f]+", value) is None
+        ):
+            raise SdkRegistryError(
+                f"SDK registration {name} field {field} must be a hex revision or digest"
             )
     return entry
 
@@ -179,13 +190,68 @@ class SdkRegistry:
 
     @staticmethod
     def _entry(root: Path, manifest: dict[str, Any], kind: str) -> dict[str, Any]:
-        return {
+        entry = {
             "sdk_id": manifest["sdk_id"],
             "sdk_version": manifest["sdk_version"],
             "channel": manifest["channel"],
             "kind": kind,
             "root": str(root),
         }
+        if kind == "checkout" and (root / ".git").exists():
+            try:
+                revision = subprocess.run(
+                    ["git", "-C", str(root), "rev-parse", "--verify", "HEAD"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+            except (OSError, subprocess.SubprocessError):
+                revision = None
+            if revision is not None and revision.returncode == 0:
+                value = revision.stdout.strip().lower()
+                if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", value):
+                    entry["revision"] = value
+        if kind == "release":
+            try:
+                marker = json.loads((root / ".ecos-install.json").read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                marker = None
+            if isinstance(marker, dict):
+                digest = marker.get("digest")
+                if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest):
+                    entry["digest"] = digest
+        return entry
+
+    @staticmethod
+    def _check_release_digest_conflict(
+        registrations: dict[str, dict[str, Any]], entry: dict[str, Any]
+    ) -> None:
+        if entry["kind"] != "release" or "digest" not in entry:
+            return
+        for other_name, other in registrations.items():
+            if (
+                other["kind"] == "release"
+                and other["sdk_id"] == entry["sdk_id"]
+                and other["sdk_version"] == entry["sdk_version"]
+                and "digest" in other
+                and other["digest"] != entry["digest"]
+            ):
+                raise SdkRegistrationConflict(
+                    f"SDK release {entry['sdk_id']} {entry['sdk_version']} "
+                    f"has a different digest from registration {other_name!r}"
+                )
+
+    @staticmethod
+    def _registration_conflicts(
+        existing: Optional[dict[str, Any]], entry: dict[str, Any]
+    ) -> bool:
+        if existing is None:
+            return False
+        return any(
+            existing.get(field) != entry.get(field)
+            for field in ("sdk_id", "sdk_version", "channel", "kind", "root", "digest")
+        )
 
     def preview_register(
         self,
@@ -226,8 +292,9 @@ class SdkRegistry:
             raise SdkRegistryError(f"invalid SDK registration kind: {kind!r}")
         entry = self._entry(sdk_root, manifest, kind)
         registry = self.load()
+        self._check_release_digest_conflict(registry["sdks"], entry)
         existing = registry["sdks"].get(registration_name)
-        if existing is not None and existing != entry and not replace:
+        if self._registration_conflicts(existing, entry) and not replace:
             raise SdkRegistrationConflict(
                 f"SDK registration {registration_name!r} already identifies "
                 f"{existing['root']} ({existing['sdk_version']})"
@@ -262,9 +329,10 @@ class SdkRegistry:
         entry = self._entry(sdk_root, manifest, kind)
         with self._lock():
             registry = self.load()
+            self._check_release_digest_conflict(registry["sdks"], entry)
             previous_active = registry["active"]
             existing = registry["sdks"].get(registration_name)
-            if existing is not None and existing != entry and not replace:
+            if self._registration_conflicts(existing, entry) and not replace:
                 raise SdkRegistrationConflict(
                     f"SDK registration {registration_name!r} already identifies "
                     f"{existing['root']} ({existing['sdk_version']})"

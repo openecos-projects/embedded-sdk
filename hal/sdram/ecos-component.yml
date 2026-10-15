@@ -1,0 +1,10 @@
+schema: 1
+id: hal-sdram
+name: SDRAM HAL Contract
+cmake_target: ecos::hal::sdram
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - sdram

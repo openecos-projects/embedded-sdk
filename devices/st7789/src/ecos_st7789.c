@@ -169,12 +169,14 @@ ecos_err_t ecos_st7789_init(ecos_st7789_t *display,
     ST7789_TRY(ecos_gpio_configure(
         config->reset_port, config->reset_pin, &gpio_config
     ));
-    ST7789_TRY(ecos_gpio_configure(
-        config->backlight_port, config->backlight_pin, &gpio_config
-    ));
-    ST7789_TRY(ecos_gpio_set_level(
-        config->backlight_port, config->backlight_pin, ECOS_GPIO_LEVEL_HIGH
-    ));
+    if (config->backlight_port != ECOS_GPIO_PORT_COUNT) {
+        ST7789_TRY(ecos_gpio_configure(
+            config->backlight_port, config->backlight_pin, &gpio_config
+        ));
+        ST7789_TRY(ecos_gpio_set_level(
+            config->backlight_port, config->backlight_pin, ECOS_GPIO_LEVEL_HIGH
+        ));
+    }
     ST7789_TRY(ecos_gpio_set_level(
         config->dc_port, config->dc_pin, ECOS_GPIO_LEVEL_LOW
     ));

@@ -33,7 +33,7 @@ ECOS_PANIC_ON_ERROR(TAG, ecos_aht20_init(&sensor, &dev_config), "aht20");
 ## AHT20（I2C 温湿度传感器）
 
 头文件：`devices/aht20/include/ecos/device/aht20.h`。
-示例：`example/peripherals/i2c/aht20`。
+示例：`examples/peripherals/i2c/aht20`。
 
 ```c
 #define ECOS_AHT20_I2C_ADDRESS 0x38u   /* 7 位 I2C 地址 */
@@ -67,7 +67,7 @@ ecos_err_t ecos_aht20_read(ecos_aht20_t *sensor, ecos_aht20_data_t *data);
 ## AT24C64（I2C EEPROM）
 
 头文件：`devices/at24c64/include/ecos/device/at24c64.h`。
-示例：`example/peripherals/i2c/at24c64`。
+示例：`examples/peripherals/i2c/at24c64`。
 
 ```c
 #define ECOS_AT24C64_I2C_ADDRESS 0x50u    /* A2/A1/A0 接地时的 7 位地址 */
@@ -96,7 +96,7 @@ ecos_err_t ecos_at24c64_write(ecos_at24c64_t *eeprom, uint16_t memory_address,
 ## 蜂鸣器 buzzer（PWM 输出）
 
 头文件：`devices/buzzer/include/ecos/device/buzzer.h`。
-示例：`example/peripherals/pwm/buzzer`。
+示例：`examples/peripherals/pwm/buzzer`。
 
 ```c
 typedef struct {
@@ -126,7 +126,7 @@ ecos_err_t ecos_buzzer_stop(ecos_buzzer_t *buzzer);
 ## ESP01S（UART AT WiFi 模组）
 
 头文件：`devices/esp01s_at/include/ecos/device/esp01s_at.h`。
-示例：`example/peripherals/uart/esp01s`。
+示例：`examples/peripherals/uart/esp01s`。
 
 ```c
 typedef enum {
@@ -175,7 +175,7 @@ ecos_err_t ecos_esp01s_send(ecos_esp01s_t *module, const void *data, size_t size
 ## SGP30（I2C 空气质量传感器）
 
 头文件：`devices/gy_sgp30/include/ecos/device/sgp30.h`。
-示例：`example/peripherals/i2c/sgp30`。
+示例：`examples/peripherals/i2c/sgp30`。
 
 ```c
 #define ECOS_SGP30_I2C_ADDRESS 0x58u
@@ -213,7 +213,7 @@ ecos_err_t ecos_sgp30_set_baseline(ecos_sgp30_t *sensor,
 ## PCF8563（I2C RTC）
 
 头文件：`devices/pcf8563/include/ecos/device/pcf8563.h`。
-示例：`example/peripherals/i2c/pcf8563`。
+示例：`examples/peripherals/i2c/pcf8563`。
 
 ```c
 #define ECOS_PCF8563_I2C_ADDRESS 0x51u
@@ -246,7 +246,7 @@ ecos_err_t ecos_pcf8563_set_time(ecos_pcf8563_t *rtc,
 ## ST7735（QSPI TFT，128×128）
 
 头文件：`devices/st7735/include/ecos/device/st7735.h`。
-示例：`example/peripherals/spi_master/st7735`（配合 `ECOS_BOARD_DISPLAY_*` 宏）。
+示例：`examples/peripherals/spi_master/st7735`（配合 `ECOS_BOARD_DISPLAY_*` 宏）。
 
 ```c
 typedef struct {
@@ -290,7 +290,7 @@ ecos_err_t ecos_st7735_fill(ecos_st7735_t *display, uint16_t x, uint16_t y,
 ## ST7789（QSPI TFT，240×240）
 
 头文件：`devices/st7789/include/ecos/device/st7789.h`。
-示例：`example/peripherals/spi_master/st7789`。
+示例：`examples/peripherals/spi_master/st7789`。
 
 与 ST7735 完全同构（config 字段、函数签名一一对应），差别只在默认面板参数：
 
@@ -310,10 +310,14 @@ ecos_err_t ecos_st7789_fill(ecos_st7789_t *display, uint16_t x, uint16_t y,
 
 `color` 同样是两个打包的 RGB565 像素，高 16 位先发。
 
+显示资源按面板型号选择：ST7735 使用 `display`，ST7789 使用 `display-st7789`。
+未接到可控 GPIO 的 RST/BLK 端口取 `ECOS_GPIO_PORT_COUNT`；驱动会跳过该端口，
+不会向任意占位引脚输出电平。
+
 ## TM1650（GPIO 位 bang 四位数码管）
 
 头文件：`devices/tm1650/include/ecos/device/tm1650.h`。
-示例：`example/peripherals/gpio/tm1650`。
+示例：`examples/peripherals/gpio/tm1650`。
 
 ```c
 #define ECOS_TM1650_POSITION_COUNT 4u     /* 4 位 */

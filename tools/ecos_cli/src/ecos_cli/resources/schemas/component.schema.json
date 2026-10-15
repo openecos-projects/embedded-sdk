@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ECOS Component manifest, version 1",
+  "description": "Build unit identity, CMake target, sources, interfaces, dependencies and hardware requirements.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id"],
+  "properties": {
+    "schema": {"const": 1},
+    "id": {"$ref": "#/$defs/selection"},
+    "name": {"$ref": "#/$defs/text"},
+    "cmake_target": {"type": "string", "pattern": "^ecos(?:::[a-z][a-z0-9_]*){2,}$"},
+    "sources": {"$ref": "#/$defs/strings"},
+    "include_dirs": {"$ref": "#/$defs/strings"},
+    "defines": {"$ref": "#/$defs/strings"},
+    "dependencies": {"$ref": "#/$defs/selections"},
+    "private_dependencies": {"$ref": "#/$defs/selections"},
+    "requires": {"$ref": "#/$defs/selections"}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "selection": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "not": {"enum": [".", ".."]}
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/text"}
+    },
+    "selections": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/selection"}
+    }
+  }
+}

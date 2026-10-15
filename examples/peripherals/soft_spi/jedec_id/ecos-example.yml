@@ -1,0 +1,9 @@
+schema: 1
+name: soft-spi-jedec-id
+sources:
+  - main.c
+components:
+  - soft-spi
+requires:
+  - console
+  - soft-spi-bus

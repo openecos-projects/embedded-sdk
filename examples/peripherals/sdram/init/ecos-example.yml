@@ -1,0 +1,9 @@
+schema: 1
+name: sdram-init
+sources:
+  - main.c
+components:
+  - driver-sdram
+  - heap
+requires:
+  - console

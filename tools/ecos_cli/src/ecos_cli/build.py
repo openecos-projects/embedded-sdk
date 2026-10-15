@@ -40,6 +40,61 @@ class BuildOutputError(BuildError):
     """The Target build did not produce its required firmware outputs."""
 
 
+def clean_project(
+    *, project_root: Optional[Path] = None, dry_run: bool = False
+) -> dict[str, Any]:
+    root = (project_root or Path.cwd()).expanduser().resolve()
+    _, metadata = project.load_project_metadata(root)
+    build_dir = root / "build"
+    exists = build_dir.exists() or build_dir.is_symlink()
+    if exists:
+        if build_dir.is_symlink() or not build_dir.is_dir():
+            raise BuildConfigurationError(
+                f"build path is not a regular directory: {build_dir}"
+            )
+        cache = build_dir / "CMakeCache.txt"
+        try:
+            lines = cache.read_text(encoding="utf-8").splitlines()
+        except OSError as exc:
+            raise BuildConfigurationError(
+                f"cannot verify that {build_dir} belongs to this ECOS project: {exc}"
+            ) from exc
+        values: dict[str, str] = {}
+        for line in lines:
+            if line.startswith(("CMAKE_HOME_DIRECTORY:", "ECOS_PROJECT_CONFIG:")):
+                key, value = line.split("=", 1)
+                values[key.split(":", 1)[0]] = value
+        expected_config = (
+            root
+            / configuration.GENERATED_DIRECTORY
+            / configuration.RESOLVED_CMAKE_FILE
+        ).resolve()
+        if (
+            not values.get("CMAKE_HOME_DIRECTORY")
+            or Path(values["CMAKE_HOME_DIRECTORY"]).resolve() != root
+            or not values.get("ECOS_PROJECT_CONFIG")
+            or Path(values["ECOS_PROJECT_CONFIG"]).resolve() != expected_config
+        ):
+            raise BuildConfigurationError(
+                f"refusing to remove an unrecognized build directory: {build_dir}"
+            )
+        if not dry_run:
+            try:
+                shutil.rmtree(build_dir)
+            except OSError as exc:
+                raise BuildOutputError(f"cannot remove {build_dir}: {exc}") from exc
+    return {
+        "path": str(root),
+        "board": metadata.get("board"),
+        "target": metadata.get("target"),
+        "clean": True,
+        "dry_run": dry_run,
+        "removed": exists and not dry_run,
+        "paths": [str(build_dir)] if exists else [],
+        "outputs": {},
+    }
+
+
 def _cmake_path(value: Union[str, Path]) -> str:
     """Return a path safe for use in a CMake cache definition."""
     return str(value).replace("\\", "/")
@@ -47,7 +102,8 @@ def _cmake_path(value: Union[str, Path]) -> str:
 
 def _resolve_host_tool(context: SdkContext, item: dict[str, str]) -> str:
     managed = dependencies.managed_host_tool(
-        dependencies.host_dependency_root(context.root), item["name"]
+        dependencies.host_dependency_root(dependencies.default_host_prefix()),
+        item["name"],
     )
     if managed is not None:
         return str(managed)
@@ -67,6 +123,7 @@ def build_project(
     *,
     project_root: Optional[Path] = None,
     clean: bool = False,
+    json_output: bool = False,
 ) -> dict[str, Any]:
     root = (project_root or Path.cwd()).expanduser().resolve()
     _, metadata = project.load_project_metadata(root)
@@ -75,15 +132,7 @@ def build_project(
 
     build_dir = root / "build"
     if clean:
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
-        return {
-            "path": str(root),
-            "board": board,
-            "target": target,
-            "clean": True,
-            "outputs": {},
-        }
+        return clean_project(project_root=root)
 
     try:
         configured = configuration.configure_project(context, project_root=root)
@@ -111,7 +160,7 @@ def build_project(
     environment["ECOS_SDK_HOME"] = str(context.root)
     host_paths = [
         path
-        for path in dependencies.host_dependency_paths(context.root)
+        for path in dependencies.host_dependency_paths(dependencies.default_host_prefix())
         if path.is_dir()
     ]
     if host_paths:
@@ -141,15 +190,12 @@ def build_project(
             f"expected {requirement['id']} {requirement['release']}"
         )
     host = toolchain.detect_host()
-    # A source checkout keeps downloaded toolchains in the user-level prefix;
-    # an installed SDK release keeps them beside its own manifest and assets.
-    toolchain_prefix = (
-        context.root
-        if context.kind == "release"
-        else toolchain.default_prefix()
-    )
-    status = toolchain.installation_status(
-        toolchain_manifest, toolchain_prefix, host
+    toolchain_prefix = toolchain.default_prefix()
+    legacy_roots = (toolchain.legacy_prefix(),)
+    if context.kind == "release":
+        legacy_roots += (context.root,)
+    status = toolchain.compatible_installation_status(
+        toolchain_manifest, toolchain_prefix, host, legacy_roots=legacy_roots
     )
     if status["state"] != "installed":
         raise BuildConfigurationError(
@@ -186,7 +232,8 @@ def build_project(
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     ]
     result = subprocess.run(
-        configure_command, cwd=root, env=environment, check=False
+        configure_command, cwd=root, env=environment, check=False,
+        **({"stdout": 2} if json_output else {}),
     )
     if result.returncode != 0:
         raise BuildCommandError(result.returncode)
@@ -196,6 +243,7 @@ def build_project(
         cwd=root,
         env=environment,
         check=False,
+        **({"stdout": 2} if json_output else {}),
     )
     if result.returncode != 0:
         raise BuildCommandError(result.returncode)

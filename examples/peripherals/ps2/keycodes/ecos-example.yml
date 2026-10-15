@@ -1,0 +1,8 @@
+schema: 1
+name: ps2-keycodes
+sources:
+  - main.c
+components:
+  - driver-ps2
+requires:
+  - console

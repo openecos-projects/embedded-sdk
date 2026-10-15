@@ -86,6 +86,7 @@ build:
     - size
     - compile_commands
 capabilities:
+  - ram-64k
   - uart
   - gpio
   - hp-uart

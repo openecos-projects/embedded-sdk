@@ -1,0 +1,10 @@
+set(ECOS_SOC_ROOT "${CMAKE_CURRENT_LIST_DIR}")
+set(ECOS_SOC_MARCH "rv32im")
+set(ECOS_SOC_ABI "ilp32")
+set(ECOS_SOC_LINK_MACHINE "elf32lriscv")
+set(ECOS_SOC_PSRAM_LINKER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/linker/sections-psram.lds")
+include("${CMAKE_CURRENT_LIST_DIR}/../legacy-common/CMakeLists.txt")
+
+if(CONFIG_LINK_RAM_REGION_PSRAM)
+    target_compile_definitions(ecos_target_objects PRIVATE CONFIG_LINK_RAM_REGION_PSRAM)
+endif()

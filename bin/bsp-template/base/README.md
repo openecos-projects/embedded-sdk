@@ -57,7 +57,7 @@ ecos board add .
 # board.h、启动文件、链接脚本或 Makefile 修改后，在已有普通工程内重新同步
 ecos set_board @BSP_ID@
 
-# 或正式导入：复制到 SDK/board/UserBSP/@BSP_ID@
+# 或正式导入：复制到 SDK/boards/UserBSP/@BSP_ID@
 ecos board import .
 
 # 生成普通工程

@@ -1,0 +1,9 @@
+schema: 1
+name: flash-sfud
+sources:
+  - main.c
+components:
+  - sfud
+requires:
+  - console
+  - qspi

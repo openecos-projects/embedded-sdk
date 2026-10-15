@@ -1,0 +1,8 @@
+schema: 1
+name: wdg-reset
+sources:
+  - main.c
+components:
+  - driver-wdg
+requires:
+  - console

@@ -1,0 +1,15 @@
+schema: 1
+id: driver-timer-interrupt
+name: Timer Interrupt Driver
+cmake_target: ecos::driver::timer_interrupt
+sources:
+  - src/timer_interrupt.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-timer
+private_dependencies:
+  - hal-timer
+requires:
+  - timer-interrupt

@@ -1,0 +1,16 @@
+schema: 1
+id: text-editor
+name: Terminal text editor
+cmake_target: ecos::component::text_editor
+sources:
+  - src/text_editor.c
+  - src/editor_render.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - fatfs
+  - letter-shell
+  - libc
+requires:
+  - ram-64k

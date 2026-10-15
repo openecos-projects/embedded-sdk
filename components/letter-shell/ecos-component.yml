@@ -1,0 +1,19 @@
+schema: 1
+id: letter-shell
+name: Letter-Shell command line
+cmake_target: ecos::component::letter_shell
+sources:
+  - src/shell.c
+  - src/shell_cmd_list.c
+  - src/shell_companion.c
+  - src/shell_ext.c
+  - src/shell_init.c
+  - src/shell_port.c
+include_dirs:
+  - include
+  - ../../boards/include
+dependencies:
+  - core-runtime
+  - libc
+requires:
+  - console

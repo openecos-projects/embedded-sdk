@@ -1,0 +1,18 @@
+schema: 1
+id: fcc
+name: Small C compiler
+cmake_target: ecos::component::fcc
+sources:
+  - src/fcc_exec.S
+  - src/fcc_main.c
+  - src/fcc_lexer.c
+  - src/fcc_parser.c
+  - src/fcc_codegen.c
+include_dirs:
+  - include
+dependencies:
+  - fatfs
+  - letter-shell
+  - libc
+requires:
+  - rv32im-exec-sram

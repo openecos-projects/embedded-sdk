@@ -1,0 +1,106 @@
+schema: 1
+id: ysyx-l3-1
+name: ysyx L3.1
+arch: riscv
+description: Legacy StarrySky L3.1 SoC target migrated to the SDK 3.0 build graph.
+cpu:
+  march: rv64ifd_zifencei
+  abi: lp64
+toolchain:
+  prefix: riscv-none-elf-
+  triple: riscv-none-elf
+memory:
+  flash:
+    origin: 0x30000000
+    size: 16M
+  mem:
+    origin: 0x80000000
+    size: 128M
+build:
+  cmake: CMakeLists.txt
+  toolchain_file: toolchain.cmake
+  kconfig: Kconfig
+  linker_script: linker/sections.lds
+  startup: startup/start.S
+  sources:
+    - startup/start.S
+  include_dirs:
+    - include
+  capability_sources:
+    archinfo:
+      - ../legacy-common/hal/archinfo.c
+    crc:
+      - ../legacy-common/hal/crc.c
+    gpio:
+      - ../legacy-common/hal/gpio.c
+    i2c:
+      - ../legacy-common/hal/i2c.c
+    pwm:
+      - ../legacy-common/hal/pwm.c
+    ps2:
+      - ../legacy-common/hal/ps2.c
+    qspi:
+      - ../legacy-common/hal/qspi.c
+    rcu:
+      - ../legacy-common/hal/rcu.c
+    rng:
+      - ../legacy-common/hal/rng.c
+    rtc:
+      - ../legacy-common/hal/rtc.c
+    timer:
+      - ../legacy-common/hal/timer.c
+    uart:
+      - ../legacy-common/hal/uart.c
+    wdg:
+      - ../legacy-common/hal/wdg.c
+  capability_include_dirs:
+    archinfo:
+      - ../../../hal/archinfo/include
+    crc:
+      - ../../../hal/crc/include
+    gpio:
+      - ../../../hal/gpio/include
+    i2c:
+      - ../../../hal/i2c/include
+    pwm:
+      - ../../../hal/pwm/include
+    ps2:
+      - ../../../hal/ps2/include
+    qspi:
+      - ../../../hal/qspi/include
+    rcu:
+      - ../../../hal/rcu/include
+    rng:
+      - ../../../hal/rng/include
+    rtc:
+      - ../../../hal/rtc/include
+    timer:
+      - ../../../hal/timer/include
+    uart:
+      - ../../../hal/uart/include
+    wdg:
+      - ../../../hal/wdg/include
+  outputs:
+    - elf
+    - bin
+    - hex
+    - txt
+    - map
+    - size
+    - compile_commands
+capabilities:
+  - ram-64k
+  - uart
+  - gpio
+  - hp-uart
+  - i2c
+  - pwm
+  - ps2
+  - qspi
+  - timer
+  - archinfo
+  - rng
+  - crc
+  - rcu
+  - rtc
+  - wdg

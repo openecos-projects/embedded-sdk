@@ -1,0 +1,14 @@
+schema: 1
+id: bsp-display-st7735
+name: Board ST7735 Display BSP
+cmake_target: ecos::bsp::display_st7735
+sources:
+  - src/display.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - device-st7735
+requires:
+  - display

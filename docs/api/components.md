@@ -1,12 +1,15 @@
 # 应用向组件
 
-本文记录 `components/` 下可供应用直接使用的组件：libc 子集、heap 动态
-分配、LightCoroutine 协程、sfud 串口 Flash 驱动、fatfs 文件系统、
-letter-shell 命令行，以及以 shell
-命令形式存在的内置应用 fcc / text_editor。
+本文记录 `components/` 下可供应用使用的组件：libc 子集、heap、
+LightCoroutine 协程、sfud 串口 Flash 驱动、FatFs 文件系统、Letter-Shell 命令行、
+文件系统命令、GPIO bit-bang SPI、终端文本编辑器和小型 C 编译器。
+`core-runtime` 与 `libc` 子集是 SDK 默认构建单元；LightCoroutine、sfud、FatFs 和
+Letter-Shell、letter-shell-fs、soft-spi、text-editor、fcc 需要由 Example 声明组件 ID。FatFs、
+Letter-Shell、letter-shell-fs、text-editor 和 fcc 当前仍保留在开发构建图，尚未进入 3.0 release 包；真实 Flash 挂载、
+文件读写、终端交互和掉电恢复需按人工验收清单完成后再解除发布排除。
 
-不记录：`soc`（SDK 内部 SoC 层）、`libgcc`（编译器内部例程）、`spi_software`
-（2.x 遗留，未移植到 3.x 契约）。
+不记录：`soc`（SDK 内部 SoC 层）和 `libgcc`（编译器内部例程）。旧版固定引脚
+`spi_software` 仍只作为 2.x 迁移输入保留；3.0 应使用下述 `soft-spi`。
 
 ## libc 子集
 
@@ -90,8 +93,15 @@ size_t ecos_heap_free_bytes(ecos_heap_zone_t zone);
 
 ## LightCoroutine（轻量协程）
 
+3.0 组件 ID 为 `light-coroutine`，示例
+[coroutine-smoke](../../examples/concurrency/coroutine-smoke) 覆盖任务创建、
+上下文保存、让出和有限轮次调度。组件不依赖具体外设；需要调整任务数量或
+上下文大小时，在 `ecos menuconfig` 中启用对应的 `COMPONENT_COROUTINE_*`
+配置。
+
 头文件：`components/LightCoroutine/include/coroutine.h`、`yield.h`，
-配置见 `conf.h`。
+配置见 `conf.h`。组件源码使用 GCC 的 computed-goto 扩展，SDK 3.0 的
+RISC-V GCC 工具链已覆盖该语法。
 示例：`templates/coroutine_test`。
 
 基于 `goto *label`（GCC 计算 goto）的栈less协作式协程，适合在裸机单线程上
@@ -171,6 +181,10 @@ int main(void)
 
 ## sfud（串口 Flash 通用驱动）
 
+3.0 组件 ID 为 `sfud`，需要 Board 提供 `qspi` 和 `console` 能力。示例
+[flash-sfud](../../examples/storage/flash-sfud) 覆盖初始化与设备识别；实板
+擦写、校验和掉电恢复仍按人工验收清单执行。
+
 头文件：`components/sfud/include/sfud.h`，配置见 `sfud_cfg.h`。
 
 标准 SFUD 库（Armink）：自动识别 SPI NOR Flash 并提供统一读写接口。
@@ -202,8 +216,9 @@ sfud_err sfud_write_status(const sfud_flash *flash, bool is_volatile, uint8_t st
 
 ## fatfs（FatFs 文件系统）
 
-头文件：`components/fatfs/include/ff.h`（ChaN FatFs R0.16），
-SDK 胶水：`ffinit.h`。需要启用 `CONFIG_COMPONENT_FLASH_FS`。
+3.0 组件 ID 为 `fatfs`，需要 Board 提供 `qspi` 和 `console` 能力；示例
+[flash-fatfs](../../examples/storage/flash-fatfs) 只做非破坏性挂载探测。
+头文件：`components/fatfs/include/ff.h`（ChaN FatFs R0.16），SDK 胶水：`ffinit.h`。
 
 标准 FatFs API（节选）：
 
@@ -231,18 +246,25 @@ FRESULT f_getfree(const TCHAR* path, DWORD* nclst, FATFS** fatfs);
 SDK 胶水（`ffinit.h`）：
 
 ```c
-bool load_filesystem();   /* 经 sfud 挂载板载 Flash 上的文件系统 */
+bool load_filesystem(void);   /* 只挂载已有卷，不改变 Flash 内容 */
+FRESULT format_filesystem(void); /* 显式格式化并挂载，会擦除卷 */
 ```
 
-应用通常只需 `load_filesystem()`，成功后直接用 `f_open` 等标准 API。
+应用通常只需 `load_filesystem()`，成功后直接用 `f_open` 等标准 API。找不到文件系统时
+不会自动格式化；需要初始化空 Flash 时，由应用显式调用 `format_filesystem()`，并先确认
+卷内数据已备份。
 注意 FatFs 的 `FIL` 等对象较大，栈上分配时注意栈余量。
 
 ## letter-shell（命令行 Shell）
 
+3.0 组件 ID 为 `letter-shell`，需要 Board 提供 `console` 能力；示例
+[letter-shell-smoke](../../examples/concurrency/letter-shell-smoke) 覆盖命令表初始化、
+公共控制台收发回调和 `help` 命令解析。组件目前仍从正式 release 排除，串口交互、
+长时间输入、退格/历史/方向键和边界输入仍需实板验收。
+
 头文件：`components/letter-shell/include/shell.h`，
-一键启动：`shell_init.h`，移植钩子：`shell_port.h`，
-文件系统伴侣：`shell_fs.h`。
-示例：`templates/shell_test`。
+一键启动：`shell_init.h`，移植钩子：`shell_port.h`。
+旧版 `shell_fs.h` 属于 2.x 伴侣接口；3.0 文件系统命令见下节。
 
 ### 核心 API（shell.h）
 
@@ -254,6 +276,8 @@ void shellPrint(Shell *shell, const char *fmt, ...);
 int shellRun(Shell *shell, const char *cmd);
 ```
 
+- `Shell` 对象先清零，再设置 `read`/`write`，最后调用 `shellInit()`；
+  有文件系统路径时，可在初始化前用 `ecos_shell_fs_init()` 设置路径。
 - `shellInit()` 绑定收发缓冲；`shellHandler()` 逐字节喂入；
   `shellTask()` 为轮询任务体；`shellPrint()` 向终端格式化输出；
   `shellRun()` 以字符串执行一条命令。
@@ -269,8 +293,8 @@ int shellRun(Shell *shell, const char *cmd);
 void load_shell();
 ```
 
-完成 shell 对象、缓冲、（可选）文件系统伴侣的全部初始化并进入 shell 主
-循环，不返回。
+初始化 shell 对象和缓冲并进入主循环，不返回。需要文件系统命令的应用应先挂载
+FatFs 卷并初始化 `letter-shell-fs`，按 `text-editor` 示例注册自己的命令表。
 
 ### 移植钩子（shell_port.h）
 
@@ -281,25 +305,82 @@ short shellWrite(char* str, unsigned short len);
 
 shell 的字节收发钩子，SDK 已对接系统串口。
 
-### 文件系统命令（shell_fs.h，需 CONFIG_COMPONENT_FLASH_FS）
+## letter-shell-fs（文件系统命令）
+
+3.0 组件 ID 为 `letter-shell-fs`，依赖 `letter-shell` 和 `fatfs`。头文件：
+`components/letter-shell-fs/include/ecos/shell/fs.h`。示例
+[text-editor](../../examples/storage/text-editor) 在挂载已有卷后注册 `cd`、`ls`、
+`touch` 和 `edit` 命令。
 
 ```c
-void shellFsInit(ShellFs *shellFs, char *pathBuffer, size_t pathLen);
-void shellCD(char *dir);
-void shellLS(void);
-void shellTOUCH(char* filename);
+char path[ECOS_SHELL_FS_PATH_CAPACITY];
+ecos_shell_fs_init(&shell, path, sizeof(path)); /* 在 shellInit 前调用 */
 ```
 
-向 shell 注册 `cd`/`ls`/`touch` 等文件命令；`load_shell()` 在启用
-FLASH_FS 时会自动挂上。
+`cd <directory>` 更新 FatFs 当前目录及 Shell 提示符，`ls [directory]` 逐项列出文件，
+`touch <filename>` 创建不存在的文件，已有文件内容不会被截断。命令入口分别为
+`ecos_shell_fs_cd()`、`ecos_shell_fs_ls()`、`ecos_shell_fs_touch()`；应用通过自己的
+Letter-Shell 命令表注册它们。该组件目前只用于单一活动 Shell 和单一 FatFs 卷，
+仍需实板验收。
 
-## 内置应用（shell 命令形式）
+`shell_fs.h` 中的 `ShellFs` / `shellFsInit` 等 2.x 伴侣接口继续作为遗留源码保留，
+不在 3.0 `letter-shell` 组件构建图中。
 
-fcc 与 text_editor 不是库，而是以 shell 命令形式存在的内置应用：
+## soft-spi（GPIO bit-bang SPI）
 
-- `components/fcc` — 玩具 C 编译器，入口 `int fccCmd(int argc, char **argv);`；
-- `components/text_editor` — 终端文本编辑器（ANSI 界面，FatFs 存取），入口
-  `int editCmd(int argc, char **argv);`。
+3.0 组件 ID 为 `soft-spi`，依赖 `driver-gpio`。头文件：
+`components/soft_spi/include/ecos/soft_spi.h`。它替代 2.x
+`spi_software` 中固定 GPIO0[0:3] 的实现。Board 通过 `soft-spi-bus` 资源声明四个
+引脚和 mode，配置阶段生成 `ecos/board_resources.h` 宏，应用不能把板卡引脚写进组件。
 
-进入 shell 后直接以命令名调用（如 `edit <文件名>`），应用代码一般不直接
-链接这两个入口。
+```c
+#include "ecos/board_resources.h"
+#include "ecos/soft_spi.h"
+
+ecos_soft_spi_config_t config = {
+    .chip_select = ECOS_BOARD_SOFT_SPI_CHIP_SELECT,
+    .clock = ECOS_BOARD_SOFT_SPI_CLOCK,
+    .mosi = ECOS_BOARD_SOFT_SPI_MOSI,
+    .miso = ECOS_BOARD_SOFT_SPI_MISO,
+    .mode = (ecos_soft_spi_mode_t)ECOS_BOARD_SOFT_SPI_MODE,
+};
+ecos_soft_spi_t bus;
+uint8_t received;
+
+ecos_soft_spi_init(&bus, &config);
+ecos_soft_spi_start(&bus);
+ecos_soft_spi_transfer_byte(&bus, 0x9fu, &received);
+ecos_soft_spi_stop(&bus);
+```
+
+支持 SPI mode 0 到 mode 3、MSB-first 单字节收发和可选每半周期回调延时；
+事务必须显式 `start`/`stop`，调用方负责选择与硬件匹配的 GPIO 资源。宿主测试覆盖
+四种 mode、引脚冲突和状态机；具体板卡时钟频率、外设电气连接和长时间稳定性仍需实板验收。
+
+## text-editor（终端文本编辑器）
+
+3.0 组件 ID 为 `text-editor`，依赖 `fatfs` 和 `letter-shell`，要求 Target 声明
+`ram-64k` 能力。编辑器状态约占 42 KiB 静态 RAM；当前示例
+[text-editor](../../examples/storage/text-editor) 支持 C1、C2、L3.1 和 L4 C1/C2/C3。
+T1-Pico 片内 RAM 不足，L3 缺少示例所需的 QSPI 资源。
+
+入口 `int editCmd(int argc, char *argv[]);` 接受 `edit <filename>`；示例挂载已有
+FatFs 卷，并在自己的 Letter-Shell 命令表注册 `edit` 和文件系统命令。编辑器使用 BSP console
+处理输入和 ANSI 屏幕输出，不直接访问 UART 寄存器；默认终端尺寸为 80 列、24 行。
+支持方向键、回车、退格、Tab、`Ctrl+W` 保存和 `Esc` 退出；有未保存内容时需再次
+按 `Esc` 才会丢弃。单文件最多 24 KiB、8192 行，超限时拒绝加载或插入。
+示例不会自动格式化空 Flash；格式化前须先备份卷内数据。
+
+组件和示例仍从正式 release 排除；保存、重启后读取、终端兼容性及掉电行为需要实板验收。
+
+## fcc（小型 C 编译器）
+
+3.0 组件 ID 为 `fcc`，依赖 `fatfs`、`letter-shell`，要求 Target 声明
+`rv32im-exec-sram`；当前只有 C2 支持。[fcc 示例](../../examples/storage/fcc) 挂载已有
+FatFs 卷，在 Shell 中注册 `fcc <source.c>` 和 `fcc-run`。前者把源码编译到链接脚本
+预留的 32 KiB 片内 SRAM，后者执行最近一次成功编译的无参 `main`。
+源码上限 32 KiB，全局变量区 1 KiB；编译失败会禁止执行上一次生成的代码。
+它只实现整数、函数、条件、循环和少量运算符，不是完整 C 编译器。
+
+两个 C2 启动 profile 已完成交叉构建和地址检查；实板运行、栈余量与文件系统读写
+仍需按人工验收清单确认。组件和示例暂不进入正式 release。

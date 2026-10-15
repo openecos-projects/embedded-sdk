@@ -1,10 +1,14 @@
 #include "shell_init.h"
 
+#include "ecos/log.h"
+
 // 如果发现系统不正常重启，大概率是执行了地址为0的函数（可能因为函数未定义）
 
 void load_shell(){
     char shellBuffer[1024];
     char shellPathBuffer[1024] = "/";
+
+    (void)bsp_console_init();
 
 #ifdef CONFIG_COMPONENT_FLASH_FS
     ShellFs shellfs;

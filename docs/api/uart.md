@@ -3,7 +3,7 @@
 阻塞式串口字节流收发。
 
 头文件：`drivers/uart/include/ecos/driver/uart.h`。
-示例：`example/peripherals/uart/esp01s`（经 ESP01S 设备驱动间接使用 UART）。
+示例：`examples/peripherals/uart/esp01s`（经 ESP01S 设备驱动间接使用 UART）。
 
 ## 类型与常量
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -11,6 +12,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -19,8 +21,14 @@ from . import completion
 from . import dependencies
 from . import sdk_manifest
 from . import toolchain
+from . import user_bsp
 from .progress import ConsoleProgress
-from .sdk_registry import SdkRegistrationConflict, SdkRegistry, SdkRegistryError
+from .sdk_registry import (
+    SdkRegistrationConflict,
+    SdkRegistrationNotFound,
+    SdkRegistry,
+    SdkRegistryError,
+)
 
 
 INSTALL_SCHEMA_VERSION = "1.0"
@@ -28,6 +36,7 @@ ProgressCallback = Callable[[str], None]
 SHELL_CONFIG_BEGIN = "# >>> ECOS SDK >>>"
 SHELL_CONFIG_END = "# <<< ECOS SDK <<<"
 COMPLETION_RELATIVE_ROOT = Path("share") / "ecos" / "completions"
+HOST_LAUNCH_RELATIVE_PATH = Path("share") / "ecos" / "cli-launch.json"
 PYTHON_DEPENDENCY_RELATIVE_ROOT = dependencies.PYTHON_DEPENDENCY_RELATIVE_ROOT
 PYTHON_DEPENDENCY_MARKER = dependencies.PYTHON_DEPENDENCY_MARKER
 PYTHON_DEPENDENCIES = dependencies.PYTHON_DEPENDENCIES
@@ -35,27 +44,6 @@ HOST_DEPENDENCY_RELATIVE_ROOT = dependencies.HOST_DEPENDENCY_RELATIVE_ROOT
 HOST_DEPENDENCY_MARKER = dependencies.HOST_DEPENDENCY_MARKER
 HOST_TOOL_DEPENDENCIES = dependencies.HOST_TOOL_DEPENDENCIES
 HOST_TOOL_PACKAGES = dependencies.HOST_TOOL_PACKAGES
-
-SDK_DIRECTORIES = (
-    "components",
-    "drivers",
-    "hal",
-    "templates",
-    "environments",
-    "third_party",
-    "board",
-    "example",
-    "docs",
-    "devices",
-)
-
-TOOL_DIRECTORIES = (
-    "fixdep",
-    "kconfig",
-    "scripts",
-    "toolchains",
-    "ecos_cli",
-)
 
 PYTHON_PACKAGE_IGNORE = shutil.ignore_patterns(
     "__pycache__", "*.pyc", "*.pyo", "build", "dist", "*.egg-info"
@@ -68,9 +56,9 @@ import sys
 from pathlib import Path
 
 
-SDK_ROOT = Path(__file__).resolve().parent.parent
-SOURCE_ROOT = SDK_ROOT / "tools" / "ecos_cli" / "src"
-DEPENDENCY_ROOT = SDK_ROOT / "lib" / "ecos" / "python"
+HOST_ROOT = Path(__file__).resolve().parent.parent
+SOURCE_ROOT = HOST_ROOT / "lib" / "ecos" / "cli"
+DEPENDENCY_ROOT = HOST_ROOT / "lib" / "ecos" / "python"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 if str(DEPENDENCY_ROOT) not in sys.path:
@@ -150,69 +138,54 @@ def validate_layout(sdk_root: Path, prefix: Path) -> None:
         )
 
     try:
-        sdk_manifest.validate_sdk_root(sdk_root)
+        _, manifest = sdk_manifest.validate_sdk_root(sdk_root)
+        release_paths = sdk_manifest.release_paths(manifest)
     except sdk_manifest.SdkManifestError as exc:
         raise InstallerError(str(exc)) from exc
 
-    missing: list[str] = []
-    for relative in SDK_DIRECTORIES:
-        if not (sdk_root / relative).is_dir():
-            missing.append(relative)
-    for relative in TOOL_DIRECTORIES:
-        if not (sdk_root / "tools" / relative).is_dir():
-            missing.append(f"tools/{relative}")
-    if not (sdk_root / "tools" / "ecos.py").is_file():
-        missing.append("tools/ecos.py")
+    missing = [relative for relative in release_paths if not (sdk_root / relative).exists()]
     if missing:
         raise InstallerError(
             f"SDK source tree is incomplete; missing: {', '.join(sorted(missing))}"
         )
 
 
-def installation_plan(sdk_root: Path, prefix: Path) -> dict[str, Any]:
+def installation_plan(
+    sdk_root: Path, prefix: Path, host_prefix: Optional[Path] = None,
+    *, mode: str = "release",
+) -> dict[str, Any]:
+    host_root = (host_prefix or dependencies.default_host_prefix()).expanduser().resolve()
+    if mode not in {"development", "release"}:
+        raise InstallerError(f"unsupported SDK installation mode: {mode}")
+    release_paths = (
+        sdk_manifest.release_paths(sdk_manifest.load_manifest(sdk_root))
+        if mode == "release" else ()
+    )
     copies = [
         {"source": str(sdk_root / relative), "destination": str(prefix / relative)}
-        for relative in SDK_DIRECTORIES
+        for relative in release_paths
     ]
-    copies.extend(
-        {
-            "source": str(sdk_root / "tools" / relative),
-            "destination": str(prefix / "tools" / relative),
-        }
-        for relative in TOOL_DIRECTORIES
-    )
-    copies.append(
-        {
-            "source": str(sdk_root / "tools" / "ecos.py"),
-            "destination": str(prefix / "tools" / "ecos.py"),
-        }
-    )
-    copies.append(
-        {
-            "source": str(sdk_root / sdk_manifest.MANIFEST_RELATIVE_PATH),
-            "destination": str(prefix / sdk_manifest.MANIFEST_RELATIVE_PATH),
-        }
-    )
     return {
         "sdk_root": str(sdk_root),
         "prefix": str(prefix),
+        "host_prefix": str(host_root),
         "copies": copies,
-        "preserved": [str(prefix / "board" / "UserBSP")],
-        "launchers": [str(prefix / "bin" / "ecos"), str(prefix / "bin" / "ecos.cmd")],
+        "preserved": [],
+        "launchers": [str(host_root / "bin" / "ecos"), str(host_root / "bin" / "ecos.cmd")],
         "completions": [
-            str(prefix / COMPLETION_RELATIVE_ROOT / filename)
+            str(host_root / COMPLETION_RELATIVE_ROOT / filename)
             for filename in completion.COMPLETION_FILENAMES.values()
         ],
         "python_dependencies": {
-            "root": str(prefix / PYTHON_DEPENDENCY_RELATIVE_ROOT),
+            "root": str(host_root / PYTHON_DEPENDENCY_RELATIVE_ROOT),
             "packages": list(PYTHON_DEPENDENCIES),
             "installation": None,
         },
         "host_dependencies": {
-            "root": str(prefix / HOST_DEPENDENCY_RELATIVE_ROOT),
-            "bin": str(dependencies.host_dependency_bin(prefix)),
+            "root": str(host_root / HOST_DEPENDENCY_RELATIVE_ROOT),
+            "bin": str(dependencies.host_dependency_bin(host_root)),
             "paths": [
-                str(path) for path in dependencies.host_dependency_paths(prefix)
+                str(path) for path in dependencies.host_dependency_paths(host_root)
             ],
             "packages": list(HOST_TOOL_PACKAGES),
             "tools": [item["name"] for item in HOST_TOOL_DEPENDENCIES],
@@ -261,57 +234,260 @@ def replace_file(source: Path, destination: Path) -> None:
 
 
 def _copy_user_bsp(source: Path, destination: Path) -> None:
-    if source.is_dir():
-        shutil.copytree(source, destination, dirs_exist_ok=True, symlinks=True)
+    if not source.is_dir():
+        return
+    for path in sorted(source.rglob("*")):
+        target = destination / path.relative_to(source)
+        if path.is_symlink():
+            link = os.readlink(path)
+            if target.is_symlink() and os.readlink(target) == link:
+                continue
+            if target.exists() or target.is_symlink():
+                raise InstallerError(f"user BSP migration conflict: {target}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(link, target_is_directory=path.is_dir())
+        elif path.is_dir():
+            if target.exists() and not target.is_dir():
+                raise InstallerError(f"user BSP migration conflict: {target}")
+            target.mkdir(parents=True, exist_ok=True)
+        elif path.is_file():
+            if target.exists():
+                if not target.is_file() or target.read_bytes() != path.read_bytes():
+                    raise InstallerError(f"user BSP migration conflict: {target}")
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
+
+
+INSTALL_MARKER = ".ecos-install.json"
+
+
+def _tree_inventory(root: Path) -> dict[str, dict[str, str]]:
+    files: dict[str, dict[str, str]] = {}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if relative == INSTALL_MARKER:
+            continue
+        if path.is_symlink():
+            resolved = path.resolve(strict=False)
+            if resolved != root and root not in resolved.parents:
+                raise InstallerError(f"SDK installation contains an escaping symlink: {path}")
+            files[relative] = {"kind": "symlink", "target": os.readlink(path)}
+        elif path.is_file():
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            files[relative] = {"kind": "file", "sha256": digest.hexdigest()}
+    return files
+
+
+def _inventory_digest(files: dict[str, dict[str, str]]) -> str:
+    content = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(content).hexdigest()
+
+
+def _copy_sdk_files(sdk_root: Path, staging: Path, paths: tuple[str, ...]) -> None:
+    generated_ignore = shutil.ignore_patterns(
+        ".git", "__pycache__", "*.pyc", "*.pyo", "build", "dist", "*.egg-info"
+    )
+
+    exclusions = sdk_manifest.release_excludes(sdk_manifest.load_manifest(sdk_root))
+
+    def ignore_generated(directory: str, names: list[str]) -> set[str]:
+        ignored = generated_ignore(directory, names)
+        for name in names:
+            relative = (Path(directory) / name).relative_to(sdk_root).as_posix()
+            if any(relative == excluded or relative.startswith(f"{excluded}/")
+                   for excluded in exclusions):
+                ignored.add(name)
+        return ignored
+
+    for relative in paths:
+        source = sdk_root / relative
+        destination = staging / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            shutil.copytree(source, destination, symlinks=True, ignore=ignore_generated)
+        else:
+            shutil.copy2(source, destination)
 
 
 def install_sdk_core(
-    sdk_root: Path, prefix: Path, progress: Optional[ProgressCallback] = None
+    sdk_root: Path,
+    prefix: Path,
+    progress: Optional[ProgressCallback] = None,
+    *,
+    host_prefix: Optional[Path] = None,
 ) -> dict[str, Any]:
     sdk_root = sdk_root.resolve()
     prefix = prefix.expanduser().resolve()
     validate_layout(sdk_root, prefix)
-    prefix.mkdir(parents=True, exist_ok=True)
-
-    with tempfile.TemporaryDirectory(prefix="ecos-user-bsp-") as temporary:
-        user_bsp_backup = Path(temporary) / "UserBSP"
-        _copy_user_bsp(prefix / "board" / "UserBSP", user_bsp_backup)
-
-        for relative in SDK_DIRECTORIES:
-            if progress:
-                progress(f"Installing {relative}")
-            replace_tree(sdk_root / relative, prefix / relative)
-
-        if user_bsp_backup.is_dir():
-            _copy_user_bsp(user_bsp_backup, prefix / "board" / "UserBSP")
-
-    for relative in TOOL_DIRECTORIES:
-        if progress:
-            progress(f"Installing tools/{relative}")
-        ignore = (
-            PYTHON_PACKAGE_IGNORE
-            if relative in {"ecos_cli", "toolchains"}
-            else None
-        )
-        replace_tree(
-            sdk_root / "tools" / relative,
-            prefix / "tools" / relative,
-            ignore=ignore,
-        )
-
-    replace_file(sdk_root / "tools" / "ecos.py", prefix / "tools" / "ecos.py")
-    replace_file(
-        sdk_root / sdk_manifest.MANIFEST_RELATIVE_PATH,
-        prefix / sdk_manifest.MANIFEST_RELATIVE_PATH,
+    _, identity = sdk_manifest.validate_sdk_root(sdk_root)
+    if identity["channel"] != "release":
+        raise InstallerError("SDK release installation requires channel 'release'")
+    paths = sdk_manifest.release_paths(identity)
+    host_root = (host_prefix or dependencies.default_host_prefix()).expanduser().resolve()
+    _copy_user_bsp(
+        prefix / "boards" / "UserBSP",
+        user_bsp.default_root(),
     )
-    install_launchers(prefix)
-    install_completion_files(prefix)
-    return installation_plan(sdk_root, prefix)
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{prefix.name}.stage-", dir=prefix.parent))
+    try:
+        if progress:
+            progress(f"Staging SDK {identity['sdk_version']}")
+        _copy_sdk_files(sdk_root, staging, paths)
+        files = _tree_inventory(staging)
+        digest = _inventory_digest(files)
+        marker = {
+            "sdk_id": identity["sdk_id"],
+            "sdk_version": identity["sdk_version"],
+            "digest": digest,
+            "files": files,
+        }
+        (staging / INSTALL_MARKER).write_text(
+            json.dumps(marker, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        state = "installed"
+        if prefix.exists() or prefix.is_symlink():
+            if not prefix.is_dir() or prefix.is_symlink():
+                raise InstallerError(f"SDK version path is not a regular directory: {prefix}")
+            try:
+                installed = json.loads(
+                    (prefix / INSTALL_MARKER).read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise InstallerError(
+                    f"SDK version {prefix} has no valid installation marker; "
+                    "uninstall it explicitly before installing this version"
+                ) from exc
+            if (
+                installed.get("sdk_id") != marker["sdk_id"]
+                or installed.get("sdk_version") != marker["sdk_version"]
+                or installed.get("digest") != digest
+                or installed.get("files") != files
+                or _tree_inventory(prefix) != files
+            ):
+                raise InstallerError(
+                    f"SDK version {prefix} has different content; "
+                    "uninstall it explicitly before installing this version"
+                )
+            state = "reused"
+        else:
+            staging.replace(prefix)
+        result = installation_plan(sdk_root, prefix, host_root)
+        result["sdk_installation"] = {"state": state, "digest": digest, "files": len(files)}
+        return result
+    except OSError as exc:
+        raise InstallerError(f"cannot stage SDK version {prefix}: {exc}") from exc
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+
+
+def _release_uninstall_plan(
+    registry: SdkRegistry, state: dict[str, Any], name: str
+) -> dict[str, Any]:
+    entry = state["sdks"].get(name)
+    if entry is None:
+        raise SdkRegistrationNotFound(f"SDK registration does not exist: {name}")
+    if entry["kind"] != "release" or entry["channel"] != "release":
+        raise InstallerError(f"SDK registration {name!r} is not a release installation")
+    root = Path(entry["root"]).expanduser()
+    if root.is_symlink() or not root.is_dir() or root.name != entry["sdk_version"]:
+        raise InstallerError(f"SDK release path is missing or unsafe: {root}")
+    for other_name, other_entry in state["sdks"].items():
+        if other_name != name and other_entry["root"] == entry["root"]:
+            raise InstallerError(
+                f"SDK release {root} is also registered as {other_name!r}"
+            )
+    try:
+        marker = json.loads((root / INSTALL_MARKER).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise InstallerError(f"SDK release has no valid installation marker: {root}") from exc
+    try:
+        files = _tree_inventory(root)
+    except OSError as exc:
+        raise InstallerError(f"cannot inspect SDK release {root}: {exc}") from exc
+    digest = _inventory_digest(files)
+    if (
+        not isinstance(marker, dict)
+        or marker.get("sdk_id") != entry["sdk_id"]
+        or marker.get("sdk_version") != entry["sdk_version"]
+        or marker.get("digest") != digest
+        or marker.get("files") != files
+        or (entry.get("digest") is not None and entry["digest"] != digest)
+    ):
+        raise InstallerError(f"SDK release content has changed; refusing to uninstall: {root}")
+    return {
+        "name": name,
+        "root": str(root),
+        "registry": str(registry.path),
+        "digest": digest,
+        "files": len(files),
+        "active": state["active"] == name,
+    }
+
+
+def uninstall_sdk_release(
+    registry: SdkRegistry, name: str, *, dry_run: bool = False
+) -> dict[str, Any]:
+    if dry_run:
+        return {
+            **_release_uninstall_plan(registry, registry.load(), name),
+            "dry_run": True,
+            "changed": False,
+        }
+
+    try:
+        with registry._lock():
+            state = registry.load()
+            plan = _release_uninstall_plan(registry, state, name)
+            root = Path(plan["root"])
+            staged = root.with_name(f".{root.name}.uninstall-{uuid.uuid4().hex}")
+            try:
+                root.replace(staged)
+                del state["sdks"][name]
+                if state["active"] == name:
+                    state["active"] = None
+                registry._write(state)
+            except Exception:
+                if staged.exists():
+                    staged.replace(root)
+                raise
+    except OSError as exc:
+        raise InstallerError(f"cannot uninstall SDK release {name!r}: {exc}") from exc
+    try:
+        shutil.rmtree(staged)
+    except OSError as exc:
+        raise InstallerError(
+            f"SDK registration was removed, but files remain at {staged}: {exc}"
+        ) from exc
+    return {**plan, "dry_run": False, "changed": True}
+
+
+def install_host_cli(sdk_root: Path, host_prefix: Path) -> dict[str, Any]:
+    host_root = host_prefix.expanduser().resolve()
+    source = sdk_root / "tools" / "ecos_cli" / "src"
+    if not (source / "ecos_cli" / "__init__.py").is_file():
+        raise InstallerError(f"SDK Python CLI package is missing: {source}")
+    replace_tree(
+        source,
+        host_root / "lib" / "ecos" / "cli",
+        ignore=PYTHON_PACKAGE_IGNORE,
+    )
+    install_completion_files(host_root)
+    install_launchers(host_root)
+    return {
+        "root": str(host_root),
+        "package": str(host_root / "lib" / "ecos" / "cli" / "ecos_cli"),
+        "launcher": str(host_root / "bin" / "ecos"),
+    }
 
 
 def install_launchers(prefix: Path) -> None:
     bin_dir = prefix / "bin"
-    _remove_managed_path(bin_dir)
     bin_dir.mkdir(parents=True, exist_ok=True)
     launcher = bin_dir / "ecos"
     launcher.write_text(INSTALLED_ECOS_LAUNCHER, encoding="utf-8", newline="\n")
@@ -324,6 +500,19 @@ def install_launchers(prefix: Path) -> None:
         f'@echo off\r\n"{python_executable}" "%~dp0ecos" %*\r\n',
         encoding="utf-8",
         newline="",
+    )
+    launch_descriptor = prefix / HOST_LAUNCH_RELATIVE_PATH
+    launch_descriptor.parent.mkdir(parents=True, exist_ok=True)
+    launch_descriptor.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "python_executable": python_executable,
+                "script": str(launcher.resolve()),
+            },
+            indent=2,
+        ) + "\n",
+        encoding="utf-8",
     )
 
 
@@ -358,7 +547,7 @@ def _validate_python_dependencies(root: Path) -> bool:
     command = (
         "import sys; "
         "sys.path.insert(0, sys.argv[1]); "
-        "import kconfiglib, menuconfig, serial, yaml; "
+        "import kconfiglib, menuconfig, serial, yaml, jsonschema; "
         "raise SystemExit(0 if "
         "yaml.__version__ == '6.0.3' and serial.__version__ == '3.5' else 1)"
     )
@@ -633,7 +822,7 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
     bin_dir = str(prefix / "bin")
     host_bin_dir = str(dependencies.host_dependency_bin(prefix))
     cmake_bin_dir = str(dependencies.host_dependency_paths(prefix)[0])
-    legacy_sdk_home = str(toolchain.default_prefix().expanduser().resolve())
+    legacy_sdk_home = str(toolchain.legacy_prefix().expanduser().resolve())
     migrate_legacy_environment = prefix.expanduser().resolve() != Path(legacy_sdk_home)
     if shell in {"bash", "zsh"}:
         lines = [
@@ -800,7 +989,7 @@ def configure_shell(
         if shell in {"bash", "zsh"}
         else existing
     )
-    legacy_prefix = toolchain.default_prefix().expanduser().resolve()
+    legacy_prefix = toolchain.legacy_prefix().expanduser().resolve()
     if shell in {"bash", "zsh"} and legacy_prefix != prefix:
         migrated = _remove_legacy_shell_configuration(migrated, legacy_prefix)
     updated = _updated_config_content(
@@ -858,10 +1047,22 @@ def environment_commands(prefix: Path, shell: str) -> list[str]:
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--mode",
+        choices=("auto", "development", "release"),
+        default="auto",
+        help="register a checkout or install a versioned release (default: SDK channel)",
+    )
+    parser.add_argument(
         "--prefix",
         type=Path,
         default=default_install_base(),
         help="parent directory for versioned SDK installations",
+    )
+    parser.add_argument(
+        "--host-prefix",
+        type=Path,
+        default=dependencies.default_host_prefix(),
+        help="parent for the host-level ecos CLI, Python, and build tools",
     )
     parser.add_argument("--cache-dir", type=Path, default=toolchain.default_cache_root())
     parser.add_argument("--archive", type=Path, help="install the toolchain from an offline archive")
@@ -925,8 +1126,11 @@ def _emit_error(output_format: str, code: str, message: str, exit_code: int) -> 
 
 
 def _print_text(data: dict[str, Any], console: ConsoleProgress) -> None:
-    console.info(f"SDK install base: {data['install_base']}")
-    console.info(f"SDK installed at: {data['prefix']}")
+    if data["mode"] == "release":
+        console.info(f"SDK install base: {data['install_base']}")
+        console.info(f"SDK installed at: {data['prefix']}")
+    else:
+        console.info(f"SDK checkout registered: {data['prefix']}")
     registration = data["registration"]
     console.info(f"SDK version: {registration['entry']['sdk_version']}")
     console.info(f"SDK registration: {registration['name']}")
@@ -963,6 +1167,7 @@ def main(
         else Path(__file__).resolve().parents[4]
     )
     install_base = args.prefix.expanduser().resolve()
+    host_prefix = args.host_prefix.expanduser().resolve()
     shell = detect_shell(args.shell)
     try:
         if args.skip_toolchain and (args.archive or args.force_toolchain):
@@ -972,8 +1177,27 @@ def main(
         if shell == "none" and args.shell_profile:
             raise InstallerError("--shell-profile cannot be used with --shell none")
         _, sdk_identity = sdk_manifest.validate_sdk_root(source_root)
-        prefix = versioned_install_path(install_base, sdk_identity["sdk_version"])
-        validate_layout(source_root, prefix)
+        mode = sdk_identity["channel"] if args.mode == "auto" else args.mode
+        if mode != sdk_identity["channel"]:
+            raise InstallerError(
+                f"{mode} install mode does not match SDK channel "
+                f"{sdk_identity['channel']!r}"
+            )
+        prefix = (
+            versioned_install_path(install_base, sdk_identity["sdk_version"])
+            if mode == "release"
+            else source_root
+        )
+        if mode == "release":
+            validate_layout(source_root, prefix)
+        if host_prefix == source_root or source_root in host_prefix.parents:
+            raise InstallerError(
+                f"host CLI prefix must not be inside SDK source tree: {host_prefix}"
+            )
+        if host_prefix == prefix or prefix in host_prefix.parents:
+            raise InstallerError(
+                f"host CLI prefix must not be inside SDK version directory: {host_prefix}"
+            )
         registry = SdkRegistry(args.registry)
         plan_diagnostics: list[dict[str, Any]] = []
         try:
@@ -981,7 +1205,7 @@ def main(
                 prefix,
                 sdk_identity,
                 name=args.registration_name,
-                kind="release",
+                kind="release" if mode == "release" else "checkout",
                 activate=not args.no_activate,
                 replace=args.force or args.replace_registration,
             )
@@ -994,7 +1218,7 @@ def main(
                 prefix,
                 sdk_identity,
                 name=args.registration_name,
-                kind="release",
+                kind="release" if mode == "release" else "checkout",
                 activate=not args.no_activate,
                 replace=True,
             )
@@ -1027,15 +1251,16 @@ def main(
             host = toolchain.detect_host()
             selection = toolchain.selection_data(manifest, host)
         configuration_plan = configure_shell(
-            prefix,
+            host_prefix,
             shell,
             profile=args.shell_profile,
             dry_run=True,
         )
-        plan = installation_plan(source_root, prefix)
+        plan = installation_plan(source_root, prefix, host_prefix, mode=mode)
         plan.update(
             {
-                "install_base": str(install_base),
+                "mode": mode,
+                "install_base": str(install_base) if mode == "release" else None,
                 "toolchain": None
                 if args.skip_toolchain
                 else {
@@ -1050,7 +1275,7 @@ def main(
                 "registration": registration_plan,
                 "environment": {
                     "shell": shell,
-                    "commands": environment_commands(prefix, shell),
+                    "commands": environment_commands(host_prefix, shell),
                     "configuration": configuration_plan,
                 },
             }
@@ -1068,8 +1293,11 @@ def main(
             else:
                 console.info("Dry run; no files were written and no network request was made.")
                 console.info(f"SDK source: {plan['sdk_root']}")
-                console.info(f"Install base: {plan['install_base']}")
-                console.info(f"Versioned install path: {plan['prefix']}")
+                if mode == "release":
+                    console.info(f"Install base: {plan['install_base']}")
+                    console.info(f"Versioned install path: {plan['prefix']}")
+                else:
+                    console.info(f"Checkout registration: {plan['prefix']}")
                 if plan["toolchain"] is None:
                     console.info("Toolchain: skip")
                 else:
@@ -1097,9 +1325,20 @@ def main(
                     console.info(f"Suggestion: {item['suggestion']}")
             return 0
 
-        core_result = install_sdk_core(source_root, prefix, progress=console.message)
+        if mode == "release":
+            core_result = install_sdk_core(
+                source_root,
+                prefix,
+                progress=console.message,
+                host_prefix=host_prefix,
+            )
+        else:
+            core_result = installation_plan(
+                source_root, prefix, host_prefix, mode="development"
+            )
+            core_result["sdk_installation"] = {"state": "checkout"}
         python_dependency_result = install_python_dependencies(
-            prefix,
+            host_prefix,
             force=args.force,
             progress=console.message,
         )
@@ -1107,17 +1346,18 @@ def main(
             python_dependency_result
         )
         host_dependency_result = install_host_dependencies(
-            prefix,
+            host_prefix,
             force=args.force,
             progress=console.message,
         )
         core_result["host_dependencies"]["installation"] = host_dependency_result
+        core_result["host_cli"] = install_host_cli(source_root, host_prefix)
         toolchain_result = None
         if not args.skip_toolchain:
             assert manifest is not None and host is not None and selection is not None
             installation = toolchain.install_toolchain(
                 manifest,
-                prefix,
+                toolchain.default_prefix(),
                 host,
                 args.cache_dir,
                 archive_override=args.archive,
@@ -1132,24 +1372,25 @@ def main(
         registration = registry.register(
             prefix,
             name=args.registration_name,
-            kind="release",
+            kind="release" if mode == "release" else "checkout",
             activate=not args.no_activate,
             replace=args.force or args.replace_registration,
         )
         shell_configuration = configure_shell(
-            prefix,
+            host_prefix,
             shell,
             profile=args.shell_profile,
         )
         data = {
             **core_result,
-            "install_base": str(install_base),
+            "mode": mode,
+            "install_base": str(install_base) if mode == "release" else None,
             "force": args.force,
             "toolchain": toolchain_result,
             "registration": registration,
             "environment": {
                 "shell": shell,
-                "commands": environment_commands(prefix, shell),
+                "commands": environment_commands(host_prefix, shell),
                 "configuration": shell_configuration,
             },
         }

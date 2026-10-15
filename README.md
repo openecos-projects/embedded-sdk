@@ -59,8 +59,11 @@ PyPI 或 pip 本地缓存。`--skip-toolchain` 只跳过交叉编译器，SDK
 `python3 tools/install.py --help`。
 
 3.0 安装包不会复制源码 `bin/` 中的 2.x Shell 命令。版本目录的 `bin/` 只包含生成的
-Python `ecos` 启动器；帮助和自动补全也只公开已经迁移到 Python 的命令。当前已迁移
-命令为 `sdk`、`project`、`build`、`toolchain` 和 `completion`。
+Python `ecos` 启动器；帮助和自动补全也只公开已经迁移到 Python 的命令。
+当前公开入口包括 `sdk`、`toolchain`、`project`、资源查询、`schema`、
+`validate`、`configure`、`menuconfig`、`build`、`clean`、`doctor`、
+`flash`、`monitor` 和 `completion`；完整命令表见
+[CLI 文档](docs/cli.md)。
 
 工具链识别、状态检查和安装由 Python `ecos` CLI 统一提供：
 ```bash
@@ -94,8 +97,8 @@ checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 ch
 
 ### 2. 标准开发与测试流程 (必读)
 
-> ⚠️ **警告 (CRITICAL RULES)**：
-> 绝对禁止直接在 SDK 安装路径下的 `templates/` 目录内修改并执行 `make` 编译！所有的开发与测试必须在 SDK 外部新建的工程目录中进行，以保证原始模板代码不被污染。
+3.0 工程由 Python `ecos` CLI 创建和编排，核心构建使用 CMake/Ninja。不要在 SDK
+安装目录或历史 `templates/` 副本中修改应用源码；工程目录应位于 SDK 外部。
 
 #### 步骤 1：创建你的独立工程目录
 得益于 `ecos` 命令和环境变量的配置，你可以在电脑的任意位置创建自己的项目。
@@ -104,44 +107,37 @@ checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 ch
 cd ~/my_workspace/
 ```
 
-#### 步骤 2：初始化工程
-使用 `ecos` 脚手架工具，从官方模板拉取代码并指定目标板卡（如 `l3_1`）：
+#### 步骤 2：创建工程
+从 SDK Example 创建工程，并在创建时选择 Board：
 ```bash
-# 格式: ecos init_project <模板名> -name <工程名> -target <板卡型号>
-ecos init_project smoke_test -name my_smoke_test -target l3_1
+ecos project list --format json
+ecos project create hello --name my_smoke_test --path ~/my_workspace \
+    --board starrysky-l3-1
 cd my_smoke_test
 ```
 
-*(注：如果你是参与开发本 SDK 的内核维护者，可直接在 `testdir/` 目录下利用 `direnv` 进行内部模板的快速调试。)*
-
-#### 步骤 3：配置系统 (Kconfig)
-在示例工程目录下，你可以选择图形化配置或者无头全默认配置：
-
-- **交互式图形配置 (推荐日常开发者使用)**：
-  ```bash
-  make menuconfig
-  ```
-  在界面中勾选你需要的驱动模块、配置优化等级或系统库，保存退出后将生成配置文件。
-
-- **无头默认配置 (推荐 CI/脚本/AI Agent 自动化测试使用)**：
-  如果你不需要手动更改菜单，可直接利用底层的 conf 工具静默生成配置：
-  ```bash
-  $ECOS_SDK_HOME/tools/kconfig/build/conf --alldefconfig Kconfig
-  $ECOS_SDK_HOME/tools/kconfig/build/conf --syncconfig Kconfig
-  ```
-
-#### 步骤 4：编译固件
+#### 步骤 3：校验、配置和构建
 ```bash
-make -j$(nproc)
+ecos validate --project ~/my_workspace/my_smoke_test --format json
+ecos configure --project ~/my_workspace/my_smoke_test
+ecos build --project ~/my_workspace/my_smoke_test --format json
 ```
-编译成功后，将在 `build/` 目录下生成 `retrosoc_fw.elf` (ELF 调试文件)、`retrosoc_fw.hex` 及 `retrosoc_fw.bin` (二进制烧录文件)，并输出当前 Flash/MEM 内存占用报告。使用 `.bin` 或 `.hex` 文件进行烧录即可。
+构建产物和 `artifacts.json` 位于工程的 `build/` 目录。切换 Board 时修改工程元数据后
+重新执行 `ecos configure` 和 `ecos build`，不需要复制板卡专用应用源码。
+
+硬件操作使用同一 CLI：
+
+```bash
+ecos flash --project ~/my_workspace/my_smoke_test
+ecos monitor --project ~/my_workspace/my_smoke_test --port /dev/ttyUSB0
+```
 
 ---
 
 ### 3. 第三方组件支持
 
 #### ECOS Core Runtime（错误与日志）
-Core Runtime 是 SDK 3.0 工程的默认组件，提供统一的 `ECOS_ERR_*` 错误语义和无堆内存日志服务。BSP Console 初始化成功后自动成为日志输出后端；默认输出 ASCII、CRLF 且不启用 ANSI 颜色。
+Core Runtime 和 libc 子集是 SDK 3.0 工程的默认组件。Core Runtime 提供统一的 `ECOS_ERR_*` 错误语义和无堆内存日志服务，libc 提供裸机编译所需的内存操作。BSP Console 初始化成功后自动成为日志输出后端；默认输出 ASCII、CRLF 且不启用 ANSI 颜色。
 
 - **代码使用示例**：
   ```c

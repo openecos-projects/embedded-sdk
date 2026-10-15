@@ -1,0 +1,11 @@
+schema: 1
+id: soft-spi
+name: GPIO bit-bang SPI
+cmake_target: ecos::component::soft_spi
+sources:
+  - src/soft_spi.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio

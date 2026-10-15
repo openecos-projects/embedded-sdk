@@ -231,11 +231,11 @@ set_board() {
     if [[ "$project_type" == "asm" ]]; then
         local board_sdk_dir=""
         case "$target_board_name" in
-            "c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyC2" ;;
-            "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
-            "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
-            "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
-            "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
+            "c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyC2" ;;
+            "l3_1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL3_1" ;;
+            "l4c1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C1" ;;
+            "l4c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C2" ;;
+            "l4c3") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C3" ;;
             *)
                 err "Unsupported board: $target_board_name"
                 exit 1
@@ -260,11 +260,11 @@ set_board() {
             local lds_file="sections.lds"
             local start_file="start.S"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyC2/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyC2/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyC2/$lds_file"
-            local start_source_path="$SDK_ROOT/board/StarrySkyC2/$start_file"
-            local driver_source_path="$SDK_ROOT/board/StarrySkyC2/driver"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyC2/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyC2/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyC2/$lds_file"
+            local start_source_path="$SDK_ROOT/boards/StarrySkyC2/$start_file"
+            local driver_source_path="$SDK_ROOT/boards/StarrySkyC2/driver"
             local main_source_path="$SDK_ROOT/templates/hello/c2"
 
             local board_target_path="./Library/board.h"
@@ -338,12 +338,12 @@ set_board() {
             local lds_file="sections.lds"
             local start_file="start.S"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyL3_1/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyL3_1/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyL3_1/$lds_file"
-            local start_source_path="$SDK_ROOT/board/StarrySkyL3_1/$start_file"
-            local driver_source_path="$SDK_ROOT/board/StarrySkyL3_1/driver"
-            local loader_source_path="$SDK_ROOT/board/StarrySkyL3_1/loader"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$lds_file"
+            local start_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$start_file"
+            local driver_source_path="$SDK_ROOT/boards/StarrySkyL3_1/driver"
+            local loader_source_path="$SDK_ROOT/boards/StarrySkyL3_1/loader"
             local main_source_path="$SDK_ROOT/templates/hello/l3_1"
 
             local board_target_path="./Library/board.h"
@@ -420,9 +420,9 @@ set_board() {
         "l4c1"|"l4c2"|"l4c3")
             local board_sdk_dir=""
             case "$target_board_name" in
-                "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
-                "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
-                "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
+                "l4c1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C1" ;;
+                "l4c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C2" ;;
+                "l4c3") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C3" ;;
             esac
             local board_file="board.h"
             local make_file="Makefile_isolated"

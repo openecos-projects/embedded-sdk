@@ -1,0 +1,10 @@
+schema: 1
+id: hal-interrupt
+name: Machine Interrupt HAL Contract
+cmake_target: ecos::hal::interrupt
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - interrupt

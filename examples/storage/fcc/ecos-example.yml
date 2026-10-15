@@ -1,0 +1,10 @@
+schema: 1
+name: fcc
+sources:
+  - main.c
+components:
+  - fcc
+  - letter-shell-fs
+requires:
+  - console
+  - qspi

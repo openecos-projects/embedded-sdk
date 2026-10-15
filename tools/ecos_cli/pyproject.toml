@@ -12,6 +12,7 @@ license = "Apache-2.0"
 authors = [{ name = "ECOS Embedded SDK contributors" }]
 dependencies = [
   "PyYAML==6.0.3",
+  "jsonschema==4.19.2",
   "kconfiglib==14.1.0",
   "pyserial==3.5",
   "windows-curses==2.4.2; sys_platform == 'win32'",
@@ -28,4 +29,6 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
+"ecos_cli.resources" = ["Kconfig.build"]
 "ecos_cli.resources.toolchains" = ["*.json"]
+"ecos_cli.resources.schemas" = ["*.json"]

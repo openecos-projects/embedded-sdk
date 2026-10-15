@@ -1,18 +1,19 @@
 #ifndef __SHELL_PORT_H__
 #define __SHELL_PORT_H__
 
-#include "stdio.h"
+#include <stdio.h>
 #include "ecos/log.h"
-#include "stdint.h"
-#include "string.h"
-#include "generated/autoconf.h"
+#include <stdint.h>
+#include <string.h>
+
+#include "ecos/bsp/console.h"
 
 
 extern uint32_t envInt;
 extern uint16_t envShort;
 extern char envString[128];
 extern char envChar;
-extern uint32_t envFunc;
+extern uintptr_t envFunc;
 
 typedef struct func_node{
     void (*func)(void *);
@@ -21,7 +22,8 @@ typedef struct func_node{
 
 extern func_node flist[16];
 
-void create_shell_env_varible();
+void create_shell_env_varible(void);
+void exec_func(uint8_t id, uintptr_t param, uint8_t use_default_param);
 
 short shellRead(char* str, unsigned short len);
 

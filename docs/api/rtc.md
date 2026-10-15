@@ -3,7 +3,7 @@
 自由运行计数器加闹钟比较（不是日历钟）。
 
 头文件：`drivers/rtc/include/ecos/driver/rtc.h`。
-示例：`example/peripherals/rtc/counter`。
+示例：`examples/peripherals/rtc/counter`。
 
 ## 类型与常量
 
@@ -81,5 +81,5 @@ int main(void)
   （如 PCF8563，见 [devices.md](devices.md)）。
 - 计数频率 = 输入时钟 / `prescaler`；输入时钟源由 SoC 定义。
 - 闹钟状态用 `ecos_rtc_alarm_triggered()` 轮询，没有中断回调 API。
-- 目前仅 ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
+- ysyx-l3-1、ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
 - 不要与 2.x 遗留头文件 `hal/rtc/hal_rtc.h` 混用。

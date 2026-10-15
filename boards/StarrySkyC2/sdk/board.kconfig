@@ -1,0 +1,26 @@
+config BOARD_STARRYSKY_C2
+    bool
+    default y
+
+config CPU_FREQ_MHZ
+    int
+    default 72
+
+config TIMER_FREQ_MHZ
+    int
+    default 72
+
+config UART_BAUD_RATE
+    int
+    default 115200
+
+choice LINK_RAM_REGION
+    bool "Writable memory region"
+    default LINK_RAM_REGION_SRAM
+
+config LINK_RAM_REGION_SRAM
+    bool "SRAM (128 KiB)"
+
+config LINK_RAM_REGION_PSRAM
+    bool "PSRAM (8 MiB)"
+endchoice

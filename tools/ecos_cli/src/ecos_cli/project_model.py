@@ -11,6 +11,7 @@ from typing import Any, Iterable, Optional
 import yaml
 
 from . import project
+from . import schema_contract
 from . import toolchain as toolchain_support
 from .sdk_context import SdkContext
 
@@ -52,7 +53,9 @@ class ToolchainResolutionError(ProjectModelError):
     """The Target toolchain declaration conflicts with the selected SDK."""
 
 
-def _read_manifest(path: Path, kind: str) -> dict[str, Any]:
+def _read_manifest(
+    path: Path, kind: str, *, validate_schema: bool = True
+) -> dict[str, Any]:
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:
@@ -61,6 +64,11 @@ def _read_manifest(path: Path, kind: str) -> dict[str, Any]:
         raise ManifestValidationError(f"invalid {kind} manifest YAML {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise ManifestValidationError(f"{kind} manifest must be a mapping: {path}")
+    if validate_schema:
+        try:
+            schema_contract.validate_manifest(kind.lower(), value, path)
+        except schema_contract.SchemaValidationError as exc:
+            raise ManifestValidationError(str(exc)) from exc
     return value
 
 
@@ -103,6 +111,22 @@ def _mapping(value: Any, field: str, path: Path) -> dict[str, Any]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise ManifestValidationError(f"{field} must be a mapping in {path}")
     return dict(value)
+
+
+def _debug_configuration(value: Any, field: str, path: Path) -> Optional[dict[str, Any]]:
+    if value is None:
+        return None
+    debug = _mapping(value, field, path)
+    _check_keys(debug, {"adapter", "server_address", "stop_at_entry"}, kind=field, path=path)
+    if debug.get("adapter") != "cppdbg":
+        raise ManifestValidationError(f"{field}.adapter must be cppdbg in {path}")
+    address = _string(debug.get("server_address"), f"{field}.server_address", path)
+    if not re.fullmatch(r"\S+:\d+", address or ""):
+        raise ManifestValidationError(f"{field}.server_address must be HOST:PORT in {path}")
+    stop = debug.get("stop_at_entry", False)
+    if not isinstance(stop, bool):
+        raise ManifestValidationError(f"{field}.stop_at_entry must be boolean in {path}")
+    return {"adapter": "cppdbg", "server_address": address, "stop_at_entry": stop}
 
 
 def _integer(value: Any, field: str, path: Path) -> int:
@@ -248,6 +272,39 @@ def _gpio_demo_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
     return {"driver": driver, "input": input_pin, "output": output_pin}
 
 
+def _led_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
+    field = "Board.resources.led"
+    _check_keys(value, {"driver", "active_level", "instances"}, kind=field, path=path)
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    level = _string(value.get("active_level"), f"{field}.active_level", path)
+    instances = value.get("instances")
+    if driver != "driver-gpio" or level not in {"low", "high"}:
+        raise ManifestValidationError(
+            f"{field} requires driver-gpio and a low/high active_level in {path}"
+        )
+    if not isinstance(instances, list) or not 1 <= len(instances) <= 2:
+        raise ManifestValidationError(f"{field}.instances must contain 1 or 2 LEDs in {path}")
+    pins = []
+    for index, item in enumerate(instances):
+        item_field = f"{field}.instances[{index}]"
+        declared = _mapping(item, item_field, path)
+        _check_keys(
+            declared, {"id", "controller", "pin"}, kind=item_field, path=path
+        )
+        led_id = _integer(declared.get("id"), f"{item_field}.id", path)
+        controller = _integer(
+            declared.get("controller"), f"{item_field}.controller", path
+        )
+        pin = _integer(declared.get("pin"), f"{item_field}.pin", path)
+        if (led_id != index or not 0 <= controller <= GPIO_CONTROLLER_MAX or
+                not 0 <= pin <= GPIO_PIN_MAX):
+            raise ManifestValidationError(
+                f"{item_field} must have sequential IDs and a valid GPIO pin in {path}"
+            )
+        pins.append({"id": led_id, "controller": controller, "pin": pin})
+    return {"driver": driver, "active_level": level, "instances": pins}
+
+
 def _qspi_bus_resource(
     value: dict[str, Any], path: Path, resource_id: str = "qspi-bus"
 ) -> dict[str, Any]:
@@ -283,8 +340,73 @@ def _qspi_bus_resource(
     }
 
 
-def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
-    field = "Board.resources.display"
+def _soft_spi_resource(
+    value: dict[str, Any], path: Path, resource_id: str = "soft-spi-bus"
+) -> dict[str, Any]:
+    field = f"Board.resources.{resource_id}"
+    _check_keys(
+        value,
+        {"driver", "chip_select", "clock", "mosi", "miso", "mode"},
+        kind=field,
+        path=path,
+    )
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    mode = _integer(value.get("mode"), f"{field}.mode", path)
+    if driver != "soft-spi":
+        raise ManifestValidationError(
+            f"{field}.driver must be 'soft-spi' in {path}"
+        )
+    if not 0 <= mode <= 3:
+        raise ManifestValidationError(
+            f"{field}.mode must be between 0 and 3 in {path}"
+        )
+
+    def gpio_pin(name: str) -> dict[str, int]:
+        pin_field = f"{field}.{name}"
+        gpio = _mapping(value.get(name), pin_field, path)
+        _check_keys(gpio, {"controller", "pin"}, kind=pin_field, path=path)
+        controller = _integer(gpio.get("controller"), f"{pin_field}.controller", path)
+        pin = _integer(gpio.get("pin"), f"{pin_field}.pin", path)
+        if not 0 <= controller <= GPIO_CONTROLLER_MAX:
+            raise ManifestValidationError(
+                f"{pin_field}.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
+            )
+        if not 0 <= pin < 32:
+            raise ManifestValidationError(
+                f"{pin_field}.pin must be between 0 and 31 in {path}"
+            )
+        return {"controller": controller, "pin": pin}
+
+    pins = {name: gpio_pin(name) for name in ("chip_select", "clock", "mosi", "miso")}
+    if len({(pin["controller"], pin["pin"]) for pin in pins.values()}) != len(pins):
+        raise ManifestValidationError(f"{field} GPIO pins must be distinct in {path}")
+    return {"driver": driver, **pins, "mode": mode}
+
+
+def _display_resource(
+    value: dict[str, Any], path: Path, resource_id: str
+) -> dict[str, Any]:
+    field = f"Board.resources.{resource_id}"
+
+    def gpio_pin(name: str, *, required: bool) -> Optional[dict[str, int]]:
+        declared = value.get(name)
+        if declared is None and not required:
+            return None
+        pin_field = f"{field}.{name}"
+        gpio = _mapping(declared, pin_field, path)
+        _check_keys(gpio, {"controller", "pin"}, kind=pin_field, path=path)
+        controller = _integer(gpio.get("controller"), f"{pin_field}.controller", path)
+        pin = _integer(gpio.get("pin"), f"{pin_field}.pin", path)
+        if not 0 <= controller <= GPIO_CONTROLLER_MAX:
+            raise ManifestValidationError(
+                f"{pin_field}.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
+            )
+        if not 0 <= pin <= GPIO_PIN_MAX:
+            raise ManifestValidationError(
+                f"{pin_field}.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
+            )
+        return {"controller": controller, "pin": pin}
+
     _check_keys(
         value,
         {
@@ -306,35 +428,9 @@ def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
     driver = _string(value.get("driver"), f"{field}.driver", path)
     bus = _string(value.get("bus"), f"{field}.bus", path)
     chip_select = _integer(value.get("chip_select"), f"{field}.chip_select", path)
-    dc_gpio = _mapping(value.get("dc_gpio"), f"{field}.dc_gpio", path)
-    _check_keys(dc_gpio, {"controller", "pin"}, kind=f"{field}.dc_gpio", path=path)
-    controller = _integer(
-        dc_gpio.get("controller"), f"{field}.dc_gpio.controller", path
-    )
-    pin = _integer(dc_gpio.get("pin"), f"{field}.dc_gpio.pin", path)
-    reset_gpio = _mapping(value.get("reset_gpio"), f"{field}.reset_gpio", path)
-    _check_keys(
-        reset_gpio, {"controller", "pin"}, kind=f"{field}.reset_gpio", path=path
-    )
-    reset_controller = _integer(
-        reset_gpio.get("controller"), f"{field}.reset_gpio.controller", path
-    )
-    reset_pin = _integer(reset_gpio.get("pin"), f"{field}.reset_gpio.pin", path)
-    backlight_gpio = _mapping(
-        value.get("backlight_gpio"), f"{field}.backlight_gpio", path
-    )
-    _check_keys(
-        backlight_gpio,
-        {"controller", "pin"},
-        kind=f"{field}.backlight_gpio",
-        path=path,
-    )
-    backlight_controller = _integer(
-        backlight_gpio.get("controller"), f"{field}.backlight_gpio.controller", path
-    )
-    backlight_pin = _integer(
-        backlight_gpio.get("pin"), f"{field}.backlight_gpio.pin", path
-    )
+    dc_gpio = gpio_pin("dc_gpio", required=True)
+    reset_gpio = gpio_pin("reset_gpio", required=resource_id == "display-st7789")
+    backlight_gpio = gpio_pin("backlight_gpio", required=False)
     width = _integer(value.get("width"), f"{field}.width", path)
     height = _integer(value.get("height"), f"{field}.height", path)
     rotation = _integer(value.get("rotation"), f"{field}.rotation", path)
@@ -345,9 +441,12 @@ def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
         value.get("vertical_offset", 0), f"{field}.vertical_offset", path
     )
     assert driver is not None and bus is not None
-    if driver not in {"device-st7735", "st7735"}:
+    expected_driver = (
+        "device-st7789" if resource_id == "display-st7789" else "device-st7735"
+    )
+    if driver not in {expected_driver, expected_driver.removeprefix("device-")}:
         raise ManifestValidationError(
-            f"{field}.driver must be 'device-st7735' or 'st7735' in {path}"
+            f"{field}.driver must be {expected_driver!r} in {path}"
         )
     if bus not in {"qspi-bus", "qspi0"}:
         raise ManifestValidationError(
@@ -357,26 +456,6 @@ def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
         raise ManifestValidationError(
             f"{field}.chip_select must be between 0 and 3 in {path}"
         )
-    if not 0 <= controller <= GPIO_CONTROLLER_MAX:
-        raise ManifestValidationError(
-            f"{field}.dc_gpio.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
-        )
-    if not 0 <= pin <= GPIO_PIN_MAX:
-        raise ManifestValidationError(
-            f"{field}.dc_gpio.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
-        )
-    for name, gpio_controller, gpio_pin in (
-        ("reset_gpio", reset_controller, reset_pin),
-        ("backlight_gpio", backlight_controller, backlight_pin),
-    ):
-        if not 0 <= gpio_controller <= GPIO_CONTROLLER_MAX:
-            raise ManifestValidationError(
-                f"{field}.{name}.controller must be between 0 and {GPIO_CONTROLLER_MAX} in {path}"
-            )
-        if not 0 <= gpio_pin <= GPIO_PIN_MAX:
-            raise ManifestValidationError(
-                f"{field}.{name}.pin must be between 0 and {GPIO_PIN_MAX} in {path}"
-            )
     if not 1 <= width <= 65535 or not 1 <= height <= 65535:
         raise ManifestValidationError(
             f"{field}.width and height must be between 1 and 65535 in {path}"
@@ -393,12 +472,9 @@ def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
         "driver": driver,
         "bus": bus,
         "chip_select": chip_select,
-        "dc_gpio": {"controller": controller, "pin": pin},
-        "reset_gpio": {"controller": reset_controller, "pin": reset_pin},
-        "backlight_gpio": {
-            "controller": backlight_controller,
-            "pin": backlight_pin,
-        },
+        "dc_gpio": dc_gpio,
+        "reset_gpio": reset_gpio,
+        "backlight_gpio": backlight_gpio,
         "width": width,
         "height": height,
         "rotation": rotation,
@@ -408,9 +484,12 @@ def _display_resource(value: dict[str, Any], path: Path) -> dict[str, Any]:
 
 
 class _Inputs:
-    def __init__(self, project_root: Path, sdk_root: Path) -> None:
+    def __init__(
+        self, project_root: Path, sdk_root: Path, user_bsp_root: Optional[Path] = None
+    ) -> None:
         self.project_root = project_root.resolve()
         self.sdk_root = sdk_root.resolve()
+        self.user_bsp_root = user_bsp_root.resolve() if user_bsp_root else None
         self._items: dict[str, dict[str, Any]] = {}
 
     def add(self, path: Path) -> None:
@@ -423,9 +502,17 @@ class _Inputs:
                 relative = resolved.relative_to(self.sdk_root)
                 identity = f"sdk:{relative.as_posix()}"
             except ValueError as exc:
-                raise ManifestValidationError(
-                    f"resolved input is outside the project and SDK: {resolved}"
-                ) from exc
+                if self.user_bsp_root is None:
+                    raise ManifestValidationError(
+                        f"resolved input is outside the project and SDK: {resolved}"
+                    ) from exc
+                try:
+                    relative = resolved.relative_to(self.user_bsp_root)
+                except ValueError:
+                    raise ManifestValidationError(
+                        f"resolved input is outside the project, SDK, and user BSP: {resolved}"
+                    ) from exc
+                identity = f"user-bsp:{relative.as_posix()}"
         try:
             digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
         except OSError as exc:
@@ -471,8 +558,10 @@ class _Inputs:
 
 def _find_board_manifest(context: SdkContext, board_id: str) -> Path:
     matches: list[Path] = []
-    for path in sorted(context.resource("boards").glob("*/ecos-board.yml")):
-        value = _read_manifest(path, "Board")
+    for path in context.board_manifests():
+        value = _read_manifest(path, "Board", validate_schema=False)
+        if value.get("schema") == 2:
+            value = _read_manifest(path, "Board")
         aliases = value.get("aliases", [])
         if value.get("id") == board_id or (
             isinstance(aliases, list) and board_id in aliases
@@ -510,6 +599,7 @@ def _resolve_board(
             "abstract_machine",
             "flash",
             "monitor",
+            "debug",
         },
         kind="Board",
         path=path,
@@ -543,18 +633,23 @@ def _resolve_board(
             )
         if resource_id == "gpio-demo":
             resources[resource_id] = _gpio_demo_resource(resource, path)
+        elif resource_id == "led":
+            resources[resource_id] = _led_resource(resource, path)
         elif resource_id in {"qspi-bus", "qspi0"}:
             resources[resource_id] = _qspi_bus_resource(resource, path, resource_id)
-        elif resource_id == "display":
-            resources[resource_id] = _display_resource(resource, path)
+        elif resource_id == "soft-spi-bus":
+            resources[resource_id] = _soft_spi_resource(resource, path)
+        elif resource_id in {"display", "display-st7789"}:
+            resources[resource_id] = _display_resource(resource, path, resource_id)
         else:
             resources[resource_id] = dict(resource)
-    display = resources.get("display")
-    if display is not None and display["bus"] not in resources:
-        raise ManifestValidationError(
-            f"Board.resources.display.bus refers to missing resource "
-            f"{display['bus']!r} in {path}"
-        )
+    for resource_id in ("display", "display-st7789"):
+        display = resources.get(resource_id)
+        if display is not None and display["bus"] not in resources:
+            raise ManifestValidationError(
+                f"Board.resources.{resource_id}.bus refers to missing resource "
+                f"{display['bus']!r} in {path}"
+            )
     build = _mapping(value.get("build"), "Board.build", path)
     _check_keys(
         build,
@@ -575,6 +670,7 @@ def _resolve_board(
             f"Board.build.profiles must be a mapping or list in {path}"
         )
     profile_names: list[str] = []
+    profile_configs: dict[str, dict[str, str]] = {}
     if isinstance(profiles, list):
         profile_names = _string_list(profiles, "Board.build.profiles", path)
     elif isinstance(profiles, dict):
@@ -584,6 +680,39 @@ def _resolve_board(
                 raise ManifestValidationError(
                     f"Board.build.profiles.{profile_name} must be a mapping in {path}"
                 )
+            _check_keys(
+                profile_value,
+                {"kconfig"},
+                kind=f"Board.build.profiles.{profile_name}",
+                path=path,
+            )
+            profile_kconfig = _mapping(
+                profile_value.get("kconfig"),
+                f"Board.build.profiles.{profile_name}.kconfig",
+                path,
+            )
+            normalized_profile: dict[str, str] = {}
+            for symbol, symbol_value in profile_kconfig.items():
+                if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", symbol):
+                    raise ManifestValidationError(
+                        f"Board.build.profiles.{profile_name}.kconfig contains an "
+                        f"invalid symbol {symbol!r} in {path}"
+                    )
+                if isinstance(symbol_value, bool):
+                    normalized_profile[symbol] = "y" if symbol_value else "n"
+                elif isinstance(symbol_value, (int, str)):
+                    if isinstance(symbol_value, str) and not symbol_value:
+                        raise ManifestValidationError(
+                            f"Board.build.profiles.{profile_name}.kconfig.{symbol} "
+                            f"must not be empty in {path}"
+                        )
+                    normalized_profile[symbol] = str(symbol_value)
+                else:
+                    raise ManifestValidationError(
+                        f"Board.build.profiles.{profile_name}.kconfig.{symbol} "
+                        f"must be a string, integer, or boolean in {path}"
+                    )
+            profile_configs[profile_name] = normalized_profile
         profile_names = list(profiles)
     if default_profile is not None:
         if profile_names and default_profile not in profile_names:
@@ -674,6 +803,8 @@ def _resolve_board(
         if "serial_number" in monitor:
             _string(monitor["serial_number"], "Board.monitor.serial_number", path)
 
+    debug = _debug_configuration(value.get("debug"), "Board.debug", path)
+
     inputs.add(path)
     for item in [*kconfig_paths, *legacy_kconfig_paths]:
         inputs.add(item)
@@ -686,12 +817,14 @@ def _resolve_board(
         "default_profile": default_profile,
         "profiles": profiles,
         "profile_names": profile_names,
+        "profile_configs": profile_configs,
         "components": components,
         "resources": resources,
         "kconfig": [str(item) for item in kconfig_paths],
         "legacy_kconfig": [str(item) for item in legacy_kconfig_paths],
         "flash": flash or None,
         "monitor": monitor or None,
+        "debug": debug,
     }
 
 
@@ -715,6 +848,7 @@ def _resolve_target(
             "memory",
             "build",
             "capabilities",
+            "debug",
         },
         kind="Target",
         path=path,
@@ -739,6 +873,7 @@ def _resolve_target(
     capabilities = _string_list(
         value.get("capabilities"), "Target.capabilities", path
     )
+    debug = _debug_configuration(value.get("debug"), "Target.debug", path)
     for capability in capabilities:
         project.validate_selection("Target capability", capability)
     build = _mapping(value.get("build"), "Target.build", path)
@@ -925,6 +1060,7 @@ def _resolve_target(
         "toolchain": toolchain,
         "memory": memory,
         "capabilities": capabilities,
+        "debug": debug,
         "build": {
             "cmake": str(cmake),
             "toolchain_file": str(toolchain_file),
@@ -1062,12 +1198,17 @@ def _component_candidates(context: SdkContext) -> dict[str, list[tuple[Path, dic
     for resource_name in COMPONENT_RESOURCE_NAMES:
         if resource_name not in context.manifest["layout"]:
             continue
-        resource_root = context.resource(resource_name)
-        for path in sorted(resource_root.rglob("ecos-component.yml")):
-            value = _read_manifest(path, "Component")
-            component_id = value.get("id")
-            if isinstance(component_id, str) and component_id:
-                candidates.setdefault(component_id, []).append((path.resolve(), value))
+        resource_roots = (
+            context.board_roots()
+            if resource_name == "boards"
+            else (context.resource(resource_name),)
+        )
+        for resource_root in resource_roots:
+            for path in sorted(resource_root.rglob("ecos-component.yml")):
+                value = _read_manifest(path, "Component")
+                component_id = value.get("id")
+                if isinstance(component_id, str) and component_id:
+                    candidates.setdefault(component_id, []).append((path.resolve(), value))
     return candidates
 
 
@@ -1153,19 +1294,24 @@ def _resolve_components(
             visit(dependency)
         visiting.pop()
         root = path.parent
+        allowed_root = (
+            context.user_bsp_root
+            if path.is_relative_to(context.user_bsp_root)
+            else sdk_root
+        )
         sources = _path_list(
             root,
             value.get("sources"),
             "Component.sources",
             path,
-            allowed_root=sdk_root,
+            allowed_root=allowed_root,
         )
         include_dirs = _path_list(
             root,
             value.get("include_dirs"),
             "Component.include_dirs",
             path,
-            allowed_root=sdk_root,
+            allowed_root=allowed_root,
             directories=True,
         )
         inputs.add(path)
@@ -1197,7 +1343,7 @@ def validate_example_source(
     """Validate a source Example and its Component graph before project creation."""
 
     root = example_root.resolve()
-    inputs = _Inputs(root, context.root)
+    inputs = _Inputs(root, context.root, context.user_bsp_root)
     example = _resolve_example(root, expected_name, inputs)
     component_roots = list(
         dict.fromkeys(
@@ -1240,14 +1386,15 @@ def list_examples(context: SdkContext) -> dict[str, Any]:
             )
         discovered[name] = manifest_path.parent.resolve()
 
-    catalog_inputs = _Inputs(examples_root, context.root)
+    catalog_inputs = _Inputs(examples_root, context.root, context.user_bsp_root)
     targets: dict[str, dict[str, Any]] = {}
     boards: list[dict[str, Any]] = []
     board_ids: set[str] = set()
-    for manifest_path in sorted(context.resource("boards").glob("*/ecos-board.yml")):
-        value = _read_manifest(manifest_path, "Board")
-        if value.get("schema") != 2 or value.get("target") is None:
+    for manifest_path in context.board_manifests():
+        value = _read_manifest(manifest_path, "Board", validate_schema=False)
+        if value.get("schema") != 2:
             continue
+        value = _read_manifest(manifest_path, "Board")
         target_id = _string(value.get("target"), "Board.target", manifest_path)
         assert target_id is not None
         target_manifest = (
@@ -1317,7 +1464,7 @@ def list_examples(context: SdkContext) -> dict[str, Any]:
             components = _resolve_components(
                 context,
                 component_roots,
-                _Inputs(example_root, context.root),
+                _Inputs(example_root, context.root, context.user_bsp_root),
             )
             requested = set(example["requires"])
             for component in components:
@@ -1356,22 +1503,187 @@ def list_examples(context: SdkContext) -> dict[str, Any]:
     }
 
 
+def describe_board(context: SdkContext, requested: str) -> dict[str, Any]:
+    board_id, target_id = project.resolve_board(context, requested)
+    inputs = _Inputs(context.root, context.root, context.user_bsp_root)
+    target = _resolve_target(context, target_id, inputs)
+    board = _resolve_board(context, board_id, target_id, inputs)
+    if board["arch"] is not None and board["arch"] != target["arch"]:
+        raise CapabilityMismatchError(
+            f"Board {board_id!r} uses architecture {board['arch']!r}, "
+            f"but Target {target_id!r} uses {target['arch']!r}"
+        )
+    aliases = _string_list(
+        _read_manifest(Path(board["manifest"]), "Board").get("aliases"),
+        "Board.aliases",
+        Path(board["manifest"]),
+    )
+    return {
+        "id": board_id,
+        "name": board["name"],
+        "aliases": aliases,
+        "target": target_id,
+        "arch": target["arch"],
+        "cpu": target["cpu"],
+        "default_profile": board["default_profile"],
+        "profiles": board["profile_names"],
+        "components": board["components"],
+        "resources": board["resources"],
+        "capabilities": sorted(set(target["capabilities"]) | set(board["resources"])),
+        "flash": board["flash"],
+        "monitor": board["monitor"],
+        "debug": board["debug"] or target["debug"],
+    }
+
+
+def list_boards(context: SdkContext) -> dict[str, Any]:
+    boards = []
+    for path in context.board_manifests():
+        value = _read_manifest(path, "Board", validate_schema=False)
+        if value.get("schema") != 2:
+            continue
+        value = _read_manifest(path, "Board")
+        board_id = _string(value.get("id"), "Board.id", path)
+        assert board_id is not None
+        board = describe_board(context, board_id)
+        boards.append(
+            {key: board[key] for key in (
+                "id", "name", "aliases", "target", "arch", "default_profile",
+                "profiles", "capabilities",
+            )}
+        )
+    return {
+        "sdk": {"id": context.sdk_id, "version": context.version},
+        "boards": boards,
+    }
+
+
+def describe_target(context: SdkContext, target_id: str) -> dict[str, Any]:
+    target = _resolve_target(
+        context, target_id, _Inputs(context.root, context.root, context.user_bsp_root)
+    )
+    return {
+        key: target[key] for key in (
+            "id", "name", "arch", "cpu", "toolchain", "memory", "capabilities", "build", "debug",
+        )
+    }
+
+
+def list_targets(context: SdkContext) -> dict[str, Any]:
+    targets = []
+    for path in sorted((context.resource("components") / "soc").glob("*/ecos-soc.yml")):
+        target_id = path.parent.name
+        target = describe_target(context, target_id)
+        targets.append(
+            {key: target[key] for key in (
+                "id", "name", "arch", "cpu", "capabilities",
+            )}
+        )
+    return {
+        "sdk": {"id": context.sdk_id, "version": context.version},
+        "targets": targets,
+    }
+
+
+def describe_component(context: SdkContext, component_id: str) -> dict[str, Any]:
+    components = _resolve_components(
+        context, [component_id], _Inputs(context.root, context.root, context.user_bsp_root)
+    )
+    return next(item for item in components if item["id"] == component_id)
+
+
+def list_components(context: SdkContext) -> dict[str, Any]:
+    candidates = _component_candidates(context)
+    components = _resolve_components(
+        context, sorted(candidates), _Inputs(context.root, context.root, context.user_bsp_root)
+    )
+    return {
+        "sdk": {"id": context.sdk_id, "version": context.version},
+        "components": [
+            {key: item[key] for key in (
+                "id", "name", "cmake_target", "dependencies",
+                "private_dependencies", "requires",
+            )}
+            for item in sorted(components, key=lambda entry: entry["id"])
+        ],
+    }
+
+
+def _list_component_resource(
+    context: SdkContext, resource_name: str
+) -> dict[str, Any]:
+    resource_root = context.resource(resource_name).resolve()
+    candidates = _component_candidates(context)
+    requested = sorted(
+        component_id
+        for component_id, matches in candidates.items()
+        if any(path.is_relative_to(resource_root) for path, _ in matches)
+    )
+    resolved = _resolve_components(
+        context, requested, _Inputs(context.root, context.root, context.user_bsp_root)
+    )
+    return {
+        "sdk": {"id": context.sdk_id, "version": context.version},
+        resource_name: [
+            {key: item[key] for key in (
+                "id", "name", "cmake_target", "dependencies",
+                "private_dependencies", "requires",
+            )}
+            for item in sorted(resolved, key=lambda entry: entry["id"])
+            if Path(item["manifest"]).is_relative_to(resource_root)
+        ],
+    }
+
+
+def _describe_component_resource(
+    context: SdkContext, resource_name: str, component_id: str
+) -> dict[str, Any]:
+    item = describe_component(context, component_id)
+    if not Path(item["manifest"]).is_relative_to(context.resource(resource_name).resolve()):
+        singular = resource_name[:-1].capitalize()
+        raise ComponentResolutionError(f"SDK {singular} does not exist: {component_id}")
+    return item
+
+
+def list_drivers(context: SdkContext) -> dict[str, Any]:
+    return _list_component_resource(context, "drivers")
+
+
+def describe_driver(context: SdkContext, driver_id: str) -> dict[str, Any]:
+    return _describe_component_resource(context, "drivers", driver_id)
+
+
+def list_devices(context: SdkContext) -> dict[str, Any]:
+    return _list_component_resource(context, "devices")
+
+
+def describe_device(context: SdkContext, device_id: str) -> dict[str, Any]:
+    return _describe_component_resource(context, "devices", device_id)
+
+
 def resolve_project(
     context: SdkContext,
     *,
     project_root: Optional[Path] = None,
     metadata_override: Optional[dict[str, Any]] = None,
+    example_source: Optional[Path] = None,
 ) -> dict[str, Any]:
     """Resolve all project inputs without writing or invoking external tools."""
 
-    root = (project_root or Path.cwd()).expanduser().resolve()
-    metadata_path, current_metadata = project.load_project_metadata(root)
-    metadata = dict(metadata_override) if metadata_override is not None else current_metadata
+    root = (example_source or project_root or Path.cwd()).expanduser().resolve()
+    if example_source is not None:
+        if metadata_override is None:
+            raise ManifestValidationError("Example preview requires project metadata")
+        metadata_path = root / "ecos-example.yml"
+        metadata = dict(metadata_override)
+    else:
+        metadata_path, current_metadata = project.load_project_metadata(root)
+        metadata = dict(metadata_override) if metadata_override is not None else current_metadata
     project_name = metadata.get("name")
     if not isinstance(project_name, str):
         raise ManifestValidationError("project name must be a string")
     project.validate_project_name(project_name)
-    inputs = _Inputs(root, context.root)
+    inputs = _Inputs(root, context.root, context.user_bsp_root)
     inputs.add(metadata_path)
     sdk_manifest_path = context.root / "tools" / "sdk-manifest.json"
     if sdk_manifest_path.is_file():
@@ -1498,9 +1810,9 @@ def resolve_project(
     if board is not None:
         kconfig_paths.extend(board["kconfig"])
     kconfig_paths.extend(target["build"]["kconfig"])
-    common_kconfig = context.root / "tools" / "kconfig" / "Kconfig.build"
-    if common_kconfig.is_file():
-        kconfig_paths.append(str(common_kconfig.resolve()))
+    common_kconfig = context.manifest.get("build", {}).get("kconfig")
+    if common_kconfig is not None:
+        kconfig_paths.append(str((context.root / common_kconfig).resolve()))
     for path_value in kconfig_paths:
         inputs.add(Path(path_value))
     user_config = root / ".ecos" / "project.config"

@@ -161,8 +161,7 @@ def resolve_board(context: SdkContext, board: str) -> tuple[str, str]:
     requested = validate_selection("board ID", board)
     assert requested is not None
     matches: list[tuple[str, str]] = []
-    boards_root = context.resource("boards")
-    for manifest_path in sorted(boards_root.glob("*/ecos-board.yml")):
+    for manifest_path in context.board_manifests():
         board_id, aliases, target = _read_board_identity(manifest_path)
         if requested == board_id or requested in aliases:
             matches.append((board_id, target))
@@ -351,23 +350,28 @@ def set_board(
     *,
     project_root: Optional[Path] = None,
     validator: Optional[Callable[[dict[str, Any]], None]] = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     board_id, target = resolve_board(context, board)
     metadata_path, metadata = load_project_metadata(project_root or Path.cwd())
     previous = {"board": metadata["board"], "target": metadata["target"]}
+    old_schema = metadata["schema"]
     metadata["schema"] = PROJECT_SCHEMA_VERSION
     metadata["board"] = board_id
     metadata["target"] = target
     if validator is not None:
         validator(metadata)
-    _write_metadata_atomic(metadata_path, metadata)
+    changed = previous != {"board": board_id, "target": target}
+    if (changed or old_schema != PROJECT_SCHEMA_VERSION) and not dry_run:
+        _write_metadata_atomic(metadata_path, metadata)
     return {
         "path": str(metadata_path.parent.parent),
         "metadata": str(metadata_path),
         "board": board_id,
         "target": target,
         "previous": previous,
-        "changed": previous != {"board": board_id, "target": target},
+        "changed": changed,
+        "dry_run": dry_run,
     }
 
 
@@ -377,23 +381,58 @@ def set_target(
     *,
     project_root: Optional[Path] = None,
     validator: Optional[Callable[[dict[str, Any]], None]] = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     target_id = resolve_target(context, target)
     metadata_path, metadata = load_project_metadata(project_root or Path.cwd())
     previous = {"board": metadata["board"], "target": metadata["target"]}
+    old_schema = metadata["schema"]
     metadata["schema"] = PROJECT_SCHEMA_VERSION
     metadata["board"] = None
     metadata["target"] = target_id
     if validator is not None:
         validator(metadata)
-    _write_metadata_atomic(metadata_path, metadata)
+    changed = previous != {"board": None, "target": target_id}
+    if (changed or old_schema != PROJECT_SCHEMA_VERSION) and not dry_run:
+        _write_metadata_atomic(metadata_path, metadata)
     return {
         "path": str(metadata_path.parent.parent),
         "metadata": str(metadata_path),
         "board": None,
         "target": target_id,
         "previous": previous,
-        "changed": previous != {"board": None, "target": target_id},
+        "changed": changed,
+        "dry_run": dry_run,
+    }
+
+
+def set_profile(
+    context: SdkContext,
+    profile: str,
+    *,
+    project_root: Optional[Path] = None,
+    validator: Optional[Callable[[dict[str, Any]], None]] = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    profile_id = validate_selection("profile", profile)
+    assert profile_id is not None
+    metadata_path, metadata = load_project_metadata(project_root or Path.cwd())
+    previous = metadata["profile"]
+    old_schema = metadata["schema"]
+    metadata["schema"] = PROJECT_SCHEMA_VERSION
+    metadata["profile"] = profile_id
+    if validator is not None:
+        validator(metadata)
+    changed = previous != profile_id
+    if (changed or old_schema != PROJECT_SCHEMA_VERSION) and not dry_run:
+        _write_metadata_atomic(metadata_path, metadata)
+    return {
+        "path": str(metadata_path.parent.parent),
+        "metadata": str(metadata_path),
+        "profile": profile_id,
+        "previous": previous,
+        "changed": changed,
+        "dry_run": dry_run,
     }
 
 
@@ -420,6 +459,7 @@ def create_project(
     dry_run: bool = False,
     force: bool = False,
     validator: Optional[Callable[[Path], None]] = None,
+    plan_validator: Optional[Callable[[Path, dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     example_name = normalize_example_name(example)
     project_name = validate_project_name(
@@ -473,6 +513,8 @@ def create_project(
         "changed": False,
     }
     if dry_run:
+        if plan_validator is not None:
+            plan_validator(source, metadata)
         return data
 
     try:

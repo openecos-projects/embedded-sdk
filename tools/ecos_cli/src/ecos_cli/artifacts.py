@@ -72,14 +72,22 @@ def inspect_elf(path: Path) -> dict[str, Any]:
         raise ArtifactValidationError(f"firmware is not an ELF file: {path}")
     elf_class = data[4]
     encoding = data[5]
-    if elf_class != 1:
+    if elf_class not in {1, 2}:
         raise ArtifactValidationError(
-            f"firmware must be ELF32, got ELF class {elf_class}: {path}"
+            f"firmware must be ELF32 or ELF64, got ELF class {elf_class}: {path}"
         )
     if encoding not in {1, 2}:
         raise ArtifactValidationError(f"firmware ELF has invalid byte order: {path}")
     endian = "<" if encoding == 1 else ">"
-    header = struct.unpack(endian + "HHIIIIIHHHHHH", _slice(data, 16, 36, "header"))
+    if elf_class == 1:
+        header_format = "HHIIIIIHHHHHH"
+        header_size = 36
+    else:
+        if len(data) < 64:
+            raise ArtifactValidationError(f"firmware ELF64 header is truncated: {path}")
+        header_format = "HHIQQQIHHHHHH"
+        header_size = 48
+    header = struct.unpack(endian + header_format, _slice(data, 16, header_size, "header"))
     (
         elf_type,
         machine,
@@ -95,7 +103,8 @@ def inspect_elf(path: Path) -> dict[str, Any]:
         section_count,
         section_names_index,
     ) = header
-    if header_size < 52 or version != 1:
+    minimum_header_size = 52 if elf_class == 1 else 64
+    if header_size < minimum_header_size or version != 1:
         raise ArtifactValidationError(f"firmware ELF header is invalid: {path}")
     if machine != EM_RISCV:
         raise ArtifactValidationError(
@@ -104,16 +113,18 @@ def inspect_elf(path: Path) -> dict[str, Any]:
 
     section_headers: list[tuple[int, ...]] = []
     if section_count:
-        if section_entry_size < 40:
+        minimum_section_size = 40 if elf_class == 1 else 64
+        if section_entry_size < minimum_section_size:
             raise ArtifactValidationError(f"firmware ELF section headers are invalid: {path}")
         for index in range(section_count):
+            section_format = "IIIIIIIIII" if elf_class == 1 else "IIQQQQIIQQ"
             raw = _slice(
                 data,
                 section_offset + index * section_entry_size,
-                40,
+                minimum_section_size,
                 f"section header {index}",
             )
-            section_headers.append(struct.unpack(endian + "IIIIIIIIII", raw))
+            section_headers.append(struct.unpack(endian + section_format, raw))
     section_names = b""
     if section_headers:
         if section_names_index >= len(section_headers):
@@ -158,39 +169,53 @@ def inspect_elf(path: Path) -> dict[str, Any]:
         )
         count = section["size"] // section["entry_size"]
         for index in range(count):
+            symbol_size = 16 if elf_class == 1 else 24
             raw = _slice(
                 data,
                 section["offset"] + index * section["entry_size"],
-                16,
+                symbol_size,
                 f"symbol {index}",
             )
-            name_offset, value, _size, _info, _other, _section = struct.unpack(
-                endian + "IIIBBH", raw
-            )
+            if elf_class == 1:
+                name_offset, value, _size, _info, _other, _section = struct.unpack(
+                    endian + "IIIBBH", raw
+                )
+            else:
+                name_offset, _info, _other, _section, value, _size = struct.unpack(
+                    endian + "IBBHQQ", raw
+                )
             name = _string(strings, name_offset)
             if name:
                 symbols.setdefault(name, value)
 
     segments: list[dict[str, Any]] = []
-    if program_count and program_entry_size < 32:
+    minimum_program_size = 32 if elf_class == 1 else 56
+    if program_count and program_entry_size < minimum_program_size:
         raise ArtifactValidationError(f"firmware ELF program headers are invalid: {path}")
     for index in range(program_count):
+        program_format = "IIIIIIII" if elf_class == 1 else "IIQQQQQQ"
         raw = _slice(
             data,
             program_offset + index * program_entry_size,
-            32,
+            minimum_program_size,
             f"program header {index}",
         )
-        (
-            segment_type,
-            offset,
-            virtual_address,
-            physical_address,
-            file_size,
-            memory_size,
-            segment_flags,
-            alignment,
-        ) = struct.unpack(endian + "IIIIIIII", raw)
+        if elf_class == 1:
+            (
+                segment_type,
+                offset,
+                virtual_address,
+                physical_address,
+                file_size,
+                memory_size,
+                segment_flags,
+                alignment,
+            ) = struct.unpack(endian + program_format, raw)
+        else:
+            segment_type, segment_flags, offset, virtual_address, physical_address, \
+                file_size, memory_size, alignment = struct.unpack(
+                    endian + program_format, raw
+                )
         if segment_type == PT_LOAD:
             if memory_size < file_size:
                 raise ArtifactValidationError(
@@ -212,7 +237,7 @@ def inspect_elf(path: Path) -> dict[str, Any]:
             )
 
     return {
-        "class": "ELF32",
+        "class": "ELF32" if elf_class == 1 else "ELF64",
         "endianness": "little" if encoding == 1 else "big",
         "type": elf_type,
         "machine": "RISC-V",
@@ -266,6 +291,8 @@ def _validate_elf(elf: dict[str, Any], resolved: dict[str, Any]) -> dict[str, An
     march = cpu["march"]
     if march.startswith("rv32") and elf["class"] != "ELF32":
         raise ArtifactValidationError(f"Target {march} requires ELF32 firmware")
+    if march.startswith("rv64") and elf["class"] != "ELF64":
+        raise ArtifactValidationError(f"Target {march} requires ELF64 firmware")
     if march.startswith("rv32e") and not elf["rve"]:
         raise ArtifactValidationError(
             "Target rv32e requires the ELF RVE architecture flag"
@@ -347,6 +374,17 @@ def create_manifest(
         raise ArtifactValidationError("compile_commands.json must contain compile commands")
 
     elf = _validate_elf(inspect_elf(paths["elf"]), resolved)
+    flash_region = next(
+        (region for region in elf["memory_regions"] if region["name"] == "flash"),
+        None,
+    )
+    image_size_limit = flash_region["size"] if flash_region is not None else None
+    image_size = paths["bin"].stat().st_size
+    if image_size_limit is not None and image_size > image_size_limit:
+        raise ArtifactValidationError(
+            f"firmware BIN size {image_size} exceeds Target.memory.flash.size "
+            f"limit {image_size_limit}"
+        )
     files: dict[str, dict[str, Any]] = {}
     for name, path in paths.items():
         files[name] = {
@@ -366,6 +404,7 @@ def create_manifest(
             "entry_symbol": "_start",
             "image": "bin",
             "size": image["size"],
+            "size_limit": image_size_limit,
             "sha256": image["sha256"],
         },
         "project": {
@@ -466,6 +505,14 @@ def _validate_manifest_structure(value: Any, path: Path) -> dict[str, Any]:
         or not DIGEST_PATTERN.fullmatch(firmware["sha256"])
     ):
         raise ArtifactManifestError(f"artifact manifest firmware digest is invalid: {path}")
+    size_limit = firmware.get("size_limit")
+    if size_limit is not None and (
+        isinstance(size_limit, bool)
+        or not isinstance(size_limit, int)
+        or size_limit <= 0
+        or firmware["size"] > size_limit
+    ):
+        raise ArtifactManifestError(f"artifact manifest firmware size limit is invalid: {path}")
     elf = value.get("elf")
     if (
         not isinstance(elf, dict)

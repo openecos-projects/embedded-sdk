@@ -217,14 +217,14 @@ set_board() {
     if [[ "$project_type" == "asm" ]]; then
         local board_sdk_dir=""
         case "$target_board_name" in
-            "c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyC1" ;;
-            "c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyC2" ;;
-            "l3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3" ;;
-            "l3_1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL3_1" ;;
-            "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
-            "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
-            "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
-            "t1-pico") board_sdk_dir="$SDK_ROOT/board/StarrySkyT1Pico" ;;
+            "c1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyC1" ;;
+            "c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyC2" ;;
+            "l3") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL3" ;;
+            "l3_1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL3_1" ;;
+            "l4c1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C1" ;;
+            "l4c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C2" ;;
+            "l4c3") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C3" ;;
+            "t1-pico") board_sdk_dir="$SDK_ROOT/boards/StarrySkyT1Pico" ;;
             *)
                 err "Unsupported board: $target_board_name"
                 exit 1
@@ -249,9 +249,9 @@ set_board() {
             local lds_file="sections.lds"
             # local start_file="start.s" # C1 might not have start.s in board dir yet, checking...
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyC1/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyC1/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyC1/$lds_file"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyC1/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyC1/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyC1/$lds_file"
 
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
@@ -278,8 +278,8 @@ set_board() {
             fi
 
             # Copy start.s if exists (C1 support)
-            if [[ -f "$SDK_ROOT/board/StarrySkyC1/start.s" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyC1/start.s" "./start.s"
+            if [[ -f "$SDK_ROOT/boards/StarrySkyC1/start.s" ]]; then
+                cp "$SDK_ROOT/boards/StarrySkyC1/start.s" "./start.s"
                 log "Set startup code: ./start.s"
             fi
 
@@ -299,10 +299,10 @@ set_board() {
             local lds_file="sections.lds"
             local start_file="start.S"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyC2/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyC2/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyC2/$lds_file"
-            local start_source_path="$SDK_ROOT/board/StarrySkyC2/$start_file"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyC2/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyC2/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyC2/$lds_file"
+            local start_source_path="$SDK_ROOT/boards/StarrySkyC2/$start_file"
 
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
@@ -354,9 +354,9 @@ set_board() {
             local make_file="Makefile"
             local lds_file="sections.lds"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyL3/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyL3/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyL3/$lds_file"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyL3/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyL3/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyL3/$lds_file"
 
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
@@ -383,13 +383,13 @@ set_board() {
             fi
 
             # Copy start.s if exists
-            if [[ -f "$SDK_ROOT/board/StarrySkyL3/start.s" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyL3/start.s" "./start.s"
+            if [[ -f "$SDK_ROOT/boards/StarrySkyL3/start.s" ]]; then
+                cp "$SDK_ROOT/boards/StarrySkyL3/start.s" "./start.s"
                 log "Set startup code: ./start.s"
             fi
 
             # Copy bootloader
-            local bootloader_source_path="$SDK_ROOT/board/StarrySkyL3/loader"
+            local bootloader_source_path="$SDK_ROOT/boards/StarrySkyL3/loader"
             local bootloader_target_path="./loader"
             cp -r "$bootloader_source_path" "$bootloader_target_path"
             log "Set bootloader: $bootloader_target_path"
@@ -409,9 +409,9 @@ set_board() {
             local make_file="Makefile"
             local lds_file="sections.lds"
 
-            local board_source_path="$SDK_ROOT/board/StarrySkyL3_1/$board_file"
-            local make_source_path="$SDK_ROOT/board/StarrySkyL3_1/$make_file"
-            local lds_source_path="$SDK_ROOT/board/StarrySkyL3_1/$lds_file"
+            local board_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$board_file"
+            local make_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$make_file"
+            local lds_source_path="$SDK_ROOT/boards/StarrySkyL3_1/$lds_file"
 
             local board_target_path="./board.h"
             local make_target_path="./Makefile"
@@ -438,13 +438,13 @@ set_board() {
             fi
 
              # Copy start.S if exists
-            if [[ -f "$SDK_ROOT/board/StarrySkyL3_1/start.S" ]]; then
-                cp "$SDK_ROOT/board/StarrySkyL3_1/start.S" "./start.S"
+            if [[ -f "$SDK_ROOT/boards/StarrySkyL3_1/start.S" ]]; then
+                cp "$SDK_ROOT/boards/StarrySkyL3_1/start.S" "./start.S"
                 log "Set startup code: ./start.S"
             fi
 
             # Copy bootloader
-            local bootloader_source_path="$SDK_ROOT/board/StarrySkyL3_1/loader"
+            local bootloader_source_path="$SDK_ROOT/boards/StarrySkyL3_1/loader"
             local bootloader_target_path="./loader"
             cp -r "$bootloader_source_path" "$bootloader_target_path"
             log "Set bootloader: $bootloader_target_path"
@@ -462,9 +462,9 @@ set_board() {
         "l4c1"|"l4c2"|"l4c3")
             local board_sdk_dir=""
             case "$target_board_name" in
-                "l4c1") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C1" ;;
-                "l4c2") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C2" ;;
-                "l4c3") board_sdk_dir="$SDK_ROOT/board/StarrySkyL4_C3" ;;
+                "l4c1") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C1" ;;
+                "l4c2") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C2" ;;
+                "l4c3") board_sdk_dir="$SDK_ROOT/boards/StarrySkyL4_C3" ;;
             esac
             local board_file="board.h"
             local make_file="Makefile"

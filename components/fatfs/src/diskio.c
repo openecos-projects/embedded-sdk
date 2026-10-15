@@ -1,178 +1,167 @@
 /*-----------------------------------------------------------------------*/
-/* Low level disk I/O module SKELETON for FatFs     (C)ChaN, 2025        */
-/*-----------------------------------------------------------------------*/
-/* If a working storage control module is available, it should be        */
-/* attached to the FatFs via a glue function rather than modifying it.   */
-/* This is an example of glue functions to attach various exsisting      */
-/* storage control modules to the FatFs module with a defined API.       */
+/* FatFs disk adapter for the SFUD managed serial flash.                 */
 /*-----------------------------------------------------------------------*/
 
-#include "ff.h"			/* Basic definitions of FatFs */
-#include "diskio.h"		/* Declarations FatFs MAI */
+#include <stdint.h>
 
-/* Example: Declarations of the platform and disk functions in the project */
-#include "sfud.h"
+#include "ff.h"
+#include "diskio.h"
 #include "ecos/log.h"
+#include "sfud.h"
 
-/* Example: Mapping of physical drive number for each drive */
-#define DEV_FLASH	0	/* Map FTL to physical drive 0 */
-static sfud_flash *flash; // 不可重入变量
+#define DEV_FLASH 0u
+#define FATFS_SECTOR_SIZE ((uint32_t)FF_MIN_SS)
+
+static sfud_flash *flash;
+static uint32_t sector_count;
+static uint32_t erase_block_sectors;
+static bool disk_ready;
+
+static bool disk_range_valid(LBA_t sector, UINT count)
+{
+    uint32_t start = (uint32_t)sector;
+    uint32_t count32 = (uint32_t)count;
+
+    if (!disk_ready || flash == NULL || count32 == 0u) {
+        return false;
+    }
+    if (start >= sector_count || count32 > sector_count - start) {
+        return false;
+    }
+    if ((size_t)count32 > SIZE_MAX / FATFS_SECTOR_SIZE) {
+        return false;
+    }
+    return true;
+}
+
+static uint32_t sector_address(LBA_t sector)
+{
+    return (uint32_t)sector * FATFS_SECTOR_SIZE;
+}
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
 /*-----------------------------------------------------------------------*/
 
-DSTATUS disk_status (
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
-)
+DSTATUS disk_status(BYTE pdrv)
 {
-	DSTATUS status = STA_NOINIT;
-    (void)ECOS_LOGD("fatfs", "EnterStatus, waiting...");
-	switch (pdrv) {
-        case DEV_FLASH:
-            if (flash != NULL && flash->init_ok) {
-                status = 0x00;
-            } else {
-                uint8_t flash_status_register = 0x00;
-                sfud_read_status(flash, &flash_status_register);
-                if ((flash_status_register & 0x01) == 0x00) status = 0x00;
-            }
-            break;
-	}
-    (void)ECOS_LOGD("fatfs", "ExitStatus, return:%x", (unsigned)status);
-	return status;
+    if (pdrv != DEV_FLASH || !disk_ready || flash == NULL || !flash->init_ok) {
+        return STA_NOINIT;
+    }
+    return 0u;
 }
 
-
-
 /*-----------------------------------------------------------------------*/
-/* Inidialize a Drive                                                    */
+/* Initialize a Drive                                                    */
 /*-----------------------------------------------------------------------*/
 
-DSTATUS disk_initialize (
-	BYTE pdrv				/* Physical drive nmuber to identify the drive */
-)
+DSTATUS disk_initialize(BYTE pdrv)
 {
-	DSTATUS status = STA_NOINIT;
-    (void)ECOS_LOGD("fatfs", "EnterInit, waiting...");
+    uint32_t erase_gran;
 
-	switch (pdrv) {
-        case DEV_FLASH:
-            flash = sfud_get_device_table() + 0;
-            if (flash->init_ok) {
-                status = disk_status(DEV_FLASH);
-            } else if (sfud_init() == SFUD_SUCCESS) {
-                status = disk_status(DEV_FLASH);
-            } else {
-                status = STA_NOINIT;
-            }
-		    break;
-	}
-    (void)ECOS_LOGD("fatfs", "ExitInit, return:%x", (unsigned)status);
-	return status;
+    if (pdrv != DEV_FLASH) {
+        return STA_NOINIT;
+    }
+
+    flash = sfud_get_device(DEV_FLASH);
+    if (flash == NULL || (!flash->init_ok && sfud_init() != SFUD_SUCCESS)) {
+        disk_ready = false;
+        return STA_NOINIT;
+    }
+
+    if (flash->chip.capacity < FATFS_SECTOR_SIZE) {
+        disk_ready = false;
+        return STA_NOINIT;
+    }
+
+    sector_count = flash->chip.capacity / FATFS_SECTOR_SIZE;
+    erase_gran = flash->chip.erase_gran;
+    erase_block_sectors = erase_gran / FATFS_SECTOR_SIZE;
+    if (erase_block_sectors == 0u) {
+        erase_block_sectors = 1u;
+    }
+    disk_ready = sector_count != 0u;
+
+    (void)ECOS_LOGD("fatfs", "Flash %s: %lu sectors, erase block %lu sectors",
+                    flash->chip.name,
+                    (unsigned long)sector_count,
+                    (unsigned long)erase_block_sectors);
+    return disk_status(pdrv);
 }
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                                        */
-/* 设置扇区大小为FLASH（使用WW25Q64）的最小擦除区域（4KB）                      */
 /*-----------------------------------------------------------------------*/
-DRESULT disk_read (
-	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
-	BYTE *buff,		/* Data buffer to store read data */
-	LBA_t sector,	/* Start sector in LBA */
-	UINT count		/* Number of sectors to read */
-)
+
+DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 {
-	DRESULT status = RES_PARERR;
-    (void)ECOS_LOGD("fatfs", "EnterRead, waiting...");
-    // sector += 512; // 2MB之后的第一块作为第一个扇区
-    uint32_t addr = sector << 12;
-    size_t size = count << 12;
+    size_t size;
 
+    if (pdrv != DEV_FLASH || buff == NULL || !disk_range_valid(sector, count)) {
+        return RES_PARERR;
+    }
 
-	switch (pdrv) {
-        case DEV_FLASH:
-            if(sfud_read(flash, addr, size, buff) == SFUD_SUCCESS) status = RES_OK;
-            else status = RES_ERROR;
-		    break;
-	}
-    (void)ECOS_LOGD("fatfs", "ExitRead, return:%x", (unsigned)status);
-	return status;
+    size = (size_t)count * FATFS_SECTOR_SIZE;
+    return sfud_read(flash, sector_address(sector), size, buff) == SFUD_SUCCESS
+               ? RES_OK
+               : RES_ERROR;
 }
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
 #if FF_FS_READONLY == 0
-
-DRESULT disk_write (
-	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
-	const BYTE *buff,	/* Data to be written */
-	LBA_t sector,		/* Start sector in LBA */
-	UINT count			/* Number of sectors to write */
-)
+DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
 {
-	DRESULT status = RES_PARERR;
-    (void)ECOS_LOGD("fatfs", "EnterWrite, waiting...");
+    size_t size;
 
-    uint32_t addr = sector << 12;
-    size_t size = count << 12;
+    if (pdrv != DEV_FLASH || buff == NULL || !disk_range_valid(sector, count)) {
+        return RES_PARERR;
+    }
 
-	switch (pdrv) {
-        case DEV_FLASH:
-            if(sfud_erase_write(flash, addr, size, buff) == SFUD_SUCCESS) status = RES_OK;
-            else status = RES_ERROR;
-		    break;
-	}
-    (void)ECOS_LOGD("fatfs", "ExitWrite, return:%x", (unsigned)status);
-	return status;
+    size = (size_t)count * FATFS_SECTOR_SIZE;
+    return sfud_erase_write(flash, sector_address(sector), size, buff) == SFUD_SUCCESS
+               ? RES_OK
+               : RES_ERROR;
 }
-
 #endif
-
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_ioctl (
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
-	BYTE cmd,		/* Control code */
-	void *buff		/* Buffer to send/receive control data */
-)
+DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 {
-	DRESULT status = RES_PARERR;
+    if (pdrv != DEV_FLASH || !disk_ready) {
+        return RES_PARERR;
+    }
 
-
-	switch (cmd) {
-        case CTRL_SYNC:
-            status = RES_OK;
-		    break;
-
-        case GET_SECTOR_COUNT:
-            *(DWORD *)buff = 2048;
-            status = RES_OK;
-		    break;
-
-        case GET_SECTOR_SIZE:
-            *(WORD *)buff = 4096;
-            status = RES_OK;
-		    break;
-        
-        case GET_BLOCK_SIZE:
-            *(DWORD *)buff = 1;
-            status = RES_OK;
-		    break;
-
-        case CTRL_TRIM:
-            status = RES_OK;
-		    break;
-	}
-	return status;
+    switch (cmd) {
+    case CTRL_SYNC:
+        return RES_OK;
+    case GET_SECTOR_COUNT:
+        if (buff == NULL) {
+            return RES_PARERR;
+        }
+        *(DWORD *)buff = (DWORD)sector_count;
+        return RES_OK;
+    case GET_SECTOR_SIZE:
+        if (buff == NULL) {
+            return RES_PARERR;
+        }
+        *(WORD *)buff = (WORD)FATFS_SECTOR_SIZE;
+        return RES_OK;
+    case GET_BLOCK_SIZE:
+        if (buff == NULL) {
+            return RES_PARERR;
+        }
+        *(DWORD *)buff = (DWORD)erase_block_sectors;
+        return RES_OK;
+    case CTRL_TRIM:
+        /* FF_USE_TRIM is disabled; do not erase in response to this hint. */
+        return RES_PARERR;
+    default:
+        return RES_PARERR;
+    }
 }
-

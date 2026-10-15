@@ -211,7 +211,17 @@ class ToolchainInstallerTest(unittest.TestCase):
             self.assertTrue(result["changed"])
             self.assertTrue((target / "bin" / "riscv-none-elf-gcc").is_file())
             self.assertTrue((target / "bin" / "riscv64-unknown-elf-gcc").is_symlink())
-            self.assertEqual((root / "prefix" / "toolchain" / "riscv").resolve(), target)
+            self.assertEqual(
+                target,
+                root / "prefix" / "fixture" / "1.0.0" / "linux-x86_64",
+            )
+            self.assertFalse((root / "prefix" / "toolchain" / "riscv").exists())
+            self.assertEqual(
+                installer.shared_install_root(
+                    loaded, root / "prefix", "windows-x86_64"
+                ),
+                root / "prefix" / "fixture" / "1.0.0" / "windows-x86_64",
+            )
 
             custom_manifest = dict(loaded)
             custom_manifest["release"] = "2.0.0"

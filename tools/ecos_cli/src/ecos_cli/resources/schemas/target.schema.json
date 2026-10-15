@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ECOS Target manifest, version 1",
+  "description": "SoC identity, ISA and ABI, memory, build inputs and capabilities.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "arch", "cpu"],
+  "properties": {
+    "schema": {"const": 1},
+    "id": {"$ref": "#/$defs/selection"},
+    "name": {"$ref": "#/$defs/text"},
+    "description": {"$ref": "#/$defs/text"},
+    "arch": {"$ref": "#/$defs/text"},
+    "debug": {"$ref": "#/$defs/debug"},
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["march", "abi"],
+      "properties": {
+        "march": {"$ref": "#/$defs/text"},
+        "abi": {"$ref": "#/$defs/text"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "release": {"$ref": "#/$defs/text"},
+        "prefix": {"$ref": "#/$defs/text"},
+        "triple": {"$ref": "#/$defs/text"}
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["origin", "size"],
+        "properties": {
+          "origin": {"$ref": "#/$defs/nonnegativeMemory"},
+          "size": {"$ref": "#/$defs/nonnegativeMemory"},
+          "attributes": {"$ref": "#/$defs/text"}
+        }
+      }
+    },
+    "capabilities": {"$ref": "#/$defs/selections"},
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cmake": {"$ref": "#/$defs/text"},
+        "toolchain_file": {"$ref": "#/$defs/text"},
+        "kconfig": {"$ref": "#/$defs/text"},
+        "linker_script": {"$ref": "#/$defs/text"},
+        "startup": {"$ref": "#/$defs/text"},
+        "loader": {"$ref": "#/$defs/text"},
+        "sources": {"$ref": "#/$defs/strings"},
+        "include_dirs": {"$ref": "#/$defs/strings"},
+        "capability_sources": {"$ref": "#/$defs/capabilityPaths"},
+        "capability_include_dirs": {"$ref": "#/$defs/capabilityPaths"},
+        "outputs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["elf", "bin", "hex", "txt", "map", "size", "compile_commands"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "selection": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "not": {"enum": [".", ".."]}
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/text"}
+    },
+    "selections": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/selection"}
+    },
+    "capabilityPaths": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/selection"},
+      "additionalProperties": {"$ref": "#/$defs/strings"}
+    },
+    "nonnegativeMemory": {
+      "oneOf": [
+        {"type": "integer", "minimum": 0},
+        {"type": "string", "pattern": "^(?:0[xX][0-9A-Fa-f]+|[0-9]+)[KMkm]?$"}
+      ]
+    },
+    "debug": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "server_address"],
+      "properties": {
+        "adapter": {"const": "cppdbg"},
+        "server_address": {"type": "string", "pattern": "^\\S+:\\d+$"},
+        "stop_at_entry": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 # ysyx-2512-2 SoC Target
 
-`ysyx-2512-2` 是星空 L4C3 板卡使用的 Target/SoC。本目录统一保存原先位于
-`board/StarrySkyL4/` 中的芯片级资料：
+`ysyx-2512-2` 是星空 L4C3 板卡使用的 Target/SoC。本目录统一保存原先分散在
+旧板卡目录中的芯片级资料：
 
 - `include/`：内存映射寄存器定义。
 - `startup/`：复位入口和 PSRAM 加载程序。

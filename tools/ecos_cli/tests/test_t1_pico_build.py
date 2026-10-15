@@ -38,8 +38,11 @@ def sdk_toolchain_is_ready() -> bool:
     try:
         manifest = toolchain.load_manifest()
         host = toolchain.detect_host()
-        status = toolchain.installation_status(
-            manifest, toolchain.default_prefix(), host
+        status = toolchain.compatible_installation_status(
+            manifest,
+            toolchain.default_prefix(),
+            host,
+            legacy_roots=(toolchain.legacy_prefix(),),
         )
     except toolchain.ToolchainError:
         return False
@@ -164,7 +167,7 @@ class StarrySkyT1PicoBuildTest(unittest.TestCase):
         for source in (
             "components/soc/cl1-2512/startup/start.S",
             "components/soc/cl1-2512/hal/uart/uart.c",
-            "board/StarrySkyT1Pico/bsp/console.c",
+            "boards/StarrySkyT1Pico/bsp/console.c",
             "drivers/uart/src/uart.c",
         ):
             self.assertIn((SDK_ROOT / source).resolve(), compiled_sources)
@@ -193,7 +196,7 @@ class StarrySkyT1PicoBuildTest(unittest.TestCase):
         for source in (
             "components/soc/cl1-2512/hal/gpio/gpio.c",
             "components/soc/cl1-2512/hal/timer/timer.c",
-            "board/StarrySkyT1Pico/bsp/led.c",
+            "boards/StarrySkyT1Pico/bsp/led.c",
             "drivers/gpio/src/gpio.c",
             "drivers/timer/src/timer.c",
         ):

@@ -53,21 +53,31 @@ static uint32_t enc_u(uint32_t imm20, uint32_t rd, uint32_t opcode) {
     return ((imm20 & 0xFFFFF) << 12) | (rd << 7) | opcode;
 }
 
+static uint32_t branch_imm_bits(uint32_t imm) {
+    return ((imm & 0x1000) << 19)
+         | ((imm & 0x7E0) << 20)
+         | ((imm & 0x1E) << 7)
+         | ((imm & 0x800) >> 4);
+}
+
 /* ===== Code buffer management ===== */
 
 static Compiler *g_compiler;
 
 void codegen_init(Compiler *comp) {
     g_compiler = comp;
-    comp->code      = (uint32_t *)FCC_CODE_BASE;
     comp->code_size = 0;
 }
 
 static void emit(uint32_t instr) {
-    if (g_compiler->code_size < FCC_CODE_MAX) {
-        g_compiler->code[g_compiler->code_size / 4] = instr;
-        g_compiler->code_size += 4;
+    if (g_compiler->error) return;
+    if (g_compiler->code == NULL || g_compiler->code_capacity < 4u ||
+        g_compiler->code_size > g_compiler->code_capacity - 4u) {
+        g_compiler->error = 1;
+        return;
     }
+    g_compiler->code[g_compiler->code_size / 4] = instr;
+    g_compiler->code_size += 4u;
 }
 
 /* ===== Instruction emitters ===== */
@@ -143,6 +153,10 @@ void cg_jalr(int rd, int rs1, int offset) {
 
 /* JAL rd, offset  — jump and link */
 void cg_jal(int rd, int offset) {
+    if ((offset & 1) != 0 || offset < -1048576 || offset > 1048574) {
+        g_compiler->error = 1;
+        return;
+    }
     /* J-type: imm[20|10:1|11|19:12] | rd | opcode */
     uint32_t imm = (uint32_t)offset;
     uint32_t instr = ((imm & 0x100000) << 11)       /* imm[20] → bit 31 */
@@ -156,11 +170,13 @@ void cg_jal(int rd, int offset) {
 
 /* Branch instructions */
 void cg_beq(int rs1, int rs2, int offset) {
+    if ((offset & 1) != 0 || offset < -4096 || offset > 4094) {
+        g_compiler->error = 1;
+        return;
+    }
     uint32_t imm = (uint32_t)offset;
-    uint32_t instr = ((imm & 0x1000) << 19)         /* imm[12] → bit 31 */
-                   | ((imm & 0x1E)  <<  7)          /* imm[4:1] → bits 11:8 */
-                   | ((imm & 0x7E0) << 20)          /* imm[10:5] → bits 30:25 */
-                                                   | ((uint32_t)rs2 << 20)
+    uint32_t instr = branch_imm_bits(imm)
+                   | ((uint32_t)rs2 << 20)
                                                    | ((uint32_t)rs1 << 15)
                                                    | (F3_BEQ << 12)
                                                    | BRANCH;
@@ -168,10 +184,12 @@ void cg_beq(int rs1, int rs2, int offset) {
 }
 
 void cg_bne(int rs1, int rs2, int offset) {
+    if ((offset & 1) != 0 || offset < -4096 || offset > 4094) {
+        g_compiler->error = 1;
+        return;
+    }
     uint32_t imm = (uint32_t)offset;
-    uint32_t instr = ((imm & 0x1000) << 19)
-                   | ((imm & 0x1E)  <<  7)
-                   | ((imm & 0x7E0) << 20)
+    uint32_t instr = branch_imm_bits(imm)
                    | ((uint32_t)rs2 << 20)
                    | ((uint32_t)rs1 << 15)
                    | (F3_BNE << 12)
@@ -180,10 +198,12 @@ void cg_bne(int rs1, int rs2, int offset) {
 }
 
 void cg_blt(int rs1, int rs2, int offset) {
+    if ((offset & 1) != 0 || offset < -4096 || offset > 4094) {
+        g_compiler->error = 1;
+        return;
+    }
     uint32_t imm = (uint32_t)offset;
-    uint32_t instr = ((imm & 0x1000) << 19)
-                   | ((imm & 0x1E)  <<  7)
-                   | ((imm & 0x7E0) << 20)
+    uint32_t instr = branch_imm_bits(imm)
                    | ((uint32_t)rs2 << 20)
                    | ((uint32_t)rs1 << 15)
                    | (F3_BLT << 12)
@@ -192,10 +212,12 @@ void cg_blt(int rs1, int rs2, int offset) {
 }
 
 void cg_bge(int rs1, int rs2, int offset) {
+    if ((offset & 1) != 0 || offset < -4096 || offset > 4094) {
+        g_compiler->error = 1;
+        return;
+    }
     uint32_t imm = (uint32_t)offset;
-    uint32_t instr = ((imm & 0x1000) << 19)
-                   | ((imm & 0x1E)  <<  7)
-                   | ((imm & 0x7E0) << 20)
+    uint32_t instr = branch_imm_bits(imm)
                    | ((uint32_t)rs2 << 20)
                    | ((uint32_t)rs1 << 15)
                    | (F3_BGE << 12)
@@ -230,6 +252,19 @@ void cg_li(int rd, int imm) {
     }
 }
 
+static void cg_andi(int rd, int rs1, int imm) {
+    emit(enc_i((uint32_t)imm, (uint32_t)rs1, 7, (uint32_t)rd, OP_IMM));
+}
+
+static void cg_prepare_call(void) {
+    cg_addi(REG_S1, REG_SP, 0);
+    cg_andi(REG_SP, REG_SP, -16);
+}
+
+static void cg_finish_call(void) {
+    cg_addi(REG_SP, REG_S1, 0);
+}
+
 /* Function prologue */
 /* frame_bytes = 16 (ra+s0 slot) + local var bytes */
 void cg_prologue(int frame_bytes) {
@@ -237,6 +272,7 @@ void cg_prologue(int frame_bytes) {
     cg_addi(REG_SP, REG_SP, -frame_bytes);
     cg_sw(REG_RA, REG_SP, frame_bytes - 4);
     cg_sw(REG_S0, REG_SP, frame_bytes - 8);
+    cg_sw(REG_S1, REG_SP, frame_bytes - 12);
     cg_addi(REG_S0, REG_SP, 0);
 }
 
@@ -247,6 +283,7 @@ void cg_prologue_params(int frame_bytes, int param_count) {
     cg_addi(REG_SP, REG_SP, -frame_bytes);
     cg_sw(REG_RA, REG_SP, frame_bytes - 4);
     cg_sw(REG_S0, REG_SP, frame_bytes - 8);
+    cg_sw(REG_S1, REG_SP, frame_bytes - 12);
     cg_addi(REG_S0, REG_SP, 0);  /* s0 = sp = frame pointer */
     /* Store incoming a-registers into local var slots (offsets 0, 4, 8, ...) */
     for (int i = 0; i < param_count; i++) {
@@ -255,6 +292,7 @@ void cg_prologue_params(int frame_bytes, int param_count) {
 }
 
 void cg_epilogue(int frame_bytes) {
+    cg_lw(REG_S1, REG_SP, frame_bytes - 12);
     cg_lw(REG_S0, REG_SP, frame_bytes - 8);
     cg_lw(REG_RA, REG_SP, frame_bytes - 4);
     cg_addi(REG_SP, REG_SP, frame_bytes);
@@ -306,7 +344,7 @@ void cg_pop(int rd) {
 }
 
 /* Binary operator: pop two operands, compute, push result */
-static void cg_binop(void (*op_func)(int, int, int), const char *op_name) {
+static void cg_binop(void (*op_func)(int, int, int)) {
     cg_pop(REG_T1);         /* right operand  */
     cg_pop(REG_T0);         /* left operand   */
     op_func(REG_T0, REG_T0, REG_T1);
@@ -314,11 +352,11 @@ static void cg_binop(void (*op_func)(int, int, int), const char *op_name) {
     cg_sw(REG_T0, REG_SP, 0);
 }
 
-void cg_add_op(void) { cg_binop(cg_add, "add"); }
-void cg_sub_op(void) { cg_binop(cg_sub, "sub"); }
-void cg_mul_op(void) { cg_binop(cg_mul, "mul"); }
-void cg_div_op(void) { cg_binop(cg_div, "div"); }
-void cg_rem_op(void) { cg_binop(cg_rem, "rem"); }
+void cg_add_op(void) { cg_binop(cg_add); }
+void cg_sub_op(void) { cg_binop(cg_sub); }
+void cg_mul_op(void) { cg_binop(cg_mul); }
+void cg_div_op(void) { cg_binop(cg_div); }
+void cg_rem_op(void) { cg_binop(cg_rem); }
 
 /* Unary minus: pop, negate, push */
 void cg_neg_op(void) {
@@ -374,7 +412,8 @@ void cg_eq_op(void) {
 void cg_ne_op(void) {
     cg_pop(REG_T1); cg_pop(REG_T0);
     cg_sub(REG_T0, REG_T0, REG_T1);
-    cg_slt(REG_T0, REG_ZERO, REG_T0);
+    cg_sltiu(REG_T0, REG_T0, 1);
+    cg_xori(REG_T0, REG_T0, 1);
     cg_addi(REG_SP, REG_SP, -4); cg_sw(REG_T0, REG_SP, 0);
 }
 /* gt:  left > right  =  right < left */
@@ -414,7 +453,10 @@ int cg_get_label_pos(int label_id) {
 
 /* Record a label at the current code position */
 int cg_label(void) {
-    if (label_count >= MAX_LABELS) return -1;
+    if (label_count >= MAX_LABELS) {
+        g_compiler->error = 1;
+        return -1;
+    }
     int id = label_count++;
     label_pos[id] = (int)g_compiler->code_size;
     return id;
@@ -422,7 +464,10 @@ int cg_label(void) {
 
 /* Emit BEQ rd, x0, 0 (placeholder — patched later). Returns fixup id. */
 int cg_emit_beqz(int rd) {
-    if (fixup_count >= MAX_LABELS) return -1;
+    if (fixup_count >= MAX_LABELS) {
+        g_compiler->error = 1;
+        return -1;
+    }
     int id = fixup_count++;
     fixup_pos[id]  = (int)g_compiler->code_size;
     fixup_kind[id] = 0;
@@ -457,7 +502,10 @@ int cg_or_begin(void) {
 
 /* Emit JAL x0, 0 (placeholder). Returns fixup id. */
 int cg_emit_j(void) {
-    if (fixup_count >= MAX_LABELS) return -1;
+    if (fixup_count >= MAX_LABELS) {
+        g_compiler->error = 1;
+        return -1;
+    }
     int id = fixup_count++;
     fixup_pos[id]  = (int)g_compiler->code_size;
     fixup_kind[id] = 1;
@@ -471,35 +519,58 @@ int cg_emit_j(void) {
  * Same J-type as cg_emit_j, but rd=ra to save return address.
  * Returns fixup id. */
 int cg_emit_call(void) {
-    if (fixup_count >= MAX_LABELS) return -1;
+    if (fixup_count >= MAX_LABELS) {
+        g_compiler->error = 1;
+        return -1;
+    }
+    cg_prepare_call();
     int id = fixup_count++;
     fixup_pos[id]  = (int)g_compiler->code_size;
     fixup_kind[id] = 1;  /* J-type patch logic, same as J */
     cg_jal(REG_RA, 0);   /* JAL ra, 0 — call, save return address */
+    cg_finish_call();
     return id;
 }
 
 /* Emit a backward function call to a known label.
  * JAL ra, offset — saves return address in ra. */
 void cg_emit_call_back(int label_id) {
-    if (label_id < 0 || label_id >= label_count) return;
+    if (label_id < 0 || label_id >= label_count) {
+        g_compiler->error = 1;
+        return;
+    }
+    cg_prepare_call();
     int target = label_pos[label_id];
     int offset = target - (int)g_compiler->code_size;
     cg_jal(REG_RA, offset);
+    cg_finish_call();
 }
 
 /* Indirect function call via address in register.
  * JALR ra, rs, 0 — saves return address in ra. */
 void cg_call_indirect(int rs) {
+    cg_prepare_call();
     cg_jalr(REG_RA, rs, 0);
+    cg_finish_call();
 }
 
 /* Patch a previously emitted branch/jump to point to the current position */
 void cg_patch(int fixup_id) {
-    if (fixup_id < 0 || fixup_id >= fixup_count) return;
+    if (fixup_id < 0 || fixup_id >= fixup_count) {
+        g_compiler->error = 1;
+        return;
+    }
     int branch_pos = fixup_pos[fixup_id];
     int target_pos = (int)g_compiler->code_size;
     int offset = target_pos - branch_pos;
+
+    if (branch_pos < 0 || branch_pos + 4 > target_pos ||
+        (fixup_kind[fixup_id] == 0 && (offset < -4096 || offset > 4094)) ||
+        (fixup_kind[fixup_id] != 0 &&
+         (offset < -1048576 || offset > 1048574))) {
+        g_compiler->error = 1;
+        return;
+    }
 
     /* Read the existing instruction, patch the offset */
     uint32_t old = g_compiler->code[branch_pos / 4];
@@ -510,10 +581,7 @@ void cg_patch(int fixup_id) {
         uint32_t imm = (uint32_t)offset;
         /* Clear old immediate bits, set new ones */
         patched = old & 0x01FFF07F;  /* keep opcode, rd, rs1, rs2, funct3 */
-        patched |= ((imm & 0x1000) << 19)     /* imm[12] */
-                |  ((imm & 0x7E0)  << 20)     /* imm[10:5] */
-                |  ((imm & 0x1E)   << 7)      /* imm[4:1] */
-                |  ((imm & 0x800)  >> 4);     /* imm[11] */
+        patched |= branch_imm_bits(imm);
     } else {
         /* J-type: jal / call — patch the immediate, preserve opcode+rd */
         uint32_t imm = (uint32_t)offset;
@@ -529,7 +597,10 @@ void cg_patch(int fixup_id) {
 /* Emit an unconditional jump to a backward label.
  * No fixup needed since the target is known. */
 void cg_emit_jback(int label_id) {
-    if (label_id < 0 || label_id >= label_count) return;
+    if (label_id < 0 || label_id >= label_count) {
+        g_compiler->error = 1;
+        return;
+    }
     int target = label_pos[label_id];
     int offset = target - (int)g_compiler->code_size;
     cg_jal(REG_ZERO, offset);
@@ -537,7 +608,10 @@ void cg_emit_jback(int label_id) {
 
 /* Emit BEQ rd, x0, offset to a backward label */
 void cg_emit_beqz_back(int rd, int label_id) {
-    if (label_id < 0 || label_id >= label_count) return;
+    if (label_id < 0 || label_id >= label_count) {
+        g_compiler->error = 1;
+        return;
+    }
     int target = label_pos[label_id];
     int offset = target - (int)g_compiler->code_size;
     cg_beq(rd, REG_ZERO, offset);

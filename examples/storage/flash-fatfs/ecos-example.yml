@@ -1,0 +1,9 @@
+schema: 1
+name: flash-fatfs
+sources:
+  - main.c
+components:
+  - fatfs
+requires:
+  - console
+  - qspi

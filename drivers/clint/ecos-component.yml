@@ -1,0 +1,14 @@
+schema: 1
+id: driver-clint
+name: CLINT Driver
+cmake_target: ecos::driver::clint
+sources:
+  - src/clint.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - hal-clint
+requires:
+  - clint

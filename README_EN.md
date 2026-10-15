@@ -21,8 +21,8 @@ Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kc
 
 ### 1. Core Architecture and Features
 - **HAL V2 Hardware Abstraction Layer**: Abandons legacy APIs that directly read/write low-level registers (e.g., `REG_UART_0_RX`) and use magic number configurations. It adopts a comprehensive set of standardized `hal_*` interfaces, supporting unified GPIO MUX (multiplexing) and FCFG (function) configurations.
-- **Modular Build with Kconfig**: Integrates a Linux kernel-style Kconfig tool. It supports on-demand pruning of peripheral drivers (I2C, SPI, RTC, etc.) and system components (libc, libgcc, etc.), while the Core Runtime supplies error and logging services by default.
-- **Strictly Separated Source Tree**: Provides the `ecos init_project` tool, allowing users to create independent project directories **anywhere in the OS** for development, eliminating source code pollution caused by directly modifying the SDK's `templates/`. (SDK developers can use the dedicated `testdir/` directory for internal rapid testing and verification).
+- **Modular Build with Kconfig**: Integrates a Linux kernel-style Kconfig tool. Peripheral drivers and optional components are selected by project requirements; Core Runtime and the minimal libc subset are included by default.
+- **Strictly Separated Source Tree**: Provides the Python `ecos project create` tool, allowing users to create independent project directories **anywhere in the OS** for development, eliminating source code pollution caused by directly modifying the SDK's templates.
 - **XIP (Execute-In-Place) Support**: Supports executing code directly from Flash. Combined with `ld` linker script optimizations for memory mapping, it significantly saves SRAM space.
 - **Rich External Device Support**: Natively supports external peripherals, such as ST7735 / ST7789 screen drivers, PCF8563 external RTC clock chips, SGP30 gas sensors, etc.
 
@@ -31,7 +31,7 @@ Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kc
 ### 2. Directory Structure
 ```text
 ecos/embedded-sdk/
-├── board/          # Board Support Package (BSP), including pin definitions, clock configs, and linker scripts
+├── boards/          # Board Support Package (BSP), including pin definitions, clock configs, and linker scripts
 │   ├── StarrySkyC1/
 │   ├── StarrySkyC2/
 │   ├── StarrySkyL3/
@@ -91,8 +91,10 @@ replace its registration, and reinstall the toolchain when enabled. Use
 
 The 3.0 package does not copy the 2.x shell commands from the source `bin/`
 directory. The version directory's `bin/` contains only generated Python `ecos` launchers;
-help and completion expose only commands already migrated to Python. The currently
-migrated commands are `sdk`, `project`, `build`, `toolchain`, and `completion`.
+help and completion expose only commands already migrated to Python. Public commands
+cover SDK and toolchain management, projects, resource and schema queries,
+validation, configuration, builds, cleanup, diagnostics, flashing, serial monitoring,
+and completion. See the [CLI command reference](docs/cli.md) for the full list.
 
 Toolchain detection, status inspection, and installation are provided by the Python
 `ecos` CLI:
@@ -128,8 +130,9 @@ writes. Use `--archive <path>` to import an offline official archive.
 
 ### 4. Standard Development and Testing Workflow (Must Read)
 
-> ⚠️ **WARNING (CRITICAL RULES)**:
-> It is absolutely forbidden to directly modify and execute `make` builds within the `templates/` directory in the SDK installation path! All development and testing MUST be done in a newly created project directory outside the SDK to ensure the original template code remains unpolluted.
+SDK 3.0 projects are created and orchestrated by the Python `ecos` CLI. Core builds use
+CMake and Ninja. Keep application projects outside the SDK installation and do not edit
+the historical files under `templates/`.
 
 #### Step 1: Create your independent project directory
 Thanks to the `ecos` command and environment variable configuration, you can create your project anywhere on your computer.
@@ -138,37 +141,31 @@ Thanks to the `ecos` command and environment variable configuration, you can cre
 cd ~/my_workspace/
 ```
 
-#### Step 2: Initialize the project
-Use the `ecos` scaffolding tool to pull code from the official template and specify the target board (e.g., `l3_1`):
+#### Step 2: Create the project
+Create a project from an SDK Example and select its Board:
 ```bash
-# Format: ecos init_project <template_name> -name <project_name> -target <board_model>
-ecos init_project smoke_test -name my_smoke_test -target l3_1
+ecos project list --format json
+ecos project create hello --name my_smoke_test --path ~/my_workspace \
+    --board starrysky-l3-1
 cd my_smoke_test
 ```
 
-*(Note: If you are a kernel maintainer participating in the development of this SDK, you can directly use `direnv` in the `testdir/` directory for rapid internal template debugging.)*
-
-#### Step 3: Configure the System (Kconfig)
-In the example project directory, you can choose graphical configuration or headless default configuration:
-
-- **Interactive Graphical Configuration (Recommended for daily developers)**:
-  ```bash
-  make menuconfig
-  ```
-  Check the driver modules, configuration optimization levels, or system libraries you need in the interface. A configuration file will be generated after saving and exiting.
-
-- **Headless Default Configuration (Recommended for CI/Scripts/AI Agent automated testing)**:
-  If you do not need to manually change the menu, you can directly use the underlying conf tool to silently generate the configuration:
-  ```bash
-  $ECOS_SDK_HOME/tools/kconfig/build/conf --alldefconfig Kconfig
-  $ECOS_SDK_HOME/tools/kconfig/build/conf --syncconfig Kconfig
-  ```
-
-#### Step 4: Compile Firmware
+#### Step 3: Validate, configure, and build
 ```bash
-make -j$(nproc)
+ecos validate --project ~/my_workspace/my_smoke_test --format json
+ecos configure --project ~/my_workspace/my_smoke_test
+ecos build --project ~/my_workspace/my_smoke_test --format json
 ```
-After successful compilation, `retrosoc_fw.elf` (ELF debug file), `retrosoc_fw.hex`, and `retrosoc_fw.bin` (binary flashing file) will be generated in the `build/` directory, and the current Flash/MEM memory usage report will be output. Use the `.bin` or `.hex` file for flashing.
+Build outputs and `artifacts.json` are written to the project's `build/` directory. After
+changing the Board metadata, run `ecos configure` and `ecos build` again; application
+sources remain shared across compatible Boards.
+
+Hardware operations use the same CLI:
+
+```bash
+ecos flash --project ~/my_workspace/my_smoke_test
+ecos monitor --project ~/my_workspace/my_smoke_test --port /dev/ttyUSB0
+```
 
 ---
 
@@ -186,7 +183,7 @@ The SDK has completely deprecated the low-level register direct operation code f
 ### 6. Third-Party Component Support
 
 #### ECOS Core Runtime (Errors and Logging)
-The Core Runtime is included by default in SDK 3.0 projects. It provides shared `ECOS_ERR_*` error semantics and a heap-free logging service. A successfully initialized BSP Console installs itself as the log writer; output defaults to ASCII with CRLF line endings and no ANSI color.
+Core Runtime and the minimal libc subset are included by default in SDK 3.0 projects. Core Runtime provides shared `ECOS_ERR_*` error semantics and a heap-free logging service; libc supplies the memory operations needed by the freestanding compiler. A successfully initialized BSP Console installs itself as the log writer; output defaults to ASCII with CRLF line endings and no ANSI color.
 
 - **Code Usage Example**:
   ```c

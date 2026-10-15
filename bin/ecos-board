@@ -17,7 +17,7 @@ usage() {
     echo "Commands:"
     echo "  create <id> [options]        Create an external BSP skeleton"
     echo "  check <path> [--update <id>] Check a new or updated external BSP"
-    echo "  import <path> [--replace]    Copy a BSP into board/UserBSP"
+    echo "  import <path> [--replace]    Copy a BSP into boards/UserBSP"
     echo "  add <path>                   Link a BSP for local development"
     echo "  list                         List available BSP packages"
     echo "  info <board>                 Show BSP package information"

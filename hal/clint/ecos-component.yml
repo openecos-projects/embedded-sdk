@@ -1,0 +1,10 @@
+schema: 1
+id: hal-clint
+name: CLINT HAL Contract
+cmake_target: ecos::hal::clint
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - clint

@@ -1,0 +1,133 @@
+# 根据配置文件设置链接选项
+ifdef CONFIG_LINK_RAM_REGION_SRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_SRAM
+endif
+
+ifdef CONFIG_LINK_RAM_REGION_PSRAM
+LDFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+CFLAGS += -DCONFIG_LINK_RAM_REGION_PSRAM
+endif
+
+# 根据配置文件添加编译优化选项
+ifdef CONFIG_BUILD_OPT_FLAGS
+CFLAGS += $(subst ",,$(CONFIG_BUILD_OPT_FLAGS))
+endif
+
+# 根据配置文件添加调试选项
+ifdef CONFIG_BUILD_DEBUG
+CFLAGS += -g -DDEBUG
+endif
+
+# 根据配置文件添加详细输出选项
+ifdef CONFIG_BUILD_VERBOSE
+VERBOSE := 1
+LDFLAGS += --verbose
+endif
+
+# 固件名称 - 从配置文件读取，如果未定义则使用默认值
+ifdef CONFIG_FIRMWARE_NAME
+FIRMWARE_NAME := $(subst ",,$(CONFIG_FIRMWARE_NAME))
+else
+FIRMWARE_NAME := main
+endif
+
+# 可选的驱动列表
+define driver_template
+ifdef CONFIG_DRIVER_$(1)
+        SRC_PATH += $(shell find $(ECOS_SDK_HOME)/boards/StarrySkyC2/driver/$(2) -name "*.c")
+        CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/hal/$(2) -type d))
+endif
+endef
+DRIVER_DIR := $(ECOS_SDK_HOME)/boards/StarrySkyC2/driver
+DRIVER_SUBDIRS := $(notdir $(shell find $(DRIVER_DIR) -mindepth 1 -maxdepth 1 -type d))
+
+$(foreach subdir,$(DRIVER_SUBDIRS), \
+    $(eval CONFIG_NAME := $(shell echo $(subdir) | tr '[:lower:]' '[:upper:]')) \
+	$(if $(VERBOSE),$(info Auto-load drivers: $(CONFIG_NAME))) \
+    $(eval $(call driver_template,$(CONFIG_NAME),$(subdir))) \
+)
+
+# 可选的链接库列表
+ifdef CONFIG_LINK_LIBC
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libc/src -name "*.c")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libc/include
+endif
+
+ifdef CONFIG_LINK_LIBGCC
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/libgcc/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/libgcc/include
+endif
+
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/core/src -name "*.[cS]")
+SRC_PATH += $(ECOS_SDK_HOME)/components/core/ports/legacy_sys_uart.c
+CFLAGS += -I$(ECOS_SDK_HOME)/components/core/include
+ifneq ($(CONFIG_ECOS_LOG_LEVEL),)
+CFLAGS += -DCONFIG_ECOS_LOG_LEVEL=$(CONFIG_ECOS_LOG_LEVEL)
+endif
+ifneq ($(CONFIG_ECOS_LOG_BUFFER_SIZE),)
+CFLAGS += -DCONFIG_ECOS_LOG_BUFFER_SIZE=$(CONFIG_ECOS_LOG_BUFFER_SIZE)
+endif
+ifeq ($(CONFIG_ECOS_LOG_COLOR),y)
+CFLAGS += -DCONFIG_ECOS_LOG_COLOR=1
+endif
+ifeq ($(CONFIG_ECOS_LOG_SOURCE_LOCATION),y)
+CFLAGS += -DCONFIG_ECOS_LOG_SOURCE_LOCATION=1
+endif
+ifneq ($(CONFIG_ECOS_ERROR_DESCRIPTIONS),)
+CFLAGS += -DCONFIG_ECOS_ERROR_DESCRIPTIONS=$(CONFIG_ECOS_ERROR_DESCRIPTIONS)
+endif
+
+ifdef CONFIG_COMPONENT_SPI_SOFTWARE
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/spi_software/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/spi_software/include
+endif
+
+ifdef CONFIG_COMPONENT_SFUD
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/sfud/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/sfud/include
+endif
+
+ifdef CONFIG_COMPONENT_FLASH_FS
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/fatfs/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/fatfs/include
+endif
+
+ifdef CONFIG_COMPONENT_SHELL
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/letter-shell/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/letter-shell/include
+endif
+
+ifdef CONFIG_COMPONENT_COROUTINE
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/LightCoroutine/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/LightCoroutine/include
+endif
+
+ifdef CONFIG_COMPONENT_FILE_EDITOR
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/text_editor/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/text_editor/include
+endif
+
+ifdef CONFIG_COMPONENT_C_COMPILER
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/components/fcc/src -name "*.[cS]")
+CFLAGS += -I$(ECOS_SDK_HOME)/components/fcc/include
+endif
+
+# 自动包含所有的 devices 组件的头文件（方便代码补全）
+CFLAGS += $(addprefix -I,$(shell find $(ECOS_SDK_HOME)/devices/*/include -type d 2>/dev/null))
+
+ifdef CONFIG_DEVICE_ST7735
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7735/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_ST7789
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/st7789/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_SGP30
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/gy_sgp30/src -name "*.c")
+endif
+
+ifdef CONFIG_DEVICE_PCF8563
+SRC_PATH += $(shell find $(ECOS_SDK_HOME)/devices/pcf8563/src -name "*.c")
+endif

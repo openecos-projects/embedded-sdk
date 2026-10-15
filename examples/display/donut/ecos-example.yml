@@ -1,0 +1,11 @@
+schema: 1
+name: display-donut
+sources:
+  - main.c
+components:
+  - bsp-display-st7735
+  - driver-timer
+  - libgcc
+requires:
+  - console
+  - display

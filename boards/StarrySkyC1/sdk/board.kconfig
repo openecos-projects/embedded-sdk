@@ -1,0 +1,15 @@
+config BOARD_STARRYSKY_C1
+    bool
+    default y
+
+config CPU_FREQ_MHZ
+    int
+    default 72
+
+config TIMER_FREQ_MHZ
+    int
+    default 72
+
+config UART_BAUD_RATE
+    int
+    default 115200

@@ -5,12 +5,12 @@ uint32_t envInt;
 uint16_t envShort;
 char envString[128];
 char envChar;
-uint32_t envFunc;
+uintptr_t envFunc;
 func_node flist[16];
 
 
-void __attribute__((optimize("O0"))) exec_func(uint8_t id, uint32_t param, uint8_t use_default_param){
-    if(!(id >= 0 && id <= 15)){
+void __attribute__((optimize("O0"))) exec_func(uint8_t id, uintptr_t param, uint8_t use_default_param){
+    if(id > 15){
         (void)ECOS_LOGE("shell", "The fnode id must be between 0 and 15");
         return;
     }
@@ -25,7 +25,7 @@ void __attribute__((optimize("O0"))) exec_func(uint8_t id, uint32_t param, uint8
     else flist[id].func((void*)param);
 }
 
-void create_shell_env_varible(){
+void create_shell_env_varible(void){
     envInt = 20260512;
     envShort = 2026;
     strcpy(envString, "FINALx");
@@ -35,16 +35,13 @@ void create_shell_env_varible(){
 
 
 short shellRead(char* str, unsigned short len){
-    unsigned short i = 0;
-    for (i = 0; i < len; i++) {
-        str[i] = (char)hal_sys_getchar();
-    }
-    return i;
+    int result = bsp_console_read(str, len);
+    return result < 0 ? 0 : (short)result;
 }
 
 short shellWrite(char* str, unsigned short len){
-    for(int i=0;i<len;i++) hal_sys_putchar(str[i]);
-    return len;
+    int result = bsp_console_write(str, len);
+    return result < 0 ? 0 : (short)result;
 }
 
 #ifdef CONFIG_COMPONENT_FLASH_FS

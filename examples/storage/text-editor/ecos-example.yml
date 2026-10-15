@@ -1,0 +1,10 @@
+schema: 1
+name: text-editor
+sources:
+  - main.c
+components:
+  - text-editor
+  - letter-shell-fs
+requires:
+  - console
+  - qspi

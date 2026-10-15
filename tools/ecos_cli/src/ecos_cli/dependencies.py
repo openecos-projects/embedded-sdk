@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,7 @@ HOST_DEPENDENCY_MARKER = ".ecos-host-dependencies.json"
 # Keep these versions fixed so an SDK installation is reproducible.
 PYTHON_DEPENDENCIES = (
     "PyYAML==6.0.3",
+    "jsonschema==4.19.2",
     "kconfiglib==14.1.0",
     "pyserial==3.5",
     "windows-curses==2.4.2; sys_platform == 'win32'",
@@ -36,6 +38,13 @@ HOST_TOOL_DEPENDENCIES: tuple[dict[str, str], ...] = (
     },
 )
 HOST_TOOL_PACKAGES = tuple(item["requirement"] for item in HOST_TOOL_DEPENDENCIES)
+
+
+def default_host_prefix() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return base / "ECOS"
+    return Path.home() / ".local"
 
 
 def host_dependency_root(prefix: Path) -> Path:

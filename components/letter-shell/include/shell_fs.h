@@ -12,7 +12,6 @@
 #define __SHELL_FS_H__
 
 #include "shell.h"
-#include "generated/autoconf.h"
 
 #ifdef CONFIG_COMPONENT_FLASH_FS
 

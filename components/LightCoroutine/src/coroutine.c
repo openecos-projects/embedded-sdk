@@ -1,4 +1,5 @@
 #include "coroutine.h"
+#include "ecos/log.h"
 #ifdef USE_CTX
 #include "context.h"
 #endif
@@ -28,8 +29,8 @@ task_t create_task(int id, func_t func, void* args){
 }
 
 void delete_task(task_t* task_handler){
-    if(task_handler->func==NULL){
-        printf("error: task_handler is NULL\r\n");
+    if(task_handler == NULL || task_handler->func == NULL){
+        (void)ECOS_LOGE("light-coroutine", "delete_task called with null handler");
         return;
     }
     avail_tasks[task_handler->id].func = NULL;
@@ -64,10 +65,10 @@ static void idleHook(task_t* t){
     );
     TASK_BEGIN(t);
     while(1){
-        printf(">>>Enter Idle Task\r\n");
-        printf(">>>Suspend Task Num: %d\r\n", suspend_cnt);
-        printf(">>>Resume Task Num: %d\r\n", resume_cnt);
-        printf(">>>Exit Idle Task\r\n\r\n");
+        (void)ECOS_LOGI("light-coroutine", "enter idle task");
+        (void)ECOS_LOGI("light-coroutine", "suspend tasks: %u", (unsigned)suspend_cnt);
+        (void)ECOS_LOGI("light-coroutine", "resume tasks: %u", (unsigned)resume_cnt);
+        (void)ECOS_LOGI("light-coroutine", "exit idle task");
         TASK_YIELD(t);  
     }
     TASK_END(t);
@@ -77,7 +78,7 @@ void task_scheduler(int round){
 
     uint32_t cnt = MAX_TASK_NUM;
 #ifdef USE_IDLE_TASK
-    task_t idle = create_task(MAX_TASK_NUM, idleHook, NULL);
+    (void)create_task(MAX_TASK_NUM, idleHook, NULL);
     cnt++;
 #endif
 

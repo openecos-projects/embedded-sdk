@@ -1,5 +1,6 @@
 #include "ecos/hal/timer.h"
 #include "cl1_2512_soc.h"
+#include "timer_internal.h"
 
 #include <limits.h>
 #include <stddef.h>
@@ -14,6 +15,7 @@
 #define TIMER_CONTROL_USER_DEFINED  (1u << 1)
 
 static uint8_t timer_initialized[CL1_2512_TIMER_COUNT];
+uint8_t cl1_2512_timer_interrupt_active;
 
 static int timer_id_is_valid(hal_timer_id_t timer)
 {
@@ -41,13 +43,16 @@ ecos_err_t hal_timer_init(hal_timer_id_t timer,
     if (!timer_id_is_valid(timer) || config == NULL ||
         config->period_ticks == 0u || TIMER_TICKS_PER_MICROSECOND == 0u)
         return ECOS_ERR_INVALID_ARGUMENT;
+    if (cl1_2512_timer_interrupt_active != 0u)
+        return ECOS_ERR_BUSY;
     if (config->period_ticks > UINT32_MAX / TIMER_TICKS_PER_MICROSECOND)
         return ECOS_ERR_UNSUPPORTED;
 
     timer_stop_and_clear();
     REG_TIMER_0_LOAD_COUNT =
         config->period_ticks * TIMER_TICKS_PER_MICROSECOND;
-    REG_TIMER_0_CONTROL = TIMER_CONTROL_USER_DEFINED;
+    REG_TIMER_0_CONTROL = TIMER_CONTROL_USER_DEFINED |
+                          CL1_2512_TIMER_CONTROL_MASK;
     timer_initialized[timer] = 1u;
     return ECOS_OK;
 }
@@ -56,6 +61,8 @@ ecos_err_t hal_timer_deinit(hal_timer_id_t timer)
 {
     if (!timer_id_is_valid(timer))
         return ECOS_ERR_INVALID_ARGUMENT;
+    if (cl1_2512_timer_interrupt_active != 0u)
+        return ECOS_ERR_BUSY;
 
     timer_stop_and_clear();
     REG_TIMER_0_LOAD_COUNT = 0u;
@@ -70,9 +77,7 @@ ecos_err_t hal_timer_start(hal_timer_id_t timer)
     if (timer_initialized[timer] == 0u)
         return ECOS_ERR_NOT_INITIALIZED;
 
-    timer_stop_and_clear();
-    REG_TIMER_0_CONTROL = TIMER_CONTROL_USER_DEFINED |
-                          TIMER_CONTROL_ENABLE;
+    REG_TIMER_0_CONTROL |= TIMER_CONTROL_ENABLE;
     __asm__ volatile("fence iorw, iorw" : : : "memory");
     return ECOS_OK;
 }

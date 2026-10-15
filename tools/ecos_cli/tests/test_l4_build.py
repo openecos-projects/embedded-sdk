@@ -41,8 +41,11 @@ def sdk_toolchain_is_ready() -> bool:
     try:
         manifest = toolchain.load_manifest()
         host = toolchain.detect_host()
-        status = toolchain.installation_status(
-            manifest, toolchain.default_prefix(), host
+        status = toolchain.compatible_installation_status(
+            manifest,
+            toolchain.default_prefix(),
+            host,
+            legacy_roots=(toolchain.legacy_prefix(),),
         )
     except toolchain.ToolchainError:
         return False
@@ -56,6 +59,31 @@ def sdk_toolchain_is_ready() -> bool:
     "SDK Python/CMake/Ninja dependencies or the SDK toolchain is not installed",
 )
 class StarrySkyL4C1BuildTest(unittest.TestCase):
+    def test_hello_size_optimized_build_links_libc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            project_root = Path(directory) / "hello"
+            with redirect_stdout(output), redirect_stderr(output):
+                create_result = main(
+                    [
+                        "--sdk", str(SDK_ROOT), "project", "create", "hello",
+                        "--path", directory, "--board", "starrysky-l4-c1",
+                    ]
+                )
+                (project_root / ".ecos" / "project.config").write_text(
+                    "CONFIG_BUILD_OPT_SIZE=y\n", encoding="utf-8"
+                )
+                build_result = main(
+                    ["--sdk", str(SDK_ROOT), "build", "--project", str(project_root)]
+                )
+
+            self.assertEqual(create_result, ExitCode.OK, output.getvalue())
+            self.assertEqual(build_result, ExitCode.OK, output.getvalue())
+            build_root = project_root / "build"
+            self.assertEqual((build_root / "retrosoc_fw.elf").read_bytes()[:4], b"\x7fELF")
+            self.assertIn("<memcpy>", (build_root / "retrosoc_fw.txt").read_text(encoding="utf-8"))
+            self.assertIn("-Os", (build_root / "compile_commands.json").read_text(encoding="utf-8"))
+
     def test_i2c_scan_build_links_i2c_probe_stack(self):
         with tempfile.TemporaryDirectory() as directory:
             output = StringIO()
@@ -433,11 +461,11 @@ class StarrySkyL4C1BuildTest(unittest.TestCase):
                 compiled_sources,
             )
             self.assertIn(
-                (SDK_ROOT / "board/StarrySkyL4_C1/bsp/button.c").resolve(),
+                (SDK_ROOT / "boards/StarrySkyL4_C1/bsp/button.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(
-                (SDK_ROOT / "board/StarrySkyL4_C1/bsp/led.c").resolve(),
+                (SDK_ROOT / "boards/StarrySkyL4_C1/bsp/led.c").resolve(),
                 compiled_sources,
             )
             self.assertIn(

@@ -1,0 +1,11 @@
+schema: 1
+id: hal-gpio-interrupt
+name: GPIO Interrupt HAL Contract
+cmake_target: ecos::hal::gpio_interrupt
+include_dirs:
+  - include
+dependencies:
+  - hal-gpio
+  - hal-interrupt
+requires:
+  - gpio-interrupt

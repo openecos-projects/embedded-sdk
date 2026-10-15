@@ -45,6 +45,7 @@ target_compile_options(ecos_build_options INTERFACE
     -march=rv32e
     -mabi=ilp32e
     -nostdlib
+    -ffreestanding
     -fdata-sections
     -ffunction-sections
 )

@@ -1,0 +1,96 @@
+menu "Build Configuration"
+    menu "Core Runtime"
+        config ECOS_LOG_LEVEL
+            int "Minimum compiled log level"
+            range 0 5
+            default 1
+
+        config ECOS_LOG_BUFFER_SIZE
+            int "Log formatting buffer size"
+            range 64 1024
+            default 256
+
+        config ECOS_LOG_COLOR
+            bool "Enable ANSI log colors"
+            default n
+
+        config ECOS_LOG_SOURCE_LOCATION
+            bool "Include source location in logs"
+            default y if BUILD_DEBUG
+            default n
+
+        config ECOS_ERROR_DESCRIPTIONS
+            int "Include error descriptions"
+            range 0 1
+            default 1
+    endmenu
+
+    menu "Application Components"
+        config COMPONENT_COROUTINE
+            bool "Enable LightCoroutine configuration"
+            default n
+
+        config COMPONENT_COROUTINE_USE_IDLE_TASK
+            bool "Use the coroutine idle task"
+            default y
+            depends on COMPONENT_COROUTINE
+
+        config COMPONENT_COROUTINE_MAX_TASK_NUM
+            int "Maximum coroutine tasks"
+            default 10
+            depends on COMPONENT_COROUTINE
+
+        config COMPONENT_COROUTINE_USE_CTX
+            bool "Preserve coroutine local context"
+            default y
+            depends on COMPONENT_COROUTINE
+
+        config COMPONENT_COROUTINE_TASK_CTX_SIZE
+            int "Coroutine context words"
+            default 64
+            depends on COMPONENT_COROUTINE && COMPONENT_COROUTINE_USE_CTX
+    endmenu
+
+    choice
+        bool "Optimization Level"
+        default BUILD_OPT_NONE if STARRYSKY_L4_C1 || STARRYSKY_L4_C2 || STARRYSKY_L4_C3
+        default BUILD_OPT_SIZE
+
+        config BUILD_OPT_NONE
+            bool "No optimization (-O0)"
+
+        config BUILD_OPT_SIZE
+            bool "Optimize for size (-Os)"
+
+        config BUILD_OPT_SPEED
+            bool "Optimize for speed (-O2)"
+
+        config BUILD_OPT_MAX
+            bool "Maximum optimization (-O3)"
+    endchoice
+
+    config BUILD_OPT_FLAGS
+        string
+        default "-O0" if BUILD_OPT_NONE
+        default "-Os" if BUILD_OPT_SIZE
+        default "-O2" if BUILD_OPT_SPEED
+        default "-O3" if BUILD_OPT_MAX
+
+    config BUILD_DEBUG
+        bool "Enable debug information"
+        default y
+
+    config BUILD_VERBOSE
+        bool "Verbose build output"
+        default n
+endmenu
+
+menu "Firmware Configuration"
+    config FIRMWARE_NAME
+        string "Firmware name"
+        default "retrosoc_fw"
+
+    config FIRMWARE_VERSION
+        string "Firmware version"
+        default "1.0.0"
+endmenu

@@ -14,7 +14,7 @@ from unittest import mock
 SOURCE_ROOT = Path(__file__).parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from ecos_cli import artifacts, configuration, flashing, monitoring  # noqa: E402
+from ecos_cli import artifacts, configuration, doctor, flashing, monitoring  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
 from ecos_cli.sdk_context import SdkContext  # noqa: E402
 from ecos_cli.sdk_manifest import context_from_root  # noqa: E402
@@ -26,7 +26,7 @@ def sdk_context(sdk: Path) -> SdkContext:
 
 
 def add_board_io_contract(sdk: Path) -> None:
-    path = sdk / "board" / "StarrySkyL4" / "ecos-board.yml"
+    path = sdk / "boards" / "StarrySkyL4" / "ecos-board.yml"
     path.write_text(
         path.read_text(encoding="utf-8")
         + "flash:\n"
@@ -92,6 +92,99 @@ def fake_elf() -> dict:
 
 
 class ConfigurationWorkflowTest(unittest.TestCase):
+    def test_doctor_reports_build_errors_and_connection_warnings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            add_board_io_contract(sdk)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            selected = create_project(sdk, workspace)
+
+            def invoke(toolchain_state: str) -> tuple[int, dict]:
+                output = StringIO()
+                with (
+                    mock.patch.object(doctor.dependencies, "managed_host_tool", return_value=None),
+                    mock.patch.object(doctor.shutil, "which", side_effect=lambda name: f"/fake/{name}"),
+                    mock.patch.object(doctor.dependencies, "probe_host_tool", return_value={"valid": True, "version": "3.31"}),
+                    mock.patch.object(doctor.toolchain, "detect_host", return_value="linux-x86_64"),
+                    mock.patch.object(doctor.toolchain, "installation_status", return_value={"state": toolchain_state, "root": "/fake/toolchain"}),
+                    mock.patch.object(doctor.flashing, "discover_mass_storage", return_value=[]),
+                    mock.patch.object(doctor.monitoring, "discover_ports", return_value=[]),
+                    redirect_stdout(output),
+                    redirect_stderr(StringIO()),
+                ):
+                    code = main([
+                        "--sdk", str(sdk), "doctor", "--project", str(selected),
+                        "--format", "json",
+                    ])
+                return code, json.loads(output.getvalue())
+
+            code, payload = invoke("installed")
+            self.assertEqual(code, ExitCode.OK)
+            self.assertTrue(payload["data"]["valid"])
+            self.assertEqual(payload["data"]["checks"]["project"]["state"], "valid")
+            self.assertEqual(payload["data"]["checks"]["flash"]["state"], "disconnected")
+            self.assertEqual(payload["data"]["checks"]["monitor"]["state"], "disconnected")
+            self.assertTrue(all(item["severity"] == "warning" for item in payload["diagnostics"]))
+
+            code, payload = invoke("missing")
+            self.assertEqual(code, ExitCode.CONFIG)
+            self.assertEqual(payload["status"], "error")
+            self.assertIn(
+                "ECOS_DOCTOR_TOOLCHAIN_NOT_READY",
+                {item["code"] for item in payload["diagnostics"]},
+            )
+
+    def test_clean_only_removes_recognized_build_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            selected = create_project(sdk, workspace)
+            build_dir = selected / "build"
+            build_dir.mkdir()
+            marker = build_dir / "user-notes.txt"
+            marker.write_text("keep this\n", encoding="utf-8")
+
+            def invoke(*options: str) -> tuple[int, dict]:
+                output = StringIO()
+                with redirect_stdout(output), redirect_stderr(StringIO()):
+                    code = main([
+                        "--sdk", str(sdk), "clean", "--project", str(selected),
+                        *options, "--format", "json",
+                    ])
+                return code, json.loads(output.getvalue())
+
+            code, payload = invoke()
+            self.assertEqual(code, ExitCode.CONFIG)
+            self.assertEqual(
+                payload["diagnostics"][0]["code"],
+                "ECOS_CLEAN_UNRECOGNIZED_OUTPUT",
+            )
+            self.assertTrue(marker.is_file())
+
+            (build_dir / "CMakeCache.txt").write_text(
+                f"CMAKE_HOME_DIRECTORY:INTERNAL={selected}\n"
+                f"ECOS_PROJECT_CONFIG:UNINITIALIZED="
+                f"{selected / '.ecos/generated/resolved-project.cmake'}\n",
+                encoding="utf-8",
+            )
+            code, payload = invoke("--dry-run")
+            self.assertEqual(code, ExitCode.OK)
+            self.assertEqual(payload["data"]["paths"], [str(build_dir)])
+            self.assertFalse(payload["data"]["removed"])
+            self.assertTrue(marker.is_file())
+
+            code, payload = invoke()
+            self.assertEqual(code, ExitCode.OK)
+            self.assertTrue(payload["data"]["removed"])
+            self.assertFalse(build_dir.exists())
+            code, payload = invoke()
+            self.assertEqual(code, ExitCode.OK)
+            self.assertEqual(payload["data"]["paths"], [])
+
     def test_menuconfig_rejects_non_interactive_streams(self):
         with (
             mock.patch.object(configuration.sys, "stdin", StringIO()),
@@ -209,7 +302,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk = create_sdk(root / "sdk")
-            manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            manifest = sdk / "examples" / "hello_world" / "ecos-example.yml"
             manifest.write_text(
                 manifest.read_text(encoding="utf-8")
                 + "components:\n  - missing-component\n",
@@ -340,11 +433,34 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 first.data["source_fingerprint"], third.data["source_fingerprint"]
             )
 
+    def test_validate_exposes_the_resolved_build_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            workspace = root / "workspace"
+            workspace.mkdir()
+            project = create_project(sdk, workspace)
+
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(StringIO()):
+                result = main([
+                    "--sdk", str(sdk), "validate", "--project", str(project),
+                    "--format", "json",
+                ])
+            payload = json.loads(output.getvalue())
+            graph = payload["data"]["graph"]
+            self.assertEqual(result, ExitCode.OK)
+            self.assertEqual(graph["application"]["example"], "hello_world")
+            self.assertEqual(graph["target"]["id"], "ysyx-2512")
+            self.assertEqual(graph["components"], [])
+            self.assertIn("sources", graph["target"])
+            self.assertIn("elf", graph["outputs"])
+
     def test_generates_typed_gpio_demo_board_resources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk = create_sdk(root / "sdk")
-            board_manifest = sdk / "board/StarrySkyL4/ecos-board.yml"
+            board_manifest = sdk / "boards/StarrySkyL4/ecos-board.yml"
             board_manifest.write_text(
                 board_manifest.read_text(encoding="utf-8")
                 + "resources:\n"
@@ -362,7 +478,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 + "      initial_level: high\n",
                 encoding="utf-8",
             )
-            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest = sdk / "examples" / "hello_world" / "ecos-example.yml"
             example_manifest.write_text(
                 example_manifest.read_text(encoding="utf-8")
                 + "requires:\n  - gpio-demo\n",
@@ -407,7 +523,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
             workspace = root / "workspace"
             workspace.mkdir()
             project = create_project(sdk, workspace)
-            board_manifest = sdk / "board/StarrySkyL4/ecos-board.yml"
+            board_manifest = sdk / "boards/StarrySkyL4/ecos-board.yml"
             board_manifest.write_text(
                 board_manifest.read_text(encoding="utf-8")
                 + "resources:\n"
@@ -428,7 +544,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 configuration.ProjectModelError,
-                r"gpio-demo\.input\.pin must be between 0 and 255",
+                r"/resources/gpio-demo/input/pin: 256 is greater than the maximum of 255",
             ):
                 configuration.configure_project(
                     sdk_context(sdk), project_root=project
@@ -457,7 +573,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 if dependency:
                     manifest += f"dependencies:\n  - {dependency}\nrequires:\n  - console\n"
                 (component / "ecos-component.yml").write_text(manifest, encoding="utf-8")
-            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest = sdk / "examples" / "hello_world" / "ecos-example.yml"
             example_manifest.write_text(
                 example_manifest.read_text(encoding="utf-8")
                 + "components:\n  - console-app\n",
@@ -547,7 +663,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 + "capabilities:\n  - uart\n",
                 encoding="utf-8",
             )
-            board_root = sdk / "board" / "StarrySkyL4"
+            board_root = sdk / "boards" / "StarrySkyL4"
             board_manifest = board_root / "ecos-board.yml"
             board_manifest.write_text(
                 board_manifest.read_text(encoding="utf-8")
@@ -575,7 +691,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 (component_root / "ecos-component.yml").write_text(
                     manifest, encoding="utf-8"
                 )
-            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest = sdk / "examples" / "hello_world" / "ecos-example.yml"
             example_manifest.write_text(
                 example_manifest.read_text(encoding="utf-8")
                 + "requires:\n  - console\n",
@@ -625,7 +741,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 (component_root / "ecos-component.yml").write_text(
                     "schema: 1\nid: duplicate\n", encoding="utf-8"
                 )
-            example_manifest = sdk / "example" / "hello_world" / "ecos-example.yml"
+            example_manifest = sdk / "examples" / "hello_world" / "ecos-example.yml"
             example_manifest.write_text(
                 example_manifest.read_text(encoding="utf-8")
                 + "components:\n  - duplicate\n",
@@ -664,7 +780,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk = create_sdk(root / "sdk")
-            board = sdk / "board" / "StarrySkyL4" / "ecos-board.yml"
+            board = sdk / "boards" / "StarrySkyL4" / "ecos-board.yml"
             board.write_text(
                 board.read_text(encoding="utf-8")
                 + "build:\n"
@@ -700,6 +816,72 @@ class ConfigurationWorkflowTest(unittest.TestCase):
                 payload["diagnostics"][0]["code"], "ECOS_PROJECT_MODEL_INVALID"
             )
             self.assertFalse((workspace / "hello_world").exists())
+
+    def test_board_profile_applies_kconfig_preset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "sdk")
+            board = sdk / "boards" / "StarrySkyL3_1" / "ecos-board.yml"
+            board.write_text(
+                "schema: 2\n"
+                "id: starrysky-l3-1\n"
+                "target: ysyx-l3\n"
+                "build:\n"
+                "  default_profile: mem\n"
+                "  profiles:\n"
+                "    mem:\n"
+                "      kconfig:\n"
+                "        PROFILE_MEM: y\n"
+                "kconfig:\n"
+                "  board: board.kconfig\n",
+                encoding="utf-8",
+            )
+            (board.parent / "board.kconfig").write_text(
+                'config PROFILE_MEM\n'
+                '    bool "MEM profile"\n'
+                "    default n\n",
+                encoding="utf-8",
+            )
+            target = sdk / "components" / "soc" / "ysyx-l3" / "Kconfig"
+            target.write_text(
+                'config TARGET_OPTION\n'
+                '    bool "Target option"\n'
+                "    default n\n",
+                encoding="utf-8",
+            )
+            manifest = sdk / "components" / "soc" / "ysyx-l3" / "ecos-soc.yml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8") + "  kconfig: Kconfig\n",
+                encoding="utf-8",
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(StringIO()):
+                result = main(
+                    [
+                        "--sdk",
+                        str(sdk),
+                        "project",
+                        "create",
+                        "hello",
+                        "--path",
+                        str(workspace),
+                        "--board",
+                        "starrysky-l3-1",
+                        "--format",
+                        "json",
+                    ]
+                )
+            self.assertEqual(result, ExitCode.OK)
+            project_root = workspace / "hello"
+            configuration.configure_project(
+                sdk_context(sdk), project_root=project_root
+            )
+            generated_header = (
+                project_root / ".ecos" / "generated" / "sdkconfig.h"
+            ).read_text(encoding="utf-8")
+            self.assertIn("#define CONFIG_PROFILE_MEM 1", generated_header)
 
 
 class ArtifactContractTest(unittest.TestCase):
@@ -746,6 +928,23 @@ class ArtifactContractTest(unittest.TestCase):
                 manifest["firmware"]["sha256"], manifest["files"]["bin"]["sha256"]
             )
             artifacts.load_manifest(root)
+            image_size = len(b"bin-output")
+            resolved["target"]["memory"]["flash"] = {
+                "origin": 0x1000,
+                "size": image_size,
+            }
+            with mock.patch("ecos_cli.artifacts.inspect_elf", return_value=fake_elf()):
+                limited = artifacts.create_manifest(root, resolved)
+            self.assertEqual(limited["firmware"]["size_limit"], image_size)
+            self.assertEqual(
+                artifacts.load_manifest(root)["firmware"]["size_limit"], image_size
+            )
+            resolved["target"]["memory"]["flash"]["size"] = image_size - 1
+            with mock.patch("ecos_cli.artifacts.inspect_elf", return_value=fake_elf()):
+                with self.assertRaisesRegex(
+                    artifacts.ArtifactValidationError, "exceeds Target.memory.flash.size"
+                ):
+                    artifacts.create_manifest(root, resolved)
             (root / "build" / "retrosoc_fw.bin").write_bytes(b"tampered")
             with self.assertRaises(artifacts.ArtifactManifestError):
                 artifacts.load_manifest(root)

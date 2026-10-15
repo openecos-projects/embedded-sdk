@@ -3,7 +3,7 @@
 通用数字 IO 引脚控制：方向、电平与引脚功能（复用）配置。
 
 头文件：`drivers/gpio/include/ecos/driver/gpio.h`。
-示例：`example/peripherals/gpio/basic`。
+示例：`examples/peripherals/gpio/basic`。
 
 ## 类型与常量
 

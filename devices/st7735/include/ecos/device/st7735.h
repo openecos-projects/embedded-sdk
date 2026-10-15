@@ -16,7 +16,7 @@ typedef struct {
     ecos_qspi_cs_t chip_select;
     ecos_gpio_port_t dc_port;
     uint8_t dc_pin;
-    /* RST and BLK are configured high once during initialization. */
+    /* ECOS_GPIO_PORT_COUNT means RST or BLK is fixed by board wiring. */
     ecos_gpio_port_t reset_port;
     uint8_t reset_pin;
     ecos_gpio_port_t backlight_port;

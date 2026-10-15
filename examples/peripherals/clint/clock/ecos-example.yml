@@ -1,0 +1,8 @@
+schema: 1
+name: clint-clock
+sources:
+  - main.c
+components:
+  - driver-clint
+requires:
+  - console

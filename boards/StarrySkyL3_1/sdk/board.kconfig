@@ -1,0 +1,26 @@
+config BOARD_STARRYSKY_L3_1
+    bool
+    default y
+
+config CPU_FREQ_MHZ
+    int
+    default 50
+
+config TIMER_FREQ_MHZ
+    int
+    default 100
+
+config UART_BAUD_RATE
+    int
+    default 115200
+
+choice LINK_TARGET
+    bool "Memory Region Selection"
+    default LINK_TARGET_XIP
+
+config LINK_TARGET_XIP
+    bool "XIP (Execute in Place)"
+
+config LINK_TARGET_MEM
+    bool "MEM (Loaded by Bootloader)"
+endchoice

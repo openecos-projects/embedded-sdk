@@ -64,12 +64,12 @@ $(error 分离式工程缺少本地板卡 Kconfig，请重新执行 ecos set_boa
 else
 CATEGORY_LIST := StarrySkyC1 StarrySkyC2 StarrySkyL3 StarrySkyL3_1 StarrySkyL4_C1 StarrySkyL4_C2 StarrySkyL4_C3
 ifneq ($(filter $(CATEGORY),$(CATEGORY_LIST)),)
-export BoardExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/board.kconfig
-export DriverExport := $(ECOS_SDK_HOME)/board/$(CATEGORY)/driver.kconfig
+export BoardExport := $(ECOS_SDK_HOME)/boards/$(CATEGORY)/board.kconfig
+export DriverExport := $(ECOS_SDK_HOME)/boards/$(CATEGORY)/driver.kconfig
 else
 $(warning $(COLOR_RED)Board category is not existed, default to StarrySkyC2.$(COLOR_END))
-export BoardExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/board.kconfig
-export DriverExport := $(ECOS_SDK_HOME)/board/StarrySkyC2/driver.kconfig
+export BoardExport := $(ECOS_SDK_HOME)/boards/StarrySkyC2/board.kconfig
+export DriverExport := $(ECOS_SDK_HOME)/boards/StarrySkyC2/driver.kconfig
 endif
 endif
 endif

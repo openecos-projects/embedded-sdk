@@ -18,6 +18,7 @@ typedef struct {
     uint8_t dc_pin;
     ecos_gpio_port_t reset_port;
     uint8_t reset_pin;
+    /* ECOS_GPIO_PORT_COUNT means BLK is fixed by board wiring. */
     ecos_gpio_port_t backlight_port;
     uint8_t backlight_pin;
     uint16_t width;

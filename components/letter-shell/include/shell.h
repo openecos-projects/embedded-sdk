@@ -15,9 +15,7 @@
 #include "shell_cfg.h"
 #include "shell_port.h"
 #include "stdint.h"
-#include "libgcc.h"
 #include <stddef.h>
-#include "generated/autoconf.h"
 
 
 
@@ -123,7 +121,7 @@
  * @param ... 代理参数
  */
 #define     SHELL_AGENCY_FUNC(_func, ...) \
-            void SHELL_AGENCY_FUNC_NAME(_func)(int p1, int p2, int p3, int p4, int p5, int p6, int p7) \
+            void SHELL_AGENCY_FUNC_NAME(_func)(size_t p1, size_t p2, size_t p3, size_t p4, size_t p5, size_t p6, size_t p7) \
             { _func(__VA_ARGS__); }
 
 #if SHELL_USING_CMD_EXPORT == 1

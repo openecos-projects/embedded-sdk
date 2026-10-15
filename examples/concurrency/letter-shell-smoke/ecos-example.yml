@@ -1,0 +1,8 @@
+schema: 1
+name: letter-shell-smoke
+sources:
+  - main.c
+components:
+  - letter-shell
+requires:
+  - console

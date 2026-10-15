@@ -1,0 +1,11 @@
+schema: 1
+name: gpio-interrupt
+sources:
+  - main.c
+components:
+  - driver-gpio
+  - driver-gpio-interrupt
+  - driver-interrupt
+requires:
+  - console
+  - gpio-demo

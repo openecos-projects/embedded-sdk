@@ -1,0 +1,16 @@
+schema: 1
+id: bsp-legacy-console
+name: Legacy StarrySky Console BSP
+cmake_target: ecos::bsp::legacy_console
+sources:
+  - src/console.c
+include_dirs:
+  - include
+  - ../../boards/include
+  - ../../hal/sys_uart
+dependencies:
+  - core-runtime
+  - libc
+  - libgcc
+private_dependencies:
+  - driver-uart

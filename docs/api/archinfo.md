@@ -3,7 +3,7 @@
 读取 SoC 的系统标识字与芯片 ID（只读寄存器组）。
 
 头文件：`drivers/archinfo/include/ecos/driver/archinfo.h`。
-示例：`example/peripherals/archinfo/chip-id`。
+示例：`examples/peripherals/archinfo/chip-id`。
 
 ## 类型与常量
 
@@ -53,5 +53,6 @@ int main(void)
 
 - 标识寄存器只读，**没有 init/deinit 生命周期**，调用前无需初始化。
 - SYS/IDL/IDH 字段的具体编码由 SoC 定义，SDK 不做解释。
-- 目前仅 ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
+- ysyx-c2、ysyx-l3-1、ysyx-2512-1 与 ysyx-2512-2 提供该 IP；
+  CL1-2512（T1-Pico）没有。
 - 不要与 2.x 遗留头文件 `hal/archinfo/hal_archinfo.h` 混用。

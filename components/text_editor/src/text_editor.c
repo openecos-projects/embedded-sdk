@@ -1,31 +1,19 @@
 #include "text_editor.h"
 #include "stdio.h"
 #include "string.h"
-#include "generated/autoconf.h"
-
-#ifdef CONFIG_COMPONENT_FLASH_FS
 #include "ff.h"
-#endif
+#include "ecos/bsp/console.h"
+#include "ecos/log.h"
 
 #include "shell.h"
-#include "shell_port.h"
-#include "hal_sys_uart.h"
-#include "board.h"
 
-/* Poll timeout: max iterations waiting for '[' after ESC.  Each iteration
- * does one MMIO read; 2000 iterations ≈ tens of ms — fast enough for
- * standalone ESC, but long enough to catch arrow-key CSI sequences. */
-#define ESC_POLL_MAX  2000
+/* Bound escape-sequence polling so a standalone ESC remains usable. */
+#define ESC_POLL_MAX  20000u
+#define KEY_IO_ERROR  0x1FE
 
 /* ===== Singleton Editor State ===== */
 static EditorState editor;
-
-/* Properly-typed reference to ff.c's global FatFs array.
- * NOTE: Must stay a declaration — adding static definitions here
- * bloats BSS and triggers stack/BSS collisions during boot. */
-#ifdef CONFIG_COMPONENT_FLASH_FS
-extern FATFS* FatFs[FF_VOLUMES];
-#endif
+static int pending_byte = -1;
 
 
 /* ===== Helpers ===== */
@@ -56,18 +44,19 @@ int editor_line_length(EditorState *ed, uint16_t line_idx) {
 /**
  * @brief Scan the text buffer and build the line_offsets array.
  */
-void editor_build_line_offsets(EditorState *ed) {
+int editor_build_line_offsets(EditorState *ed) {
     ed->line_count   = 0;
     ed->line_offsets[0] = 0;
     ed->line_count   = 1;
 
     for (uint16_t i = 0; i < ed->text_length; i++) {
         if (ed->buffer[i] == '\n') {
-            if (ed->line_count >= MAX_LINES) break;
+            if (ed->line_count >= MAX_LINES) return -1;
             ed->line_offsets[ed->line_count] = i + 1;
             ed->line_count++;
         }
     }
+    return 0;
 }
 
 /**
@@ -77,10 +66,10 @@ void editor_build_line_offsets(EditorState *ed) {
  * prefixed with "0:". Otherwise, it's relative to the shell's
  * current working directory.
  */
-void editor_construct_path(EditorState *ed, const char *user_path) {
-#ifdef CONFIG_COMPONENT_FLASH_FS
+int editor_construct_path(EditorState *ed, const char *user_path) {
     Shell *shell = shellGetCurrent();
     const char *cwd = "/";
+    int length;
 
     if (shell != NULL) {
         cwd = shellGetPath(shell);
@@ -89,19 +78,19 @@ void editor_construct_path(EditorState *ed, const char *user_path) {
 
     if (user_path[0] == '/') {
         /* Absolute path: 0:<user_path> */
-        snprintf(ed->fullpath, sizeof(ed->fullpath), "0:%s", user_path);
+        length = snprintf(ed->fullpath, sizeof(ed->fullpath), "0:%s", user_path);
     } else {
         /* Relative path: 0:<cwd>/<user_path>  (handle trailing / in cwd) */
         size_t cwd_len = strlen(cwd);
         if (cwd_len > 0 && cwd[cwd_len - 1] == '/') {
-            snprintf(ed->fullpath, sizeof(ed->fullpath),
-                     "0:%s%s", cwd, user_path);
+            length = snprintf(ed->fullpath, sizeof(ed->fullpath),
+                              "0:%s%s", cwd, user_path);
         } else {
-            snprintf(ed->fullpath, sizeof(ed->fullpath),
-                     "0:%s/%s", cwd, user_path);
+            length = snprintf(ed->fullpath, sizeof(ed->fullpath),
+                              "0:%s/%s", cwd, user_path);
         }
     }
-#endif
+    return length >= 0 && (size_t)length < sizeof(ed->fullpath) ? 0 : -1;
 }
 
 /**
@@ -112,27 +101,29 @@ void editor_construct_path(EditorState *ed, const char *user_path) {
  * that means "create new file" — an empty buffer is valid.
  */
 static int editor_load_file(EditorState *ed) {
-#ifdef CONFIG_COMPONENT_FLASH_FS
     FIL file;
     FRESULT res;
+    FRESULT close_result;
+    FSIZE_t file_size;
 
     res = f_open(&file, ed->fullpath, FA_OPEN_EXISTING | FA_READ);
     if (res == FR_NO_FILE) {
         /* New file: empty buffer is fine */
         ed->text_length = 0;
         ed->buffer[0]   = '\0';
-        editor_build_line_offsets(ed);
+        (void)editor_build_line_offsets(ed);
         return 0;
     }
 
     if (res != FR_OK) {
-        printf("\r\nError: cannot open file (code %d)\r\n", res);
+        (void)ECOS_LOGE("text-editor", "cannot open file (code %d)", res);
         return -1;
     }
 
     /* Check file size */
-    if (f_size(&file) > MAX_FILE_SIZE) {
-        printf("\r\nError: file too large (max %d bytes)\r\n", MAX_FILE_SIZE);
+    file_size = f_size(&file);
+    if (file_size > MAX_FILE_SIZE) {
+        (void)ECOS_LOGE("text-editor", "file too large (max %d bytes)", MAX_FILE_SIZE);
         f_close(&file);
         return -1;
     }
@@ -140,20 +131,21 @@ static int editor_load_file(EditorState *ed) {
     /* Read entire file */
     UINT bytes_read;
     res = f_read(&file, ed->buffer, MAX_FILE_SIZE, &bytes_read);
-    f_close(&file);
+    close_result = f_close(&file);
 
-    if (res != FR_OK) {
-        printf("\r\nError: read failed (code %d)\r\n", res);
+    if (res != FR_OK || close_result != FR_OK || bytes_read != file_size) {
+        (void)ECOS_LOGE("text-editor", "read failed (code %d)",
+                        res != FR_OK ? res : close_result);
         return -1;
     }
 
     ed->text_length = (uint16_t)bytes_read;
     ed->buffer[ed->text_length] = '\0';
-    editor_build_line_offsets(ed);
+    if (editor_build_line_offsets(ed) != 0) {
+        (void)ECOS_LOGE("text-editor", "file has too many lines (max %d)", MAX_LINES);
+        return -1;
+    }
     return 0;
-#else
-    return -1;
-#endif
 }
 
 /* ===== Editor Init ===== */
@@ -179,7 +171,10 @@ static int editor_init(EditorState *ed, const char *filename) {
     snprintf(ed->filename, sizeof(ed->filename), "%s", basename);
 
     /* Construct full FatFs path */
-    editor_construct_path(ed, filename);
+    if (editor_construct_path(ed, filename) != 0) {
+        (void)ECOS_LOGE("text-editor", "file path is too long");
+        return -1;
+    }
 
     /* Load file from Flash */
     return editor_load_file(ed);
@@ -187,64 +182,62 @@ static int editor_init(EditorState *ed, const char *filename) {
 
 /* ===== Input Handling ===== */
 
-/**
- * @brief Non-blocking poll of the UART data register.
- *        Returns the received byte (0..255), or -1 if no data.
- */
-static int uart_poll(void) {
-    int32_t c = REG_UART_0_DATA;
-    return (c == -1) ? -1 : (int)c;
+static int editor_poll_byte(void) {
+    uint8_t byte;
+
+    for (unsigned int attempt = 0; attempt < ESC_POLL_MAX; ++attempt) {
+        int result = bsp_console_try_read(&byte);
+
+        if (result == 1) return byte;
+        if (result < 0) return -2;
+    }
+    return -1;
 }
 
 /**
  * @brief Read a single key from the terminal.
  *
- * Handles ANSI escape sequences (arrow keys).  After receiving ESC (0x1B),
- * polls for a short window to see if '[' follows.  If so, reads the final
- * direction byte and returns a virtual key code.  If the window expires,
- * treats the ESC as a standalone key press.
+ * Handles ANSI/VT52 arrow keys without waiting forever after a lone ESC.
  */
 static int editor_read_key(void) {
-    int c = (int)hal_sys_getchar();
+    uint8_t byte;
+    int c;
+    int csi = 0;
+
+    if (pending_byte >= 0) {
+        c = pending_byte;
+        pending_byte = -1;
+    } else {
+        int result = bsp_console_read(&byte, 1u);
+        if (result != 1) return KEY_IO_ERROR;
+        c = byte;
+    }
 
     if (c != 0x1B) {
-        return c;  /* Plain ASCII character */
+        return c;
     }
 
-    /*
-     * ESC received.  Poll the UART register for '[' within a short
-     * window.  For arrow keys the '[' byte is already in-flight and
-     * appears almost instantly; for a standalone ESC the poll expires
-     * and we return KEY_ESC.  Filter out re-reads of the ESC byte
-     * itself — some UARTs need a cycle to clear the "data ready" flag.
-     */
-    for (volatile int i = 0; i < ESC_POLL_MAX; i++) {
-        int next = uart_poll();
-        if (next >= 0 && next != 0x1B) {
-            if (next == '[') {
-                /* ANSI / VT100: ESC [ A/B/C/D */
-                int dir = (int)hal_sys_getchar();
-                switch (dir) {
-                    case 'A': return KEY_UP;
-                    case 'B': return KEY_DOWN;
-                    case 'C': return KEY_RIGHT;
-                    case 'D': return KEY_LEFT;
-                    default:  return KEY_UNKNOWN;
-                }
-            }
-            /* VT52: ESC A/B/C/D (no '[' byte) */
-            switch (next) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-                case 'C': return KEY_RIGHT;
-                case 'D': return KEY_LEFT;
-                default:  return KEY_UNKNOWN;
-            }
-        }
+    int next = editor_poll_byte();
+    if (next == -2) return KEY_IO_ERROR;
+    if (next < 0) return KEY_ESC;
+
+    if (next == '[') {
+        csi = 1;
+        next = editor_poll_byte();
+        if (next == -2) return KEY_IO_ERROR;
+        if (next < 0) return KEY_UNKNOWN;
     }
 
-    /* No CSI sequence — standalone ESC */
-    return KEY_ESC;
+    switch (next) {
+        case 'A': return KEY_UP;
+        case 'B': return KEY_DOWN;
+        case 'C': return KEY_RIGHT;
+        case 'D': return KEY_LEFT;
+        default:
+            if (csi) return KEY_UNKNOWN;
+            pending_byte = next;
+            return KEY_ESC;
+    }
 }
 
 /* ===== Cursor Movement ===== */
@@ -332,6 +325,7 @@ static void editor_insert_char(EditorState *ed, char ch) {
             ed->text_length - pos);
     ed->buffer[pos] = ch;
     ed->text_length++;
+    ed->buffer[ed->text_length] = '\0';
 
     /* All subsequent line offsets shift by 1 */
     for (uint16_t i = ed->cursor_row + 1; i < ed->line_count; i++) {
@@ -357,6 +351,7 @@ static void editor_delete_char(EditorState *ed) {
         memmove(&ed->buffer[pos], &ed->buffer[pos + 1],
                 ed->text_length - pos - 1);
         ed->text_length--;
+        ed->buffer[ed->text_length] = '\0';
         ed->cursor_col--;
 
         for (uint16_t i = ed->cursor_row + 1; i < ed->line_count; i++) {
@@ -376,11 +371,12 @@ static void editor_delete_char(EditorState *ed) {
             memmove(&ed->buffer[merge_pos], &ed->buffer[merge_pos + 1],
                     ed->text_length - merge_pos - 1);
             ed->text_length--;
+            ed->buffer[ed->text_length] = '\0';
         }
 
         ed->cursor_row--;
         ed->cursor_col = prev_len;
-        editor_build_line_offsets(ed);
+        (void)editor_build_line_offsets(ed);
         editor_scroll_to_cursor(ed);
         ed->dirty = 1;
     }
@@ -390,8 +386,10 @@ static void editor_delete_char(EditorState *ed) {
  * @brief Insert a newline at the cursor position, splitting the line.
  */
 static void editor_insert_newline(EditorState *ed) {
-    if (ed->text_length >= MAX_FILE_SIZE) return;
-    if (ed->line_count >= MAX_LINES) return;
+    if (ed->text_length >= MAX_FILE_SIZE || ed->line_count >= MAX_LINES) {
+        ed->buffer_full = 1;
+        return;
+    }
 
     uint16_t pos = ed->line_offsets[ed->cursor_row] + ed->cursor_col;
 
@@ -400,12 +398,13 @@ static void editor_insert_newline(EditorState *ed) {
             ed->text_length - pos);
     ed->buffer[pos] = '\n';
     ed->text_length++;
+    ed->buffer[ed->text_length] = '\0';
 
     /* Cursor moves to start of the new line */
     ed->cursor_row++;
     ed->cursor_col = 0;
 
-    editor_build_line_offsets(ed);
+    (void)editor_build_line_offsets(ed);
     editor_scroll_to_cursor(ed);
     ed->dirty = 1;
 }
@@ -417,9 +416,9 @@ static void editor_insert_newline(EditorState *ed) {
  *        On success clears the dirty flag.  On failure sets save_error.
  */
 static void editor_save(EditorState *ed) {
-#ifdef CONFIG_COMPONENT_FLASH_FS
     FIL file;
     FRESULT res;
+    FRESULT close_result;
 
     res = f_open(&file, ed->fullpath, FA_CREATE_ALWAYS | FA_WRITE);
     if (res != FR_OK) {
@@ -429,27 +428,28 @@ static void editor_save(EditorState *ed) {
 
     UINT bytes_written;
     res = f_write(&file, ed->buffer, ed->text_length, &bytes_written);
-    f_close(&file);
+    close_result = f_close(&file);
 
-    if (res == FR_OK && bytes_written == ed->text_length) {
+    if (res == FR_OK && close_result == FR_OK && bytes_written == ed->text_length) {
         ed->dirty = 0;
         ed->save_error = 0;
     } else {
         ed->save_error = 1;
     }
-#endif
 }
 
 /* ===== Editor Loop ===== */
 
-static void editor_loop(EditorState *ed) {
+static int editor_loop(EditorState *ed) {
     int running = 1;
+    int status = 0;
 
     /* Clear screen once on entry — subsequent frames overwrite in place */
-    printf("\033[2J");
+    (void)bsp_console_write("\033[2J", sizeof("\033[2J") - 1u);
 
     ed->esc_warning = 0;
     ed->save_error  = 0;
+    pending_byte = -1;
 
     while (running) {
         editor_render(ed);
@@ -474,6 +474,11 @@ static void editor_loop(EditorState *ed) {
             case KEY_LEFT:  editor_move_left(ed);  break;
             case KEY_RIGHT: editor_move_right(ed); break;
 
+            case KEY_IO_ERROR:
+                status = -1;
+                running = 0;
+                break;
+
             case 0x17:                              /* Ctrl+W — save */
                 editor_save(ed);
                 break;
@@ -486,7 +491,7 @@ static void editor_loop(EditorState *ed) {
                 }
                 break;
 
-            case '\r':                              /* Enter (CR) */
+            case '\n':                              /* Console normalizes CR to LF */
                 editor_insert_newline(ed);
                 break;
 
@@ -515,7 +520,9 @@ static void editor_loop(EditorState *ed) {
     }
 
     /* Clean up: clear screen before returning to shell */
-    printf(ANSI_CLEAR ANSI_CURSOR_SHOW);
+    (void)bsp_console_write(ANSI_CLEAR ANSI_CURSOR_SHOW,
+                            sizeof(ANSI_CLEAR ANSI_CURSOR_SHOW) - 1u);
+    return status;
 }
 
 /* ===== Shell Command Entry Point ===== */
@@ -528,17 +535,13 @@ static void editor_loop(EditorState *ed) {
  */
 int editCmd(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("\r\nUsage: edit <filename>\r\n");
+        (void)ECOS_LOGI("text-editor", "Usage: edit <filename>");
         return -1;
     }
 
-#ifdef CONFIG_COMPONENT_FLASH_FS
     if (editor_init(&editor, argv[1]) != 0) {
         return -1;  /* editor_load_file already printed the error */
     }
 
-    editor_loop(&editor);
-#endif
-
-    return 0;
+    return editor_loop(&editor);
 }

@@ -1,0 +1,10 @@
+schema: 1
+id: hal-wdg
+name: Watchdog HAL Contract
+cmake_target: ecos::hal::wdg
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - wdg

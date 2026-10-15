@@ -3,7 +3,7 @@
 周期定时、到期查询与阻塞延时。
 
 头文件：`drivers/timer/include/ecos/driver/timer.h`。
-示例：`example/get_start/blink`（`ecos_timer_delay_ms` 是示例程序的标准延时
+示例：`examples/get_start/blink`（`ecos_timer_delay_ms` 是示例程序的标准延时
 手段）。
 
 ## 类型与常量

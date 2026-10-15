@@ -3,7 +3,7 @@
 硬件 CRC 校验：配置初值/异或值/模式后按 32 位字喂入数据并读出结果。
 
 头文件：`drivers/crc/include/ecos/driver/crc.h`。
-示例：`example/peripherals/crc/compute`。
+示例：`examples/peripherals/crc/compute`。
 
 ## 类型与常量
 
@@ -72,5 +72,5 @@ int main(void)
 - `mode` 对应 CTRL 寄存器 bits[6:5]，各模式的多项式与位宽由 SoC 定义；
   默认配置是板测验证过的组合，修改 `mode` 前请查阅数据手册。
 - 每轮计算从 `ecos_crc_init()` 开始；连续计算需重新 init。
-- 目前仅 ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
+- ysyx-l3-1、ysyx-2512-1 与 ysyx-2512-2 提供该 IP；CL1-2512（T1-Pico）没有。
 - 不要与 2.x 遗留头文件 `hal/crc/hal_crc.h` 混用。

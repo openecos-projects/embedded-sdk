@@ -1,0 +1,51 @@
+schema: 2
+id: starrysky-c1
+name: StarrySky C1
+aliases:
+  - c1
+category: StarrySkyC1
+arch: riscv
+target: ysyx-c1
+
+build:
+  default_profile: flash-xip
+  profiles:
+    - flash-xip
+  components:
+    - bsp-legacy-console
+
+resources:
+  console:
+    driver: driver-uart
+    instance: 0
+  i2c-bus:
+    driver: driver-i2c
+    controller: 0
+  qspi-bus:
+    driver: driver-qspi
+    controller: 0
+    clock_divider: 3
+  display:
+    driver: device-st7735
+    bus: qspi-bus
+    chip_select: 0
+    dc_gpio:
+      controller: 0
+      pin: 2
+    width: 128
+    height: 128
+    rotation: 0
+    horizontal_offset: 2
+    vertical_offset: 3
+
+monitor:
+  baudrate: 115200
+
+files:
+  makefile: Makefile
+  board_header: board.h
+  linker_script: sections.lds
+  startup: start.s
+
+kconfig:
+  board: sdk/board.kconfig

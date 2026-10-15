@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path, PurePosixPath
+from importlib.util import find_spec
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Optional
 
-from . import __version__
+from . import __schema_version__, __version__
 from .sdk_context import SdkContext
 
 
@@ -51,10 +52,83 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _validate_relative_path(name: str, value: Any) -> str:
     if not isinstance(value, str) or not value:
         raise SdkManifestError(f"SDK layout path must be a non-empty string: {name}")
-    path = PurePosixPath(value.replace("\\", "/"))
-    if path.is_absolute() or ".." in path.parts or "." in path.parts:
+    normalized = value.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if (
+        path.is_absolute()
+        or PureWindowsPath(value).drive
+        or any(part in {"", ".", ".."} for part in normalized.split("/"))
+    ):
         raise SdkManifestError(f"unsafe SDK layout path for {name}: {value}")
     return path.as_posix()
+
+
+def _release_entries(manifest: dict[str, Any]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    release = manifest.get("release")
+    if (
+        not isinstance(release, dict)
+        or "paths" not in release
+        or set(release) - {"paths", "exclude"}
+    ):
+        raise SdkManifestError("SDK manifest release must define paths and optional exclude")
+    declared = release["paths"]
+    if not isinstance(declared, list) or not declared:
+        raise SdkManifestError("SDK manifest release.paths must be a non-empty list")
+    paths = tuple(_validate_relative_path("release.paths", item) for item in declared)
+    if len(paths) != len(set(paths)):
+        raise SdkManifestError("SDK manifest release.paths contains duplicates")
+    for index, path in enumerate(paths):
+        if path in {"bin", "tools", "tools/ecos_cli"} or path.startswith("bin/") or any(
+            path == legacy or path.startswith(f"{legacy}/")
+            for legacy in (
+                "tools/fixdep", "tools/kconfig", "tools/scripts", "tools/ecos_cli/tests"
+            )
+        ):
+            raise SdkManifestError(f"legacy path cannot enter an SDK release: {path}")
+        if any(
+            path.startswith(f"{other}/") or other.startswith(f"{path}/")
+            for other in paths[:index]
+        ):
+            raise SdkManifestError(f"SDK release paths overlap: {path}")
+    for required in ("LICENSE", "tools/install.py", "tools/sdk-manifest.json"):
+        if required not in paths:
+            raise SdkManifestError(f"SDK release paths must include {required}")
+    layout = manifest.get("layout", {})
+    if isinstance(layout, dict):
+        for name, relative in layout.items():
+            if not any(relative == path or relative.startswith(f"{path}/") for path in paths):
+                raise SdkManifestError(
+                    f"SDK release paths do not include layout resource {name}: {relative}"
+                )
+    declared_excludes = release.get("exclude", [])
+    if not isinstance(declared_excludes, list):
+        raise SdkManifestError("SDK manifest release.exclude must be a list")
+    excludes = tuple(
+        _validate_relative_path("release.exclude", item) for item in declared_excludes
+    )
+    if len(excludes) != len(set(excludes)):
+        raise SdkManifestError("SDK manifest release.exclude contains duplicates")
+    for excluded in excludes:
+        if not any(excluded.startswith(f"{path}/") for path in paths):
+            raise SdkManifestError(
+                f"SDK release exclusion is outside declared paths: {excluded}"
+            )
+        if any(
+            relative == excluded or relative.startswith(f"{excluded}/")
+            for relative in layout.values()
+        ):
+            raise SdkManifestError(
+                f"SDK release exclusion removes a layout resource: {excluded}"
+            )
+    return paths, excludes
+
+
+def release_paths(manifest: dict[str, Any]) -> tuple[str, ...]:
+    return _release_entries(manifest)[0]
+
+
+def release_excludes(manifest: dict[str, Any]) -> tuple[str, ...]:
+    return _release_entries(manifest)[1]
 
 
 def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
@@ -72,6 +146,14 @@ def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
         raise SdkManifestError(
             f"SDK manifest {source} is missing: {', '.join(missing)}"
         )
+    # The installer reads this manifest before it installs the CLI's private dependencies.
+    if find_spec("yaml") is not None and find_spec("jsonschema") is not None:
+        from . import schema_contract
+
+        try:
+            schema_contract.validate_manifest("sdk", manifest, source)
+        except schema_contract.SchemaValidationError as exc:
+            raise SdkManifestError(str(exc)) from exc
     if manifest["schema_version"] != 1:
         raise SdkManifestError(
             f"unsupported SDK manifest schema: {manifest['schema_version']}"
@@ -101,6 +183,12 @@ def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
         raise SdkManifestError(
             f"SDK requires ECOS CLI major {compatibility['major']}, running {cli_major}"
         )
+    schema_version = compatibility.get("schema_version")
+    if not isinstance(schema_version, str) or schema_version != __schema_version__:
+        raise SdkManifestError(
+            f"SDK requires ECOS CLI schema {schema_version!r}, "
+            f"running {__schema_version__!r}"
+        )
     layout = manifest["layout"]
     if not isinstance(layout, dict):
         raise SdkManifestError("SDK manifest layout must be an object")
@@ -115,7 +203,7 @@ def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
     build = manifest.get("build", {})
     if not isinstance(build, dict):
         raise SdkManifestError("SDK manifest build must be an object")
-    unknown_build_keys = sorted(set(build).difference({"core_components"}))
+    unknown_build_keys = sorted(set(build).difference({"core_components", "kconfig"}))
     if unknown_build_keys:
         raise SdkManifestError(
             "SDK manifest build contains unsupported fields: "
@@ -135,13 +223,22 @@ def validate_manifest(manifest: dict[str, Any], source: Path) -> dict[str, Any]:
         raise SdkManifestError(
             "SDK manifest build.core_components contains duplicate values"
         )
-    manifest["build"] = {"core_components": list(core_components)}
+    normalized_build: dict[str, Any] = {"core_components": list(core_components)}
+    if "kconfig" in build:
+        normalized_build["kconfig"] = _validate_relative_path(
+            "build.kconfig", build["kconfig"]
+        )
+    manifest["build"] = normalized_build
     toolchain = manifest["toolchain"]
     if not isinstance(toolchain, dict) or not all(
         isinstance(toolchain.get(field), str) and toolchain[field]
         for field in ("id", "release")
     ):
         raise SdkManifestError("SDK manifest toolchain must define id and release")
+    if manifest["channel"] == "release" and "release" not in manifest:
+        raise SdkManifestError("release SDK manifest must define release paths")
+    if "release" in manifest:
+        release_paths(manifest)
     return manifest
 
 
@@ -162,6 +259,11 @@ def validate_sdk_root(root: Path) -> tuple[Path, dict[str, Any]]:
     if missing:
         raise SdkManifestError(
             f"SDK {sdk_root} is missing layout resources: {', '.join(sorted(missing))}"
+        )
+    build_kconfig = manifest["build"].get("kconfig")
+    if build_kconfig is not None and not (sdk_root / build_kconfig).is_file():
+        raise SdkManifestError(
+            f"SDK {sdk_root} is missing build Kconfig: {build_kconfig}"
         )
     return sdk_root, manifest
 

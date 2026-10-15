@@ -1,0 +1,85 @@
+name: SDK 3.0 CI
+
+on:
+  push:
+    branches: [3.0-dev]
+  pull_request:
+    branches: [3.0-dev]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    name: ${{ matrix.runner }} install and build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - windows-2025
+          - macos-15-intel
+          - macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install SDK, run CLI tests, and build in a Unicode path
+        env:
+          ECOS_CI_ALL_EXAMPLES: ${{ matrix.runner == 'ubuntu-24.04' }}
+        run: python tools/ci_host_smoke.py --report ci-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ecos-ci-${{ matrix.runner }}
+          path: ci-report.json
+          if-no-files-found: error
+
+  python-minimum:
+    name: Python 3.9 install and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.9"
+      - name: Install SDK, run CLI tests, and build in a Unicode path
+        run: python tools/ci_host_smoke.py --report ci-report-py39.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ecos-ci-python-3.9-ubuntu-24.04
+          path: ci-report-py39.json
+          if-no-files-found: error
+
+  extension:
+    name: VS Code extension unit and package checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/vscode-ecos/package-lock.json
+      - run: npm ci
+        working-directory: tools/vscode-ecos
+      - run: npm test
+        working-directory: tools/vscode-ecos
+      - run: npm run package
+        working-directory: tools/vscode-ecos
