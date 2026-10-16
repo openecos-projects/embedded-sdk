@@ -273,6 +273,7 @@ def _stripped_path(name: str, archive_root: str) -> Optional[Path]:
 
 
 def _safe_destination(root: Path, relative: Path) -> Path:
+    root = root.expanduser().resolve(strict=False)
     destination = (root / relative).resolve(strict=False)
     if destination != root and root not in destination.parents:
         raise IntegrityError(f"archive member escapes extraction directory: {relative}")
@@ -280,6 +281,7 @@ def _safe_destination(root: Path, relative: Path) -> Path:
 
 
 def extract_tar(archive: Path, destination: Path, archive_root: str) -> None:
+    destination = destination.expanduser().resolve(strict=False)
     pending_hardlinks: list[tuple[Path, Path]] = []
     with tarfile.open(archive, "r:gz") as bundle:
         for member in bundle.getmembers():
@@ -318,6 +320,7 @@ def extract_tar(archive: Path, destination: Path, archive_root: str) -> None:
 
 
 def extract_zip(archive: Path, destination: Path, archive_root: str) -> None:
+    destination = destination.expanduser().resolve(strict=False)
     with zipfile.ZipFile(archive) as bundle:
         for member in bundle.infolist():
             relative = _stripped_path(member.filename, archive_root)

@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from host_compile import compiler_flags, linker_flags
+
 
 SDK_ROOT = Path(__file__).parents[3]
 HOST_CC = shutil.which("cc")
@@ -16,10 +18,8 @@ class ShellNumberTest(unittest.TestCase):
             executable = Path(directory) / "shell-number-test"
             command = [
                 HOST_CC,
-                "-std=gnu11",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-Wl,--gc-sections",
+                *compiler_flags("gnu11"),
+                *linker_flags(),
                 "-I",
                 str(SDK_ROOT / "components" / "letter-shell" / "include"),
                 "-I",
@@ -39,10 +39,8 @@ class ShellNumberTest(unittest.TestCase):
             executable = Path(directory) / "shell-var-test"
             command = [
                 HOST_CC,
-                "-std=gnu11",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-Wl,--gc-sections",
+                *compiler_flags("gnu11"),
+                *linker_flags(),
                 "-I",
                 str(SDK_ROOT / "components" / "letter-shell" / "include"),
                 "-I",

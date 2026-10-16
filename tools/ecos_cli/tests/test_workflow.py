@@ -173,7 +173,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
             )
             code, payload = invoke("--dry-run")
             self.assertEqual(code, ExitCode.OK)
-            self.assertEqual(payload["data"]["paths"], [str(build_dir)])
+            self.assertEqual(payload["data"]["paths"], [str(build_dir.resolve())])
             self.assertFalse(payload["data"]["removed"])
             self.assertTrue(marker.is_file())
 
@@ -501,7 +501,7 @@ class ConfigurationWorkflowTest(unittest.TestCase):
 
             self.assertEqual(
                 configured.data["generated"]["board_resources"],
-                str(generated / "include/ecos/board_resources.h"),
+                str((generated / "include/ecos/board_resources.h").resolve()),
             )
             self.assertIn("#define ECOS_BOARD_HAS_GPIO_DEMO 1", header)
             self.assertIn("{ ECOS_GPIO_PORT_1, 7u }", header)

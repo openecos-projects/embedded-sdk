@@ -145,7 +145,7 @@ class SdkRegistryTest(unittest.TestCase):
             kconfig = sdk / manifest["build"]["kconfig"]
             kconfig.parent.mkdir(parents=True)
             kconfig.write_text("config SDK_TEST\n    bool\n", encoding="utf-8")
-            self.assertEqual(validate_sdk_root(sdk)[0], sdk)
+            self.assertEqual(validate_sdk_root(sdk)[0], sdk.resolve())
 
     def test_registry_default_paths_are_platform_specific(self):
         home = Path("/users/test")
@@ -388,10 +388,12 @@ class SdkRegistryTest(unittest.TestCase):
             self.assertEqual(
                 payload["data"]["install_root"],
                 str(
-                    shared_prefix
-                    / "xpack-riscv-none-elf-gcc"
-                    / "15.2.0-1"
-                    / "linux-x86_64"
+                    (
+                        shared_prefix
+                        / "xpack-riscv-none-elf-gcc"
+                        / "15.2.0-1"
+                        / "linux-x86_64"
+                    ).resolve()
                 ),
             )
 

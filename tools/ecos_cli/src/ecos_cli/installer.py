@@ -91,7 +91,7 @@ def default_install_base(
     platform_name: Optional[str] = None,
 ) -> Path:
     env = os.environ if environ is None else environ
-    home_root = (home or Path.home()).expanduser().resolve()
+    home_root = (home or Path.home()).expanduser()
     host = platform_name or sys.platform
     if host == "win32":
         base = Path(env.get("LOCALAPPDATA", home_root / "AppData" / "Local"))
@@ -795,7 +795,7 @@ def _powershell_profile(home: Path, query_runtime: bool) -> Path:
 def shell_config_path(shell: str, home: Optional[Path] = None) -> Optional[Path]:
     if shell == "none":
         return None
-    home_root = (home or Path.home()).expanduser().resolve()
+    home_root = (home or Path.home()).expanduser()
     paths = {
         "bash": home_root / ".bashrc",
         "zsh": home_root / ".zshrc",

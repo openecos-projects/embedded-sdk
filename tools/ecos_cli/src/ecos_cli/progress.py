@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from typing import Optional, TextIO
 
 
+INFO_COLOR = "\033[1;32m"
+
+
 @dataclass(frozen=True)
 class DownloadStatus:
     downloaded: int
@@ -106,7 +109,7 @@ class ConsoleProgress:
         )
         if not should_render:
             return
-        line = f"{self._prefix('INFO', '\033[1;32m')} {format_download_status(status)}"
+        line = f"{self._prefix('INFO', INFO_COLOR)} {format_download_status(status)}"
         if status.failed:
             line += "  failed"
         if self._interactive:

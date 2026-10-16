@@ -213,14 +213,14 @@ class ToolchainInstallerTest(unittest.TestCase):
             self.assertTrue((target / "bin" / "riscv64-unknown-elf-gcc").is_symlink())
             self.assertEqual(
                 target,
-                root / "prefix" / "fixture" / "1.0.0" / "linux-x86_64",
+                (root / "prefix" / "fixture" / "1.0.0" / "linux-x86_64").resolve(),
             )
             self.assertFalse((root / "prefix" / "toolchain" / "riscv").exists())
             self.assertEqual(
                 installer.shared_install_root(
                     loaded, root / "prefix", "windows-x86_64"
                 ),
-                root / "prefix" / "fixture" / "1.0.0" / "windows-x86_64",
+                (root / "prefix" / "fixture" / "1.0.0" / "windows-x86_64").resolve(),
             )
 
             custom_manifest = dict(loaded)

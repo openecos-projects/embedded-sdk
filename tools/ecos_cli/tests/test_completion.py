@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -56,7 +57,10 @@ class CompletionTest(unittest.TestCase):
         self.assertIn("complete -F _ecos_complete ecos", output.getvalue())
         self.assertNotIn("ECOS-INFO", output.getvalue())
 
-    @unittest.skipUnless(shutil.which("bash"), "bash is not installed")
+    @unittest.skipUnless(
+        os.name != "nt" and shutil.which("bash"),
+        "a POSIX bash is required",
+    )
     def test_bash_completion_has_valid_syntax(self):
         result = subprocess.run(
             ["bash", "-n"],

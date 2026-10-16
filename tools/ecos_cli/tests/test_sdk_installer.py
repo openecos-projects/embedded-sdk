@@ -284,10 +284,11 @@ class SdkInstallerTest(unittest.TestCase):
                     self.assertEqual(content.count(installer.SHELL_CONFIG_BEGIN), 1)
                     self.assertEqual(content.count(installer.SHELL_CONFIG_END), 1)
                     self.assertIn("# user setting", content)
-                    self.assertIn(str(prefix), content)
+                    self.assertIn(str(prefix.resolve()), content)
                     self.assertNotIn(f"ECOS_SDK_HOME={prefix}", content)
                     self.assertEqual(first["config_file"], str(profile.resolve()))
 
+    @unittest.skipIf(os.name == "nt", "POSIX bash configuration test")
     def test_bash_configuration_places_installed_sdk_first(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -309,6 +310,8 @@ class SdkInstallerTest(unittest.TestCase):
                 installer.toolchain.legacy_prefix().resolve()
             )
 
+            environment.pop("BASH_ENV", None)
+            environment.pop("ENV", None)
             result = subprocess.run(
                 [
                     "/bin/bash",
@@ -518,8 +521,14 @@ class SdkInstallerTest(unittest.TestCase):
             registry = json.loads(registry_path.read_text(encoding="utf-8"))
             self.assertTrue((install_base / "3.0.0/tools/sdk-manifest.json").is_file())
             self.assertTrue((install_base / "3.1.0/tools/sdk-manifest.json").is_file())
-            self.assertEqual(registry["sdks"]["3.0.0"]["root"], str(install_base / "3.0.0"))
-            self.assertEqual(registry["sdks"]["3.1.0"]["root"], str(install_base / "3.1.0"))
+            self.assertEqual(
+                registry["sdks"]["3.0.0"]["root"],
+                str((install_base / "3.0.0").resolve()),
+            )
+            self.assertEqual(
+                registry["sdks"]["3.1.0"]["root"],
+                str((install_base / "3.1.0").resolve()),
+            )
             self.assertEqual(registry["active"], "3.1.0")
 
     def test_force_replaces_registration_from_legacy_path(self):
@@ -848,7 +857,7 @@ class SdkInstallerTest(unittest.TestCase):
                 preview = json.loads(preview_output.getvalue())["data"]
                 self.assertTrue(preview["dry_run"])
                 self.assertFalse(preview["changed"])
-                self.assertEqual(preview["root"], str(installed))
+                self.assertEqual(preview["root"], str(installed.resolve()))
                 self.assertTrue(installed.is_dir())
                 self.assertEqual(registry.active_name(), "3.0.0")
 
@@ -916,6 +925,7 @@ class SdkInstallerTest(unittest.TestCase):
                 )
                 (destination / "kconfiglib.py").write_text("", encoding="utf-8")
                 (destination / "menuconfig.py").write_text("", encoding="utf-8")
+                (destination / "jsonschema.py").write_text("", encoding="utf-8")
                 serial_package = destination / "serial"
                 serial_package.mkdir()
                 (serial_package / "__init__.py").write_text(

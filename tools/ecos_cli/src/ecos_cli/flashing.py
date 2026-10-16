@@ -82,11 +82,23 @@ def _posix_volume_candidates(
         if user:
             direct.extend([Path("/run/media") / user, Path("/media") / user])
         roots = [*direct, *roots]
-    candidates: set[Path] = set()
+    candidates: list[Path] = []
+
+    def add_candidate(path: Path) -> None:
+        resolved = path.resolve()
+        for existing in candidates:
+            try:
+                if os.path.samefile(existing, resolved):
+                    return
+            except OSError:
+                if existing == resolved:
+                    return
+        candidates.append(resolved)
+
     for root in roots:
         direct = root / label
         if direct.is_dir():
-            candidates.add(direct.resolve())
+            add_candidate(direct)
         if not root.is_dir():
             continue
         try:
@@ -95,10 +107,10 @@ def _posix_volume_candidates(
             continue
         for child in children:
             if child.is_dir() and child.name.casefold() == label.casefold():
-                candidates.add(child.resolve())
+                add_candidate(child)
             nested = child / label
             if nested.is_dir():
-                candidates.add(nested.resolve())
+                add_candidate(nested)
     return sorted(candidates)
 
 

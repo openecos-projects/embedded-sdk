@@ -43,7 +43,7 @@ def default_registry_path(
     override = env.get("ECOS_SDK_REGISTRY")
     if override:
         return Path(override).expanduser().resolve()
-    home_root = (home or Path.home()).expanduser().resolve()
+    home_root = (home or Path.home()).expanduser()
     host = platform_name or sys.platform
     if host == "win32":
         base = Path(env.get("APPDATA", home_root / "AppData" / "Roaming"))

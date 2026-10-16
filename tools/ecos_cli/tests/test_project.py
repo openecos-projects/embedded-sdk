@@ -349,7 +349,7 @@ class ProjectCreateTest(unittest.TestCase):
             project = workspace / "hello_world"
             self.assertEqual(result, ExitCode.OK)
             self.assertEqual(payload["command"], "project.create")
-            self.assertEqual(payload["data"]["path"], str(project))
+            self.assertEqual(payload["data"]["path"], str(project.resolve()))
             self.assertEqual(
                 (project / "main.c").read_text(encoding="utf-8"),
                 '#include "main.h"\n\nvoid main(void) {}\n',
@@ -717,7 +717,7 @@ class ProjectCreateTest(unittest.TestCase):
             self.assertEqual(command[1], "-S")
             self.assertEqual(
                 Path(command[2]),
-                sdk / "components/soc/ysyx-2512",
+                (sdk / "components/soc/ysyx-2512").resolve(),
             )
             self.assertIn(
                 "-DECOS_PROJECT_CONFIG="

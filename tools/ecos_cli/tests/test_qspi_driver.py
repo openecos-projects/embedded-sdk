@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from host_compile import compiler_flags, linker_flags
+
 
 SDK_ROOT = Path(__file__).parents[3]
 HOST_CC = shutil.which("cc")
@@ -16,14 +18,8 @@ class QSPIDriverTest(unittest.TestCase):
             executable = Path(directory) / "qspi-driver-test"
             command = [
                 HOST_CC,
-                "-std=c11",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                "-pedantic",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-Wl,--gc-sections",
+                *compiler_flags("c11", strict=True),
+                *linker_flags(),
                 "-I",
                 str(SDK_ROOT / "components/core/include"),
                 "-I",

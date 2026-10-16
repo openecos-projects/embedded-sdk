@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from host_compile import compiler_flags
+
 
 SDK_ROOT = Path(__file__).parents[3]
 HOST_CC = shutil.which("cc")
@@ -17,11 +19,7 @@ class ShellFsTest(unittest.TestCase):
             component = SDK_ROOT / "components" / "letter-shell-fs"
             command = [
                 HOST_CC,
-                "-std=c11",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                "-pedantic",
+                *compiler_flags("c11", strict=True),
                 "-I",
                 str(component / "include"),
                 "-I",
