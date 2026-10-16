@@ -490,17 +490,15 @@ def install_launchers(prefix: Path) -> None:
     bin_dir = prefix / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     launcher = bin_dir / "ecos"
-    launcher.write_text(INSTALLED_ECOS_LAUNCHER, encoding="utf-8", newline="\n")
+    with launcher.open("w", encoding="utf-8", newline="\n") as launcher_file:
+        launcher_file.write(INSTALLED_ECOS_LAUNCHER)
     launcher.chmod(
         launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     )
     python_executable = str(Path(sys.executable).resolve())
     cmd_launcher = bin_dir / "ecos.cmd"
-    cmd_launcher.write_text(
-        f'@echo off\r\n"{python_executable}" "%~dp0ecos" %*\r\n',
-        encoding="utf-8",
-        newline="",
-    )
+    with cmd_launcher.open("w", encoding="utf-8", newline="") as cmd_file:
+        cmd_file.write(f'@echo off\r\n"{python_executable}" "%~dp0ecos" %*\r\n')
     launch_descriptor = prefix / HOST_LAUNCH_RELATIVE_PATH
     launch_descriptor.parent.mkdir(parents=True, exist_ok=True)
     launch_descriptor.write_text(
@@ -522,7 +520,8 @@ def install_completion_files(prefix: Path) -> dict[str, str]:
     installed: dict[str, str] = {}
     for shell, filename in completion.COMPLETION_FILENAMES.items():
         path = destination / filename
-        path.write_text(completion.generate(shell), encoding="utf-8", newline="\n")
+        with path.open("w", encoding="utf-8", newline="\n") as completion_file:
+            completion_file.write(completion.generate(shell))
         installed[shell] = str(path)
     return installed
 

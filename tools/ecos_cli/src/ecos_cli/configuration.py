@@ -113,7 +113,8 @@ def _launch_menuconfig(root_content: str, config_path: Path) -> None:
 
     with tempfile.TemporaryDirectory(prefix="ecos-menuconfig-") as temporary_name:
         root_path = Path(temporary_name) / KCONFIG_ROOT_FILE
-        root_path.write_text(root_content, encoding="utf-8", newline="\n")
+        with root_path.open("w", encoding="utf-8", newline="\n") as root_file:
+            root_file.write(root_content)
         try:
             kconf = kconfiglib.Kconfig(
                 str(root_path),
@@ -155,7 +156,8 @@ def _evaluate_kconfig(
         ) from exc
 
     root_path = temporary / KCONFIG_ROOT_FILE
-    root_path.write_text(root_content, encoding="utf-8", newline="\n")
+    with root_path.open("w", encoding="utf-8", newline="\n") as root_file:
+        root_file.write(root_content)
     try:
         kconf = kconfiglib.Kconfig(
             str(root_path),
@@ -497,7 +499,8 @@ def _replace_generated(directory: Path, files: dict[str, str]) -> None:
         for name, content in files.items():
             destination = staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(content, encoding="utf-8", newline="\n")
+            with destination.open("w", encoding="utf-8", newline="\n") as output:
+                output.write(content)
         if directory.exists():
             backup = Path(tempfile.mkdtemp(prefix=".generated.backup-", dir=parent))
             backup.rmdir()
