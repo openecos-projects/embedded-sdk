@@ -355,6 +355,8 @@ def _build_sbom(
     timestamp = _git(
         repository, ["show", "-s", "--format=%cI", commit], text=True
     ).stdout.strip()
+    if timestamp.endswith(("Z", "z")):
+        timestamp = timestamp[:-1] + "+00:00"
     created = datetime.fromisoformat(timestamp).astimezone(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )

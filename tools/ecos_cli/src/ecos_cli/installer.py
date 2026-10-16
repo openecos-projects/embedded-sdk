@@ -841,7 +841,11 @@ def shell_configuration_block(prefix: Path, shell: str) -> str:
             "    done",
             "    printf '%s' \"$_ecos_sdk_filtered_path\"",
             ")",
-            'PATH="$_ecos_sdk_bin:$_ecos_sdk_cmake_bin:$_ecos_sdk_host_bin${_ecos_sdk_path_remainder:+:${_ecos_sdk_path_remainder}}"',
+            'if [ -n "$_ecos_sdk_path_remainder" ]; then',
+            '    PATH="$_ecos_sdk_bin:$_ecos_sdk_cmake_bin:$_ecos_sdk_host_bin:$_ecos_sdk_path_remainder"',
+            'else',
+            '    PATH="$_ecos_sdk_bin:$_ecos_sdk_cmake_bin:$_ecos_sdk_host_bin"',
+            'fi',
             "export PATH",
             "unset _ecos_sdk_bin _ecos_sdk_host_bin _ecos_sdk_cmake_bin _ecos_sdk_path_remainder _ecos_sdk_filtered_path _ecos_sdk_path_entry",
         ]
