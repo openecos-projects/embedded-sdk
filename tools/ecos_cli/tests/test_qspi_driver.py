@@ -29,6 +29,7 @@ class QSPIDriverTest(unittest.TestCase):
                 str(SDK_ROOT / "components/core/src/error.c"),
                 str(SDK_ROOT / "drivers/qspi/src/qspi.c"),
                 str(SDK_ROOT / "drivers/qspi/tests/test_qspi_driver.c"),
+                str(SDK_ROOT / "drivers/qspi/tests/host_hal_stubs.c"),
                 "-o",
                 str(executable),
             ]

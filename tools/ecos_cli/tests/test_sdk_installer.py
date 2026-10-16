@@ -284,7 +284,11 @@ class SdkInstallerTest(unittest.TestCase):
                     self.assertEqual(content.count(installer.SHELL_CONFIG_BEGIN), 1)
                     self.assertEqual(content.count(installer.SHELL_CONFIG_END), 1)
                     self.assertIn("# user setting", content)
-                    self.assertIn(str(prefix.resolve()), content)
+                    if shell == "fish":
+                        expected_prefix = str(prefix.resolve()).replace("\\", "\\\\").replace("'", "\\'")
+                    else:
+                        expected_prefix = str(prefix.resolve())
+                    self.assertIn(expected_prefix, content)
                     self.assertNotIn(f"ECOS_SDK_HOME={prefix}", content)
                     self.assertEqual(first["config_file"], str(profile.resolve()))
 
@@ -378,12 +382,14 @@ class SdkInstallerTest(unittest.TestCase):
             completion_file.parent.mkdir(parents=True)
             completion_file.write_text("", encoding="utf-8")
             block = installer.shell_configuration_block(prefix, "powershell")
-            sdk_bin = str(prefix / "bin")
-            host_bin = str(installer.dependencies.host_dependency_bin(prefix))
+            sdk_bin = str((prefix / "bin").resolve())
+            host_bin = str(installer.dependencies.host_dependency_bin(prefix).resolve())
             cmake_bin = str(
-                prefix
-                / installer.HOST_DEPENDENCY_RELATIVE_ROOT
-                / "cmake/data/bin"
+                (
+                    prefix
+                    / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+                    / "cmake/data/bin"
+                ).resolve()
             )
 
             for original_path in (

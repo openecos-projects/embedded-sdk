@@ -3,6 +3,10 @@
 #include <assert.h>
 #include <stdint.h>
 
+/* Keep the host fixture linkable when section garbage collection is unavailable. */
+unsigned int _shell_command_start;
+unsigned int _shell_command_end;
+
 extern size_t shellGetVarValue(Shell *shell, ShellCommand *command);
 
 static size_t agency_value;

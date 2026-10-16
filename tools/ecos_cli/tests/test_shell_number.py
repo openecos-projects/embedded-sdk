@@ -48,6 +48,7 @@ class ShellNumberTest(unittest.TestCase):
                 "-I",
                 str(SDK_ROOT / "boards" / "include"),
                 str(SDK_ROOT / "components" / "letter-shell" / "src" / "shell.c"),
+                str(SDK_ROOT / "components" / "letter-shell" / "src" / "shell_ext.c"),
                 str(SDK_ROOT / "components" / "letter-shell" / "tests" / "test_shell_var.c"),
                 "-o",
                 str(executable),
