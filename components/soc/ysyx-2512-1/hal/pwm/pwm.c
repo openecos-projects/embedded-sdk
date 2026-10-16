@@ -211,7 +211,7 @@ ecos_err_t hal_pwm_stop(hal_pwm_id_t pwm)
     return ECOS_OK;
 }
 
-/* SDK 2.x compatibility wrappers for existing L4 templates and devices. */
+/* SDK 2.x compatibility wrappers for existing L4 projects and devices. */
 uint8_t pwm_hal_init(void *hal, uint8_t timer_id, pwm_config_t *config)
 {
     ecos_err_t result;

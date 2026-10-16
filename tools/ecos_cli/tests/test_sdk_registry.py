@@ -43,7 +43,6 @@ def create_sdk(root: Path, version: str) -> Path:
         "docs": "docs",
         "examples": "examples",
         "hal": "hal",
-        "templates": "templates",
         "cli": "tools/ecos_cli/src",
     }
     for relative in layout.values():

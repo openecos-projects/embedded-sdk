@@ -6,8 +6,6 @@
 - [cli.md](cli.md) — `ecos` CLI 命令、JSON 输出和工程工作流
 - [schemas.md](schemas.md) — Board、Target、Component 和 Example 的离线 schema 与样例
 - [VS Code 扩展](../tools/vscode-ecos/README.md) — 3.0 CLI 的编辑器预览集成与构建任务
-- [sdk-3.0-legacy-board-migration.md](sdk-3.0-legacy-board-migration.md) — 历史板卡、Example 矩阵和迁移验证状态
-- [migrate-2x-to-3x.md](migrate-2x-to-3x.md) — 2.x 工程、应用与 BSP 的 3.0 迁移步骤
 - [sdk-3.0-manual-validation.md](sdk-3.0-manual-validation.md) — 需要真实宿主、板卡和外部设备完成的验收清单
 - [toolchain-cli.md](toolchain-cli.md) — Python 工具链命令：`ecos` CLI 的工具链识别、状态检查与安装
 - [api/README.md](api/README.md) — 3.x 公共 API 概览：分层架构、错误模型、配置惯例与应用骨架

@@ -20,7 +20,7 @@ from ecos_cli.cli import main as cli_main  # noqa: E402
 from ecos_cli.sdk_registry import SdkRegistry  # noqa: E402
 
 FIXTURE_SDK_DIRECTORIES = (
-    "components", "drivers", "hal", "templates", "environments",
+    "components", "drivers", "hal", "environments",
     "third_party", "boards", "examples", "docs", "devices",
 )
 FIXTURE_RELEASE_PATHS = (
@@ -79,7 +79,6 @@ def create_sdk_fixture(
             "docs": "docs",
             "examples": "examples",
             "hal": "hal",
-            "templates": "templates",
             "cli": "tools/ecos_cli/src",
         },
         "toolchain": {

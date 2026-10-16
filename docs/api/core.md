@@ -136,11 +136,11 @@ ECOS_PANIC_ON_ERROR(tag, result_expression, operation)
 展开为空操作 `(ECOS_OK)`，不产生任何代码。因此日志宏的调用常写成
 `(void)ECOS_LOGI(...);` 以同时适应两种展开。
 
-### 2.x 兼容包装
+### 内部兼容包装
 
-`components/core/include/log.h`（注意：不是 `ecos/log.h`）保留了 2.x 的
+`components/core/include/log.h`（注意：不是 `ecos/log.h`）保留了旧日志接口的
 `LogLevel`、`log_init()`、`log_print()`、`log_close()` 与
-`log_debug/info/warn/error/fatal` 宏，全部标记 `deprecated`，仅供旧代码过渡，
+`log_debug/info/warn/error/fatal` 宏，全部标记 `deprecated`，仅供内部兼容，
 新应用不要使用。
 
 ## 最小使用骨架

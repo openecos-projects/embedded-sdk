@@ -45,9 +45,6 @@ docs/sdk-3.0-development-boundary.md
 !components
 !components/**
 
-!templates
-!templates/**
-
 !devices
 !devices/**
 
@@ -57,22 +54,12 @@ docs/sdk-3.0-development-boundary.md
 # llm-chat 示例的模型权重与词表由用户自行下载，不入库
 examples/ai/llm-chat/*.bin
 
-!bin/
-!bin/**
-
-
 !tools
 !tools/ecos.py
 !tools/install.py
 !tools/release.py
 !tools/ci_host_smoke.py
 !tools/sdk-manifest.json
-!tools/fixdep
-!tools/fixdep/**
-!tools/kconfig
-!tools/kconfig/**
-!tools/scripts
-!tools/scripts/**
 !tools/toolchains/
 !tools/toolchains/*.py
 !tools/toolchains/*.json
@@ -82,11 +69,6 @@ examples/ai/llm-chat/*.bin
 !tools/vscode-ecos/**
 tools/vscode-ecos/node_modules/
 tools/vscode-ecos/out/
-
-!environments/
-!environments/**
-!third_party/
-!third_party/**
 
 **/__pycache__/
 *.py[cod]

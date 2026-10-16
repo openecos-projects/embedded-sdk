@@ -81,12 +81,5 @@ resources:
 monitor:
   baudrate: 115200
 
-files:
-  makefile: Makefile
-  board_header: board.h
-  linker_script: sections.lds
-  startup: start.S
-  build_conf: build_conf.mk
-
 kconfig:
   board: sdk/board.kconfig

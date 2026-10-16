@@ -22,7 +22,7 @@ Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kc
 ### 1. Core Architecture and Features
 - **HAL V2 Hardware Abstraction Layer**: Abandons legacy APIs that directly read/write low-level registers (e.g., `REG_UART_0_RX`) and use magic number configurations. It adopts a comprehensive set of standardized `hal_*` interfaces, supporting unified GPIO MUX (multiplexing) and FCFG (function) configurations.
 - **Modular Build with Kconfig**: Integrates a Linux kernel-style Kconfig tool. Peripheral drivers and optional components are selected by project requirements; Core Runtime and the minimal libc subset are included by default.
-- **Strictly Separated Source Tree**: Provides the Python `ecos project create` tool, allowing users to create independent project directories **anywhere in the OS** for development, eliminating source code pollution caused by directly modifying the SDK's templates.
+- **Strictly Separated Source Tree**: Provides the Python `ecos project create` tool, allowing users to create independent project directories **anywhere in the OS** for development, eliminating source code pollution caused by editing the SDK source tree directly.
 - **XIP (Execute-In-Place) Support**: Supports executing code directly from Flash. Combined with `ld` linker script optimizations for memory mapping, it significantly saves SRAM space.
 - **Rich External Device Support**: Natively supports external peripherals, such as ST7735 / ST7789 screen drivers, PCF8563 external RTC clock chips, SGP30 gas sensors, etc.
 
@@ -39,9 +39,7 @@ ecos/embedded-sdk/
 ├── components/     # Core Runtime, middleware, and static libraries (e.g., libc, libgcc)
 ├── devices/        # External device driver components (e.g., st7735, st7789, sgp30, pcf8563)
 ├── hal/            # Core Hardware Abstraction Layer V2 interface definitions (hal_uart, hal_timer, hal_gpio, etc.)
-├── scripts/        # Make build scripts and rules
-├── templates/      # Official basic/peripheral bare-metal example templates
-├── testdir/        # (For SDK developers only) Internal dedicated environment for rapid template testing
+├── examples/       # Official bare-metal applications
 └── tools/          # Python installer/CLI, toolchain manifests, and build helpers
 ```
 
@@ -54,8 +52,6 @@ ecos/embedded-sdk/
   (`riscv-none-elf-gcc`, selected and verified for the host by the installer)
 - CMake 3.20 or newer (the installer pins `cmake==3.31.10` in the SDK)
 - Ninja (the installer pins `ninja==1.11.1.4` in the SDK)
-- GNU Make (legacy and third-party AbstractMachine compatibility flows only)
-- `direnv` (Recommended, for automatically loading environment variables in `testdir`)
 - Python 3.9 or newer
 
 #### Quick Installation
@@ -89,9 +85,8 @@ replace its registration, and reinstall the toolchain when enabled. Use
 `--replace-registration` or `--force-toolchain` to force only that part. See
 `python3 tools/install.py --help` for all options.
 
-The 3.0 package does not copy the 2.x shell commands from the source `bin/`
-directory. The version directory's `bin/` contains only generated Python `ecos` launchers;
-help and completion expose only commands already migrated to Python. Public commands
+The installer creates the Python `ecos` launcher in the host entry directory. The SDK source
+tree no longer contains the old shell commands; help and completion expose only Python CLI commands. Public commands
 cover SDK and toolchain management, projects, resource and schema queries,
 validation, configuration, builds, cleanup, diagnostics, flashing, serial monitoring,
 and completion. See the [CLI command reference](docs/cli.md) for the full list.
@@ -132,7 +127,7 @@ writes. Use `--archive <path>` to import an offline official archive.
 
 SDK 3.0 projects are created and orchestrated by the Python `ecos` CLI. Core builds use
 CMake and Ninja. Keep application projects outside the SDK installation and do not edit
-the historical files under `templates/`.
+the source files under `examples/`.
 
 #### Step 1: Create your independent project directory
 Thanks to the `ecos` command and environment variable configuration, you can create your project anywhere on your computer.

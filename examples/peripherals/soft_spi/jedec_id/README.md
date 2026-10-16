@@ -4,8 +4,8 @@ This example reads the three-byte JEDEC ID (`0x9f`) from an external SPI Flash
 through the Board's `soft-spi-bus` resource. It uses GPIO bit-banging and only
 the public `soft-spi`, BSP Console, and generated Board resource interfaces.
 
-StarrySky C2 declares the four GPIO pins used by the 2.x `spi_software`
-implementation: CS GPIO0[0], SCK GPIO0[1], MOSI GPIO0[2], MISO GPIO0[3].
+StarrySky C2 declares four GPIO pins for this example: CS GPIO0[0], SCK GPIO0[1],
+MOSI GPIO0[2], and MISO GPIO0[3].
 Connect an external 3.3 V SPI Flash with a common ground and the appropriate
 pull-ups. Confirm the pins are accessible on the actual board revision before
 running. These pins overlap with display control resources, so do not run the

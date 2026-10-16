@@ -20,8 +20,6 @@ FIXTURE_RELEASE_PATHS = (
     "LICENSE",
     "README.md",
     "boards",
-    "templates/project",
-    "templates/bsp",
     "tools/ecos_cli/src",
     "tools/install.py",
     release.MANIFEST_PATH,
@@ -103,10 +101,6 @@ class ReleaseBuilderTest(unittest.TestCase):
         (root / "tools/ecos_cli/tests/test_legacy.py").write_text(
             "# test only\n", encoding="utf-8"
         )
-        (root / "templates/hello/c1").mkdir(parents=True)
-        (root / "templates/hello/c1/main.c").write_text(
-            "/* migration-only board template */\n", encoding="utf-8"
-        )
         (root / "boards/UserBSP").mkdir()
         (root / "boards/UserBSP/user-board.txt").write_text(
             "user data\n", encoding="utf-8"
@@ -143,8 +137,6 @@ class ReleaseBuilderTest(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as bundle:
                 names = set(bundle.namelist())
             self.assertIn(f"{prefix}/tools/install.py", names)
-            self.assertIn(f"{prefix}/templates/project/.keep", names)
-            self.assertNotIn(f"{prefix}/templates/hello/c1/main.c", names)
             self.assertFalse(any(name.startswith(f"{prefix}/bin/") for name in names))
             self.assertFalse(any(name.startswith(f"{prefix}/tools/fixdep/") for name in names))
             self.assertFalse(

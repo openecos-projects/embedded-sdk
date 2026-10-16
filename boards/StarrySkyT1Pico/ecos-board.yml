@@ -64,20 +64,6 @@ flash:
 monitor:
   baudrate: 115200
 
-files:
-  # 2.x compatibility entry; SDK 3.0 projects use the CL1-2512 Target files.
-  makefile: Makefile
-  board_header: board.h
-  linker_script: sections.lds
-  startup: start.S
-  build_conf: build_conf.mk
-
-# 声明板卡和驱动配置入口。
+# 板卡级配置入口。
 kconfig:
   board: board.kconfig
-  drivers: driver.kconfig
-
-# 声明板卡驱动和加载器目录。
-paths:
-  drivers: driver
-  loader: loader

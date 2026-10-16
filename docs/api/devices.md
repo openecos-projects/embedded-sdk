@@ -370,5 +370,4 @@ ecos_err_t ecos_tm1650_show_number(ecos_tm1650_t *display, uint16_t value,
   并发访问同一句柄（SDK 为单线程裸机模型）。
 - 显示与模组类驱动（ST7735/ST7789/ESP01S）内部会初始化其依赖的总线/引脚；
   与其共用一个控制器实例时要避免重复初始化。
-- 需要 2.x 版 ST7735 行为的旧代码用的是同目录遗留头文件，不属于本页 API；
-  新应用请用 `ecos/device/st7735.h`。
+- 兼容旧行为的内部头文件不属于本页 API；新应用请用 `ecos/device/st7735.h`。

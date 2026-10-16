@@ -123,11 +123,11 @@ int main(void)
 可直接参考的最小示例：`examples/get_start/hello`（控制台输出）、
 `examples/get_start/blink`（LED + 定时器）。
 
-## 2.x 遗留头文件警告
+## SDK 内部兼容头文件
 
-仓库中与新头文件同目录或邻近位置仍保留一批 2.x 遗留头文件（如 `hal_*.h`、
-旧版 `st7735.h`、`components/core/include/log.h` 等），它们**不属于 3.0 公共
-API**，仅供尚未迁移的旧代码编译使用，新应用不要包含。
+部分 Target 和内部适配层仍使用 `hal_*.h`、旧版 `st7735.h`、
+`components/core/include/log.h` 等兼容头文件。它们**不属于 3.0 公共 API**，
+应用不要直接包含；公共代码应使用 `ecos/driver/*`、BSP 和设备接口。
 
 特别警告：legacy `hal/i2c/hal_i2c.h` 与 `hal/timer/hal_timer.h` 和新契约头文件
 存在 `hal_i2c_config_t` / `hal_timer_config_t` **同名类型冲突**，不要在同一编译

@@ -26,7 +26,6 @@ REQUIRED_LAYOUT = {
     "docs",
     "examples",
     "hal",
-    "templates",
     "cli",
 }
 

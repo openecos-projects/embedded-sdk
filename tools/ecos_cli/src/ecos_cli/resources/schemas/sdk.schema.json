@@ -34,7 +34,7 @@
       "type": "object",
       "required": [
         "boards", "components", "drivers", "devices", "docs",
-        "examples", "hal", "templates", "cli"
+        "examples", "hal", "cli"
       ],
       "additionalProperties": {"$ref": "#/$defs/relativePath"}
     },

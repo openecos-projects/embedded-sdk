@@ -9,7 +9,7 @@ Letter-Shell、letter-shell-fs、text-editor 和 fcc 当前仍保留在开发构
 文件读写、终端交互和掉电恢复需按人工验收清单完成后再解除发布排除。
 
 不记录：`soc`（SDK 内部 SoC 层）和 `libgcc`（编译器内部例程）。旧版固定引脚
-`spi_software` 仍只作为 2.x 迁移输入保留；3.0 应使用下述 `soft-spi`。
+`spi_software` 已移除；3.0 应使用下述 `soft-spi`。
 
 ## libc 子集
 
@@ -102,7 +102,7 @@ size_t ecos_heap_free_bytes(ecos_heap_zone_t zone);
 头文件：`components/LightCoroutine/include/coroutine.h`、`yield.h`，
 配置见 `conf.h`。组件源码使用 GCC 的 computed-goto 扩展，SDK 3.0 的
 RISC-V GCC 工具链已覆盖该语法。
-示例：`templates/coroutine_test`。
+示例：`examples/concurrency/coroutine-smoke`。
 
 基于 `goto *label`（GCC 计算 goto）的栈less协作式协程，适合在裸机单线程上
 组织多个逻辑任务。
@@ -264,7 +264,7 @@ FRESULT format_filesystem(void); /* 显式格式化并挂载，会擦除卷 */
 
 头文件：`components/letter-shell/include/shell.h`，
 一键启动：`shell_init.h`，移植钩子：`shell_port.h`。
-旧版 `shell_fs.h` 属于 2.x 伴侣接口；3.0 文件系统命令见下节。
+`shell_fs.h` 是 Letter-Shell 内部文件系统伴侣接口；应用层文件系统命令见下节。
 
 ### 核心 API（shell.h）
 
@@ -323,14 +323,13 @@ ecos_shell_fs_init(&shell, path, sizeof(path)); /* 在 shellInit 前调用 */
 Letter-Shell 命令表注册它们。该组件目前只用于单一活动 Shell 和单一 FatFs 卷，
 仍需实板验收。
 
-`shell_fs.h` 中的 `ShellFs` / `shellFsInit` 等 2.x 伴侣接口继续作为遗留源码保留，
-不在 3.0 `letter-shell` 组件构建图中。
+`ShellFs` / `shellFsInit` 由 Letter-Shell 内部实现使用，应用应通过
+`letter-shell-fs` 暴露的 `ecos_shell_fs_*` 接口访问文件系统命令。
 
 ## soft-spi（GPIO bit-bang SPI）
 
 3.0 组件 ID 为 `soft-spi`，依赖 `driver-gpio`。头文件：
-`components/soft_spi/include/ecos/soft_spi.h`。它替代 2.x
-`spi_software` 中固定 GPIO0[0:3] 的实现。Board 通过 `soft-spi-bus` 资源声明四个
+`components/soft_spi/include/ecos/soft_spi.h`。它替代旧的固定引脚实现。Board 通过 `soft-spi-bus` 资源声明四个
 引脚和 mode，配置阶段生成 `ecos/board_resources.h` 宏，应用不能把板卡引脚写进组件。
 
 ```c

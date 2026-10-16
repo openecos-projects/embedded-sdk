@@ -24,8 +24,6 @@ SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户
   (`riscv-none-elf-gcc`，安装脚本按宿主平台下载并校验)
 - CMake 3.20 或更高版本（安装脚本锁定 `cmake==3.31.10` 并安装到 SDK 私有目录）
 - Ninja（安装脚本锁定 `ninja==1.11.1.4` 并安装到 SDK 私有目录）
-- GNU Make（仅旧版/第三方 AbstractMachine 兼容流程需要）
-- `direnv` (推荐，用于 `testdir` 自动加载环境变量)
 - Python 3.9 或更高版本
 
 #### 快速安装
@@ -58,8 +56,8 @@ PyPI 或 pip 本地缓存。`--skip-toolchain` 只跳过交叉编译器，SDK
 `--replace-registration` 和 `--force-toolchain` 可用于只强制对应部分。完整参数见
 `python3 tools/install.py --help`。
 
-3.0 安装包不会复制源码 `bin/` 中的 2.x Shell 命令。版本目录的 `bin/` 只包含生成的
-Python `ecos` 启动器；帮助和自动补全也只公开已经迁移到 Python 的命令。
+安装器会在主机级入口目录生成 Python `ecos` 启动器；SDK 源码树不再包含旧版 Shell
+命令。帮助和自动补全只公开 3.0 Python CLI 命令。
 当前公开入口包括 `sdk`、`toolchain`、`project`、资源查询、`schema`、
 `validate`、`configure`、`menuconfig`、`build`、`clean`、`doctor`、
 `flash`、`monitor` 和 `completion`；完整命令表见
@@ -98,7 +96,7 @@ checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 ch
 ### 2. 标准开发与测试流程 (必读)
 
 3.0 工程由 Python `ecos` CLI 创建和编排，核心构建使用 CMake/Ninja。不要在 SDK
-安装目录或历史 `templates/` 副本中修改应用源码；工程目录应位于 SDK 外部。
+安装目录或 `examples/` 源码中修改应用源码；工程目录应位于 SDK 外部。
 
 #### 步骤 1：创建你的独立工程目录
 得益于 `ecos` 命令和环境变量的配置，你可以在电脑的任意位置创建自己的项目。
@@ -165,7 +163,7 @@ Core Runtime 和 libc 子集是 SDK 3.0 工程的默认组件。Core Runtime 提
 仓库当前采用“版本分支 + 产品分支”的方式管理长期演进：
 
 - `1.0`：维护 `v1.0.0` 及后续 `1.x` 稳定修复
-- `2.0`：当前主开发分支
+- `3.0`：当前主开发分支
 - `starryskypi`：StarrySkyPi 产品线分支
 
 完整规则见 [docs/branching.md](docs/branching.md)。

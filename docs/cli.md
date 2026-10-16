@@ -306,8 +306,7 @@ Component 依赖和最终产物列表；自动化工具无需解析 CMake/Ninja 
 
 工程元数据不得记录某台主机的 SDK 绝对路径。正式工程应位于 SDK 安装目录之外。
 
-`ecos init_project` 属于 2.x/迁移期名称。若 3.0 Python CLI 后续提供兼容入口，它只能转发
-到 `ecos project create`，并必须打印弃用提示；旧 Shell 脚本不进入 3.0 安装包。
+工程创建统一使用 `ecos project create`；旧版 Shell 工程初始化入口已从 3.0 源码树移除。
 
 ## 7. 高频工程命令设计
 
@@ -417,7 +416,7 @@ ecos completion powershell
 
 - 只能公开状态为“已实现”的 Python 命令。
 - 新命令实现时，必须同时补全命令组、子命令、枚举值和常用选项。
-- 计划命令、旧 `bin/` Shell 命令和内部测试参数不得出现在用户补全中。
+- 计划命令和内部测试参数不得出现在用户补全中。
 - Bash、Zsh、Fish 和 PowerShell 必须提供等价命令集合。
 - Windows CMD 不提供可编程补全，Windows 默认面向 PowerShell。
 

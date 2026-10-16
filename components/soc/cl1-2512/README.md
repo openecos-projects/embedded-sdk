@@ -9,11 +9,10 @@ Initialized data, BSS and the heap use the 16 KiB DSRAM bank at `0x01800000`,
 while the stack uses the 16 KiB ISRAM bank at `0x01000000`; both banks are
 data-accessible SRAM and together form a 32 KiB SRAM pool (they are not
 contiguous, so they remain two linker regions). The 32 MiB SDRAM at
-`0x80000000` is initialized by the startup code before `main` (the controller
-sequence is carried over from the proven 2.x board driver) and registered as
-the heap component's EXTERNAL pool, so large buffers can be allocated with
-`ecos_heap_alloc(ECOS_HEAP_ZONE_EXTERNAL, ...)`; executing from SDRAM remains
-a 2.x-only boot profile.
+`0x80000000` is initialized by the startup code before `main` and registered
+as the heap component's EXTERNAL pool, so large buffers can be allocated with
+`ecos_heap_alloc(ECOS_HEAP_ZONE_EXTERNAL, ...)`; executing from SDRAM is not
+part of the current Target profile.
 
 Create and build a console example with:
 

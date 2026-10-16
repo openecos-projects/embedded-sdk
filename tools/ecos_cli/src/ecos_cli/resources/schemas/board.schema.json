@@ -102,8 +102,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "board": {"$ref": "#/$defs/text"},
-        "drivers": {"$ref": "#/$defs/text"}
+        "board": {"$ref": "#/$defs/text"}
       }
     },
     "flash": {
@@ -126,10 +125,7 @@
         "pid": {"type": "integer", "minimum": 0, "maximum": 65535},
         "serial_number": {"$ref": "#/$defs/text"}
       }
-    },
-    "files": {"$ref": "#/$defs/legacyPaths"},
-    "paths": {"$ref": "#/$defs/legacyPaths"},
-    "abstract_machine": {"$ref": "#/$defs/legacyPaths"}
+    }
   },
   "$defs": {
     "text": {"type": "string", "minLength": 1},
@@ -224,10 +220,6 @@
         "horizontal_offset": {"type": "integer", "minimum": 0, "maximum": 255},
         "vertical_offset": {"type": "integer", "minimum": 0, "maximum": 255}
       }
-    },
-    "legacyPaths": {
-      "type": "object",
-      "additionalProperties": {"$ref": "#/$defs/text"}
     },
     "debug": {
       "type": "object",

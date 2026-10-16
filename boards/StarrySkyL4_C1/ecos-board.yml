@@ -113,21 +113,5 @@ flash:
 monitor:
   baudrate: 115200
 
-files:
-  # 2.x compatibility entry; 3.0 ordinary projects use the Target CMake files.
-  makefile: Makefile
-  board_header: board.h
-  linker_script: sections.lds
-  startup: start.S
-  build_conf: build_conf.mk
-
 kconfig:
   board: board.kconfig
-  drivers: driver.kconfig
-
-paths:
-  loader: loader
-
-abstract_machine:
-  path: environments/abstract-machine
-  default_core: rv32e-base

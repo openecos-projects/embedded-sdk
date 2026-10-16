@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# 2.x/迁移期入口；3.0 命令实现统一位于 tools 下的 Python 包。
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SDK_ROOT="$(dirname "$SCRIPT_DIR")"
-exec python3 "$SDK_ROOT/tools/ecos.py" "$@"

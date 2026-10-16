@@ -35,10 +35,9 @@ target: demo-soc
 | `name`, `aliases`, `category`, `arch` | 展示名、别名、产品分类和可选架构声明。 |
 | `build.default_profile`, `build.profiles`, `build.components` | 默认 profile、profile 的 Kconfig 预设、板级构建单元 ID。 |
 | `resources` | 逻辑资源映射；`gpio-demo`、`led`、`qspi-bus`、`soft-spi-bus`、`display` 等有专门字段约束。 |
-| `kconfig.board`, `kconfig.drivers` | 板级 Kconfig 和迁移期兼容的 Driver Kconfig 路径。 |
+| `kconfig.board` | Board 使用的板级 Kconfig 路径。 |
 | `flash`, `monitor` | 显式烧录方式、固件类型及串口参数；不声明时不自动推测。 |
 | `debug` | 可选 `cppdbg` 适配器、已运行调试服务器的 `server_address` 和入口暂停设置。 |
-| `files`, `paths`, `abstract_machine` | 迁移期 2.x 路径元数据，不作为 3.0 构建事实来源。 |
 
 典型错误：删除 `target` 后执行 `ecos schema validate board PATH --format json`，
 返回 `ECOS_SCHEMA_INVALID`，`field` 为 `/`，错误信息指出缺少 `target`。
@@ -130,7 +129,7 @@ sources:
   "layout": {
     "boards": "boards", "components": "components", "drivers": "drivers",
     "devices": "devices", "docs": "docs", "examples": "examples",
-    "hal": "hal", "templates": "templates/project", "cli": "tools/ecos_cli/src"
+    "hal": "hal", "cli": "tools/ecos_cli/src"
   },
   "toolchain": {"id": "xpack-riscv-none-elf-gcc", "release": "15.2.0-1"}
 }
@@ -140,7 +139,7 @@ sources:
 | --- | --- |
 | `schema_version`, `sdk_id`, `sdk_version`, `channel` | 必填；清单格式、SDK 身份、版本和开发/发布通道。 |
 | `cli_compatibility` | 必填；可使用的 CLI 主版本和机器接口 schema 版本。 |
-| `layout` | 必填；九类 SDK 资源根路径。 |
+| `layout` | 必填；八类 SDK 资源根路径。 |
 | `toolchain` | 必填；默认锁定的工具链 ID 和 Release。 |
 | `build.core_components` | 可选；每个工程默认加入的构建单元 ID。 |
 | `build.kconfig` | 可选；3.0 工程共享的构建 Kconfig 文件，相对 SDK 根目录；声明后必须存在且进入发布包。 |

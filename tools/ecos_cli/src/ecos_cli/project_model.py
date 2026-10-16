@@ -593,10 +593,7 @@ def _resolve_board(
             "target",
             "build",
             "resources",
-            "files",
             "kconfig",
-            "paths",
-            "abstract_machine",
             "flash",
             "monitor",
             "debug",
@@ -723,9 +720,8 @@ def _resolve_board(
             profile_names = [default_profile]
 
     kconfig = _mapping(value.get("kconfig"), "Board.kconfig", path)
-    _check_keys(kconfig, {"board", "drivers"}, kind="Board Kconfig", path=path)
+    _check_keys(kconfig, {"board"}, kind="Board Kconfig", path=path)
     kconfig_paths: list[Path] = []
-    legacy_kconfig_paths: list[Path] = []
     board_kconfig = kconfig.get("board")
     if board_kconfig is not None:
         board_kconfig = _string(board_kconfig, "Board.kconfig.board", path)
@@ -733,16 +729,6 @@ def _resolve_board(
         kconfig_paths.append(
             _resolved_path(path.parent, board_kconfig, "Board.kconfig.board", path)
         )
-    driver_kconfig = kconfig.get("drivers")
-    if driver_kconfig is not None:
-        driver_kconfig = _string(driver_kconfig, "Board.kconfig.drivers", path)
-        assert driver_kconfig is not None
-        legacy_kconfig_paths.append(
-            _resolved_path(
-                path.parent, driver_kconfig, "Board.kconfig.drivers", path
-            )
-        )
-
     flash = _mapping(value.get("flash"), "Board.flash", path)
     if flash:
         _check_keys(
@@ -806,7 +792,7 @@ def _resolve_board(
     debug = _debug_configuration(value.get("debug"), "Board.debug", path)
 
     inputs.add(path)
-    for item in [*kconfig_paths, *legacy_kconfig_paths]:
+    for item in kconfig_paths:
         inputs.add(item)
     return {
         "id": board_id,
@@ -821,7 +807,6 @@ def _resolve_board(
         "components": components,
         "resources": resources,
         "kconfig": [str(item) for item in kconfig_paths],
-        "legacy_kconfig": [str(item) for item in legacy_kconfig_paths],
         "flash": flash or None,
         "monitor": monitor or None,
         "debug": debug,

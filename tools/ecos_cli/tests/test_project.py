@@ -26,7 +26,6 @@ def create_sdk(root: Path) -> Path:
         "docs": "docs",
         "examples": "examples",
         "hal": "hal",
-        "templates": "templates",
         "cli": "tools/ecos_cli/src",
     }
     for relative in layout.values():
@@ -878,7 +877,7 @@ class ProjectCreateTest(unittest.TestCase):
             self.assertEqual(result, ExitCode.CONFIG)
             self.assertFalse(run.called)
 
-    def test_example_name_resolves_nested_template(self):
+    def test_example_name_resolves_nested_example(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sdk = create_sdk(root / "sdk")

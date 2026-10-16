@@ -1,5 +1,0 @@
-mainmenu "ECOS Embedded SDK Configuration"
-
-source "$(BoardExport)"
-source "$(DriverExport)"
-source "$(BuildExport)"
