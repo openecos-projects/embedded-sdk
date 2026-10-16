@@ -288,7 +288,10 @@ class SdkInstallerTest(unittest.TestCase):
                     self.assertNotIn(f"ECOS_SDK_HOME={prefix}", content)
                     self.assertEqual(first["config_file"], str(profile.resolve()))
 
-    @unittest.skipIf(os.name == "nt", "POSIX bash configuration test")
+    @unittest.skipIf(
+        os.name == "nt" or sys.platform == "darwin",
+        "POSIX bash configuration test requires a supported Bash runtime",
+    )
     def test_bash_configuration_places_installed_sdk_first(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
