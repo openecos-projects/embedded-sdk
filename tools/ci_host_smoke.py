@@ -119,7 +119,7 @@ def _smoke(
     )
     if not info.get("built") or not Path(info["outputs"]["elf"]).is_file():
         raise RuntimeError("Unicode-path smoke project did not produce a verified ELF")
-    print(f"Host smoke build passed: {project}", flush=True)
+    print(f"Host smoke build passed: {ascii(str(project))}", flush=True)
     return _build_record(project, "hello")
 
 
