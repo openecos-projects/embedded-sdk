@@ -7,6 +7,8 @@ import sys
 
 def compiler_flags(standard: str, *, strict: bool = False) -> list[str]:
     flags = [f"-std={standard}"]
+    if sys.platform == "win32":
+        flags.append("-mno-ms-bitfields")
     if strict:
         flags.extend(["-Wall", "-Wextra"])
         if sys.platform.startswith("linux"):
