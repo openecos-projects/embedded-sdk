@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 /* Keep the host fixture linkable when section garbage collection is unavailable. */
-unsigned int _shell_command_start;
-unsigned int _shell_command_end;
+const ShellCommand shellCommandList[1] = { { 0 } };
+const unsigned short shellCommandCount = 0;
 
 extern size_t shellGetVarValue(Shell *shell, ShellCommand *command);
 
