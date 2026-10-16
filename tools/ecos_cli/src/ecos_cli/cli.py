@@ -94,7 +94,8 @@ def envelope(
 
 
 def emit_json(payload: dict[str, Any]) -> None:
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    # Keep machine-readable output ASCII-safe for Windows consoles using legacy code pages.
+    print(json.dumps(payload, indent=2, ensure_ascii=True))
 
 
 def emit_error(
