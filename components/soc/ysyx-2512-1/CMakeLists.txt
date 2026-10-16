@@ -162,7 +162,8 @@ set_source_files_properties("${SOC_ROOT}/hal/qspi/qspi.c" PROPERTIES
     COMPILE_OPTIONS "-O0"
 )
 
-set(MAP_FILE "${OUTPUT_DIR}/${FIRMWARE_NAME}.map")
+set(MAP_FILE_NAME "${FIRMWARE_NAME}.map")
+set(MAP_FILE "${OUTPUT_DIR}/${MAP_FILE_NAME}")
 target_link_options(firmware PRIVATE
     -nostdlib
     -march=rv32e
@@ -172,7 +173,7 @@ target_link_options(firmware PRIVATE
     "-Wl,-z,noexecstack"
     "-Wl,-T,${ECOS_LINKER_SCRIPT}"
     "-Wl,--gc-sections"
-    "-Wl,-Map,${MAP_FILE}"
+    "-Wl,-Map,${MAP_FILE_NAME}"
 )
 set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS
     "${ECOS_LINKER_SCRIPT}"
@@ -181,13 +182,14 @@ set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS
 
 add_custom_command(TARGET firmware POST_BUILD
     COMMAND "${CMAKE_COMMAND}"
-        "-DINPUT_ELF=$<TARGET_FILE:firmware>"
-        "-DOUTPUT_DIR=${OUTPUT_DIR}"
+        "-DINPUT_ELF=$<TARGET_FILE_NAME:firmware>"
+        "-DOUTPUT_DIR=."
         "-DFIRMWARE_NAME=${FIRMWARE_NAME}"
         "-DOBJCOPY=${CMAKE_OBJCOPY}"
         "-DOBJDUMP=${CMAKE_OBJDUMP}"
         "-DSIZE_TOOL=${CMAKE_SIZE}"
         -P "${SOC_ROOT}/cmake/generate_outputs.cmake"
+    WORKING_DIRECTORY "${OUTPUT_DIR}"
     BYPRODUCTS
         "${MAP_FILE}"
         "${OUTPUT_DIR}/${FIRMWARE_NAME}.bin"
