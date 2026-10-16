@@ -304,7 +304,7 @@ class SdkInstallerTest(unittest.TestCase):
             old_sdk_bin = root / "old-sdk" / "bin"
             environment = dict(os.environ)
             environment["PATH"] = (
-                f"{old_sdk_bin}:{prefix / 'bin'}:/usr/bin:/bin"
+                f"{old_sdk_bin.resolve()}:{(prefix / 'bin').resolve()}:/usr/bin:/bin"
             )
             environment["ECOS_SDK_HOME"] = str(
                 installer.toolchain.legacy_prefix().resolve()
@@ -328,14 +328,20 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(
                 configured_path.split(":"),
                 [
-                    str(prefix / "bin"),
+                    str((prefix / "bin").resolve()),
                     str(
-                        prefix
-                        / installer.HOST_DEPENDENCY_RELATIVE_ROOT
-                        / "cmake/data/bin"
+                        (
+                            prefix
+                            / installer.HOST_DEPENDENCY_RELATIVE_ROOT
+                            / "cmake/data/bin"
+                        ).resolve()
                     ),
-                    str(prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT / "bin"),
-                    str(old_sdk_bin),
+                    str(
+                        (
+                            prefix / installer.HOST_DEPENDENCY_RELATIVE_ROOT / "bin"
+                        ).resolve()
+                    ),
+                    str(old_sdk_bin.resolve()),
                     "/usr/bin",
                     "/bin",
                 ],

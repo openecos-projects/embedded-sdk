@@ -177,7 +177,7 @@ def shared_install_root(manifest: dict[str, Any], prefix: Path, host: str) -> Pa
             r"[A-Za-z0-9][A-Za-z0-9._-]*", value
         ):
             raise ManifestError(f"unsafe toolchain {field}: {value!r}")
-    return prefix / manifest["id"] / manifest["release"] / host
+    return prefix.expanduser().resolve() / manifest["id"] / manifest["release"] / host
 
 
 def default_cache_root() -> Path:

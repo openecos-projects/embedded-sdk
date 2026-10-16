@@ -97,9 +97,9 @@ def _posix_volume_candidates(
 
     for root in roots:
         direct = root / label
-        if direct.is_dir():
-            add_candidate(direct)
         if not root.is_dir():
+            if direct.is_dir():
+                add_candidate(direct)
             continue
         try:
             children = list(root.iterdir())
@@ -111,6 +111,8 @@ def _posix_volume_candidates(
             nested = child / label
             if nested.is_dir():
                 add_candidate(nested)
+        if direct.is_dir():
+            add_candidate(direct)
     return sorted(candidates)
 
 

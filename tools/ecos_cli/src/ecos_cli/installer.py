@@ -817,6 +817,7 @@ def _powershell_quote(value: str) -> str:
 
 
 def shell_configuration_block(prefix: Path, shell: str) -> str:
+    prefix = prefix.expanduser().resolve()
     completion_file = prefix / COMPLETION_RELATIVE_ROOT / completion.COMPLETION_FILENAMES[shell]
     bin_dir = str(prefix / "bin")
     host_bin_dir = str(dependencies.host_dependency_bin(prefix))

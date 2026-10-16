@@ -721,7 +721,7 @@ class ProjectCreateTest(unittest.TestCase):
             )
             self.assertIn(
                 "-DECOS_PROJECT_CONFIG="
-                f"{(project / '.ecos/generated/resolved-project.cmake').as_posix()}",
+                f"{(project / '.ecos/generated/resolved-project.cmake').resolve().as_posix()}",
                 command,
             )
             self.assertEqual(installation_status.call_args.args[1], active_toolchain)

@@ -17,4 +17,8 @@ def compiler_flags(standard: str, *, strict: bool = False) -> list[str]:
 def linker_flags() -> list[str]:
     if sys.platform.startswith("linux"):
         return ["-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections"]
+    if sys.platform == "darwin":
+        return ["-ffunction-sections", "-fdata-sections", "-Wl,-dead_strip"]
+    if sys.platform == "win32":
+        return ["-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections"]
     return []
