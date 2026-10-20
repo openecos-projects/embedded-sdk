@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the installed SDK on one host and optionally build the full example matrix."""
+"""Exercise the installed SDK and optionally build/package the full example matrix."""
 
 from __future__ import annotations
 
@@ -11,7 +11,12 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+try:
+    from ci_firmware import FirmwarePackage
+except ModuleNotFoundError:  # Support importing this script as tools.ci_host_smoke.
+    from tools.ci_firmware import FirmwarePackage
 
 
 SDK_ROOT = Path(__file__).resolve().parent.parent
@@ -138,6 +143,7 @@ def _build_record(project: Path, example: str) -> dict[str, Any]:
         "sdk": artifact["sdk"],
         "toolchain": artifact["toolchain"],
         "source_fingerprint": artifact["source_fingerprint"],
+        "configuration_fingerprint": artifact.get("configuration_fingerprint"),
         "elf": artifact["files"]["elf"],
         "bin": artifact["files"]["bin"],
     }
@@ -146,6 +152,7 @@ def _build_record(project: Path, example: str) -> dict[str, Any]:
 def _build_matrix(
     cli: Path, sdk_root: Path, environment: dict[str, str], workspace: Path,
     selected_board: str | None,
+    artifact_callback: Callable[[Path, dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
     boards = _json_command(cli, sdk_root, ["board", "list"], environment)["boards"]
     examples = _json_command(cli, sdk_root, ["project", "list"], environment)["examples"]
@@ -188,7 +195,10 @@ def _build_matrix(
                 or artifact["elf"]["class"] != expected_class
             ):
                 raise RuntimeError(f"artifact target contract mismatched: {name}")
-            records.append(_build_record(project, example["name"]))
+            record = _build_record(project, example["name"])
+            if artifact_callback is not None:
+                artifact_callback(project, record)
+            records.append(record)
             print(f"[{len(records)}] {board_id} / {example['name']} ({cpu['abi']})", flush=True)
     if not records:
         raise RuntimeError("Board/Example matrix contained no builds")
@@ -201,6 +211,10 @@ def main() -> int:
     parser.add_argument("--skip-install", action="store_true")
     parser.add_argument("--skip-tests", action="store_true")
     parser.add_argument("--report", type=Path, help="write a JSON build record outside the temporary workspace")
+    parser.add_argument(
+        "--firmware-dir", type=Path,
+        help="package matrix .bin files and metadata under this directory",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--all-examples", action="store_true",
@@ -208,6 +222,8 @@ def main() -> int:
     )
     group.add_argument("--board")
     args = parser.parse_args()
+    if args.firmware_dir is not None and not (args.all_examples or args.board):
+        parser.error("--firmware-dir requires --all-examples or --board")
 
     with tempfile.TemporaryDirectory(prefix="ecos-ci-") as directory:
         workspace = Path(directory)
@@ -221,8 +237,20 @@ def main() -> int:
             _tests(environment)
         smoke = _smoke(cli, sdk_root, environment, workspace)
         matrix: list[dict[str, Any]] = []
+        firmware: FirmwarePackage | None = None
+        firmware_summary: dict[str, Any] | None = None
         if args.all_examples or args.board:
-            matrix = _build_matrix(cli, sdk_root, environment, workspace, args.board)
+            if args.firmware_dir is not None:
+                firmware_dir = args.firmware_dir
+                if not firmware_dir.is_absolute():
+                    firmware_dir = SDK_ROOT / firmware_dir
+                firmware = FirmwarePackage(firmware_dir)
+            matrix = _build_matrix(
+                cli, sdk_root, environment, workspace, args.board,
+                firmware.add if firmware is not None else None,
+            )
+            if firmware is not None:
+                firmware_summary = firmware.finalize()
         if args.report is not None:
             report = {
                 "schema_version": 1,
@@ -230,6 +258,8 @@ def main() -> int:
                 "smoke": smoke,
                 "matrix": matrix,
             }
+            if firmware_summary is not None:
+                report["firmware"] = firmware_summary
             args.report.parent.mkdir(parents=True, exist_ok=True)
             args.report.write_text(
                 json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n",

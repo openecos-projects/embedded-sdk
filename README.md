@@ -123,6 +123,12 @@ ecos build --project ~/my_workspace/my_smoke_test --format json
 构建产物和 `artifacts.json` 位于工程的 `build/` 目录。切换 Board 时修改工程元数据后
 重新执行 `ecos configure` 和 `ecos build`，不需要复制板卡专用应用源码。
 
+CI 的 Ubuntu 全量构建会遍历每个 Board 支持的全部 Example，并上传
+`ecos-firmware-matrix-<commit>` 产物。压缩包和其中的 `firmware/` 目录包含按
+`<example>-<board>.bin` 命名的固件、`manifest.json` 和 `SHA256SUMS`；清单记录实际
+profile、ISA、ABI、大小、摘要以及源码/配置指纹，自动化测试可以据此选择并校验固件。
+本地可用同一命令复现：`python tools/ci_host_smoke.py --all-examples --firmware-dir ci-firmware`。
+
 硬件操作使用同一 CLI：
 
 ```bash

@@ -42,4 +42,4 @@
 
 - [ ] 从 tag 生成 tar.gz/zip，确认只包含清单声明的 3.0 路径，不包含测试目录和 `UserBSP`；FatFs、Letter-Shell、letter-shell-fs、text-editor、fcc 及其开发示例须继续按发布排除清单处理，直至实板验收完成。
 - [ ] 核对 SPDX SBOM 列出的 Python wheel、CMake/Ninja、xPack 和归档文件的许可证，将审查结论及 SBOM 随正式发布归档。
-- [ ] 核对 CI 五类 runner 上传的安装与最小构建报告，以及 Python 3.9 最低版本报告；Linux x64 报告还需包含全部 Board/Example/ISA/ABI 组合、BIN 大小上限及 ELF/BIN 摘要。
+- [ ] 核对 CI 五类 runner 上传的安装与最小构建报告，以及 Python 3.9 最低版本报告；Linux x64 报告还需包含全部 Board/Example/ISA/ABI 组合、BIN 大小上限及 ELF/BIN 摘要，并检查 `ecos-firmware-matrix-<commit>` 中的命名、清单和 SHA256 校验和。

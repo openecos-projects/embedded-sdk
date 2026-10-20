@@ -59,6 +59,7 @@ examples/ai/llm-chat/*.bin
 !tools/install.py
 !tools/release.py
 !tools/ci_host_smoke.py
+!tools/ci_firmware.py
 !tools/sdk-manifest.json
 !tools/toolchains/
 !tools/toolchains/*.py

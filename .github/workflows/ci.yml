@@ -33,13 +33,23 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install SDK, run CLI tests, and build in a Unicode path
-        env:
-          ECOS_CI_ALL_EXAMPLES: ${{ matrix.runner == 'ubuntu-24.04' }}
+        if: matrix.runner != 'ubuntu-24.04'
         run: python tools/ci_host_smoke.py --report ci-report.json
+      - name: Build and package the complete firmware matrix
+        if: matrix.runner == 'ubuntu-24.04'
+        run: >-
+          python tools/ci_host_smoke.py --all-examples
+          --report ci-report.json --firmware-dir ci-firmware
       - uses: actions/upload-artifact@v4
         with:
           name: ecos-ci-${{ matrix.runner }}
           path: ci-report.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: matrix.runner == 'ubuntu-24.04'
+        with:
+          name: ecos-firmware-matrix-${{ github.sha }}
+          path: ci-firmware
           if-no-files-found: error
 
   python-minimum:
