@@ -179,6 +179,11 @@ int main(void)
 }
 ```
 
+需要更完整的协作式内核骨架时，可参考示例
+[mini-os](../../examples/os/mini-os)：它在 LightCoroutine 之上实现静态任务表、
+round-robin 调度、1 ms 轮询 tick、sleep/wake、挂起/恢复，并把 Letter-Shell
+作为普通任务接入，提供 `ps`、`uptime`、`spawn`、`kill` 等命令。
+
 ## sfud（串口 Flash 通用驱动）
 
 3.0 组件 ID 为 `sfud`，需要 Board 提供 `qspi` 和 `console` 能力。示例

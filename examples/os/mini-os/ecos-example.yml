@@ -1,0 +1,13 @@
+schema: 1
+name: mini-os
+sources:
+  - main.c
+  - kernel.c
+  - os_shell.c
+components:
+  - light-coroutine
+  - letter-shell
+  - driver-timer
+requires:
+  - console
+  - timer
