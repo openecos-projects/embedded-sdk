@@ -50,15 +50,6 @@
     "exclude": [
       "boards/UserBSP",
       "components/core/tests",
-      "components/fatfs",
-      "components/fcc",
-      "examples/storage/fcc",
-      "components/letter-shell",
-      "components/letter-shell-fs",
-      "components/text_editor",
-      "examples/concurrency/letter-shell-smoke",
-      "examples/storage/flash-fatfs",
-      "examples/storage/text-editor",
       "drivers/i2c/tests",
       "drivers/qspi/tests"
     ]

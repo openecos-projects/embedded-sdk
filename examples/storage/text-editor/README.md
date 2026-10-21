@@ -12,5 +12,5 @@ paths follow the directory shown in the prompt.
 
 The example does not format Flash. Use `format_filesystem()` only after backing
 up existing data. The editor is limited to 24 KiB per file and 8192 lines.
-Real Flash I/O, terminal behavior and persistence after power loss require
-hardware validation before the component is included in a release.
+The component ships with SDK 3.0; real Flash I/O, terminal behavior and
+persistence after power loss still require hardware validation.

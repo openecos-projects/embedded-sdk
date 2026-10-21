@@ -29,7 +29,7 @@ ecos sdk register /path/to/checkout --name dev --kind checkout --activate
 
 发布制品须由匹配 `tools/sdk-manifest.json` 中 `sdk_version` 的 Git tag 生成，清单
 `channel` 必须为 `release`。发布脚本只打包清单 `release.paths` 声明的 3.0 路径，并排除
-`release.exclude` 中的开发期组件、测试和用户 BSP；未声明的工作树文件不会进入制品。
+`release.exclude` 列出的用户 BSP、测试和开发目录；未声明的工作树文件不会进入制品。
 
 发布脚本同时生成归档对应的 SPDX 2.3 文件清单和锁定主机依赖清单
 `ecos-embedded-sdk-<version>.spdx.json`；`SHA256SUMS` 包含 tar.gz、zip 和 SBOM 的摘要。

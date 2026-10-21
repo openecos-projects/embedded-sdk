@@ -42,5 +42,5 @@ code are each limited to 32 KiB; the global variable area is 1 KiB.
 
 Generated instructions run from a linker-reserved executable SRAM section.
 Compilation and both profile layouts have been checked by host and cross-build
-tests. Actual execution, Flash I/O and stack headroom still require C2 hardware
-validation before this example can enter a release.
+tests. The example ships with SDK 3.0; actual execution, Flash I/O and stack
+headroom still require C2 hardware validation.

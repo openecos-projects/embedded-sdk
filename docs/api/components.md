@@ -3,10 +3,10 @@
 本文记录 `components/` 下可供应用使用的组件：libc 子集、heap、
 LightCoroutine 协程、sfud 串口 Flash 驱动、FatFs 文件系统、Letter-Shell 命令行、
 文件系统命令、GPIO bit-bang SPI、终端文本编辑器和小型 C 编译器。
-`core-runtime` 与 `libc` 子集是 SDK 默认构建单元；LightCoroutine、sfud、FatFs 和
-Letter-Shell、letter-shell-fs、soft-spi、text-editor、fcc 需要由 Example 声明组件 ID。FatFs、
-Letter-Shell、letter-shell-fs、text-editor 和 fcc 当前仍保留在开发构建图，尚未进入 3.0 release 包；真实 Flash 挂载、
-文件读写、终端交互和掉电恢复需按人工验收清单完成后再解除发布排除。
+`core-runtime` 与 `libc` 子集是 SDK 默认构建单元；LightCoroutine、sfud、FatFs、
+Letter-Shell、letter-shell-fs、soft-spi、text-editor、fcc 需要由 Example 声明组件 ID。
+上述组件均随 SDK 3.0 release 包发布；真实 Flash 挂载、文件读写、终端交互和掉电恢复
+仍需按板卡逐项完成实板验收，结果记录在各示例 README 和发布验收清单中。
 
 不记录：`soc`（SDK 内部 SoC 层）和 `libgcc`（编译器内部例程）。旧版固定引脚
 `spi_software` 已移除；3.0 应使用下述 `soft-spi`。
@@ -259,8 +259,8 @@ FRESULT format_filesystem(void); /* 显式格式化并挂载，会擦除卷 */
 
 3.0 组件 ID 为 `letter-shell`，需要 Board 提供 `console` 能力；示例
 [letter-shell-smoke](../../examples/concurrency/letter-shell-smoke) 覆盖命令表初始化、
-公共控制台收发回调和 `help` 命令解析。组件目前仍从正式 release 排除，串口交互、
-长时间输入、退格/历史/方向键和边界输入仍需实板验收。
+公共控制台收发回调和 `help` 命令解析。组件随 3.0 release 提供；串口交互、
+长时间输入、退格/历史/方向键和边界输入仍需按板卡完成实板验收。
 
 头文件：`components/letter-shell/include/shell.h`，
 一键启动：`shell_init.h`，移植钩子：`shell_port.h`。
@@ -370,7 +370,7 @@ FatFs 卷，并在自己的 Letter-Shell 命令表注册 `edit` 和文件系统�
 按 `Esc` 才会丢弃。单文件最多 24 KiB、8192 行，超限时拒绝加载或插入。
 示例不会自动格式化空 Flash；格式化前须先备份卷内数据。
 
-组件和示例仍从正式 release 排除；保存、重启后读取、终端兼容性及掉电行为需要实板验收。
+组件和示例随 3.0 release 提供；保存、重启后读取、终端兼容性及掉电行为需要实板验收。
 
 ## fcc（小型 C 编译器）
 
@@ -382,4 +382,4 @@ FatFs 卷，在 Shell 中注册 `fcc <source.c>` 和 `fcc-run`。前者把源码
 它只实现整数、函数、条件、循环和少量运算符，不是完整 C 编译器。
 
 两个 C2 启动 profile 已完成交叉构建和地址检查；实板运行、栈余量与文件系统读写
-仍需按人工验收清单确认。组件和示例暂不进入正式 release。
+仍需按 C2 板卡和人工验收清单确认。组件和示例随 3.0 release 提供。

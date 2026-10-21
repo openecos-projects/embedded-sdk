@@ -57,7 +57,7 @@ jobs:
       - name: Run test suite
         run: python -m unittest discover -s tools/ecos_cli/tests -p "test_*.py"
 
-      - name: Install packaged SDK and build a firmware
+      - name: Install packaged SDK and build representative firmware
         run: |
           archive="dist/ecos-embedded-sdk-${GITHUB_REF_NAME#v}.tar.gz"
           version="${GITHUB_REF_NAME#v}"
@@ -80,6 +80,21 @@ jobs:
           printf 'CONFIG_BUILD_OPT_SIZE=y\n' > "$smoke_root/release-hello/.ecos/project.config"
           python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
             build --project "$smoke_root/release-hello"
+          for spec in \
+            "letter-shell-smoke:starrysky-l4-c1" \
+            "flash-fatfs:starrysky-l4-c1" \
+            "text-editor:starrysky-l4-c1" \
+            "mini-os:starrysky-l4-c1" \
+            "fcc:starrysky-c2"
+          do
+            example="${spec%%:*}"
+            board="${spec##*:}"
+            python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
+              project create "$example" --name "release-$example" \
+              --path "$smoke_root" --board "$board"
+            python "$package_root/tools/ecos.py" --sdk "$install_root/$version" \
+              build --project "$smoke_root/release-$example"
+          done
 
       - name: Generate artifact attestations
         uses: actions/attest@v4
