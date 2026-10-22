@@ -1120,12 +1120,24 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _emit_error(output_format: str, code: str, message: str, exit_code: int) -> int:
+def _emit_error(
+    output_format: str,
+    code: str,
+    message: str,
+    exit_code: int,
+    *,
+    suggestion: Optional[str] = None,
+) -> int:
     item = {"code": code, "severity": "error", "message": message}
+    if suggestion:
+        item["suggestion"] = suggestion
     if output_format == "json":
         print(json.dumps(result_envelope("error", None, [item]), indent=2, ensure_ascii=False))
     else:
-        ConsoleProgress().error(f"[{code}] {message}")
+        console = ConsoleProgress()
+        console.error(f"[{code}] {message}")
+        if suggestion:
+            console.info(f"Suggestion: {suggestion}")
     return exit_code
 
 
@@ -1419,6 +1431,18 @@ def main(
         )
     except InstallerError as exc:
         return _emit_error(args.output_format, "ECOS_INSTALL_CONFIG_INVALID", str(exc), 3)
+    except SdkRegistrationConflict as exc:
+        return _emit_error(
+            args.output_format,
+            "ECOS_SDK_REGISTRATION_CONFLICT",
+            str(exc),
+            3,
+            suggestion=(
+                "Use --replace-registration to replace only the conflicting "
+                "registration, or --force to reinstall SDK files and replace it. "
+                "Use --registration-name NAME to register it under another name."
+            ),
+        )
     except SdkRegistryError as exc:
         return _emit_error(args.output_format, "ECOS_SDK_REGISTRY_INVALID", str(exc), 3)
     except sdk_manifest.SdkManifestError as exc:

@@ -599,9 +599,14 @@ class SdkInstallerTest(unittest.TestCase):
                 blocked = installer.main(arguments, sdk_root=source)
 
             self.assertEqual(blocked, 3)
+            blocked_payload = json.loads(blocked_output.getvalue())
             self.assertEqual(
-                json.loads(blocked_output.getvalue())["diagnostics"][0]["code"],
-                "ECOS_SDK_REGISTRY_INVALID",
+                blocked_payload["diagnostics"][0]["code"],
+                "ECOS_SDK_REGISTRATION_CONFLICT",
+            )
+            self.assertIn(
+                "--replace-registration",
+                blocked_payload["diagnostics"][0]["suggestion"],
             )
 
             output = StringIO()
