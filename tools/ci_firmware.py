@@ -88,6 +88,23 @@ class FirmwarePackage:
 
         destination = self.stage_dir / filename
         shutil.copy2(source, destination)
+        readme_name = f"{example}-{board}.README.md"
+        readme_destination = self.stage_dir / readme_name
+        readme_source = project / "README.md"
+        readme_missing = not readme_source.is_file()
+        if readme_missing:
+            readme_destination.write_text(
+                f"# {example} — {board}\n\n"
+                f"对应固件：`{filename}`\n\n"
+                "> 注意：该例程未提供原始 README.md。本文件由 CI 自动生成，"
+                "不是测试说明或实机验收通过记录。\n\n"
+                "测试前请联系维护者补充接线、操作步骤及预期结果；"
+                "仅构建成功不能证明实机功能正常。\n",
+                encoding="utf-8",
+            )
+        else:
+            shutil.copy2(readme_source, readme_destination)
+        readme_size, readme_sha256 = _digest(readme_destination)
         self._entries[filename] = {
             "name": filename.removesuffix(".bin"),
             "file": filename,
@@ -99,6 +116,12 @@ class FirmwarePackage:
             "abi": record.get("abi"),
             "size": size,
             "sha256": sha256,
+            "readme": {
+                "file": readme_name,
+                "size": readme_size,
+                "sha256": readme_sha256,
+                "generated": readme_missing,
+            },
             "image_size_limit": record.get("image_size_limit"),
             "sdk": record.get("sdk"),
             "toolchain": record.get("toolchain"),
@@ -125,7 +148,11 @@ class FirmwarePackage:
         )
         checksums_path = self.stage_dir / "SHA256SUMS"
         checksums_path.write_text(
-            "".join(f"{entry['sha256']}  {entry['file']}\n" for entry in artifacts),
+            "".join(
+                f"{entry['sha256']}  {entry['file']}\n"
+                f"{entry['readme']['sha256']}  {entry['readme']['file']}\n"
+                for entry in artifacts
+            ),
             encoding="ascii",
         )
 

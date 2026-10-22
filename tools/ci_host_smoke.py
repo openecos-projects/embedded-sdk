@@ -151,16 +151,17 @@ def _build_record(project: Path, example: str) -> dict[str, Any]:
 
 def _build_matrix(
     cli: Path, sdk_root: Path, environment: dict[str, str], workspace: Path,
-    selected_board: str | None,
+    selected_boards: list[str] | None,
     artifact_callback: Callable[[Path, dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
     boards = _json_command(cli, sdk_root, ["board", "list"], environment)["boards"]
     examples = _json_command(cli, sdk_root, ["project", "list"], environment)["examples"]
     board_ids = sorted(item["id"] for item in boards)
-    if selected_board:
-        if selected_board not in board_ids:
-            raise RuntimeError(f"unknown Board in CI matrix: {selected_board}")
-        board_ids = [selected_board]
+    if selected_boards:
+        unknown = sorted(set(selected_boards) - set(board_ids))
+        if unknown:
+            raise RuntimeError(f"unknown Board in CI matrix: {', '.join(unknown)}")
+        board_ids = sorted(set(selected_boards))
     if not examples or any(not item["supported_boards"] for item in examples):
         raise RuntimeError("an SDK Example has no compatible Board")
 
@@ -220,9 +221,12 @@ def main() -> int:
         "--all-examples", action="store_true",
         default=os.environ.get("ECOS_CI_ALL_EXAMPLES") == "true",
     )
-    group.add_argument("--board")
+    group.add_argument(
+        "--board", action="append", dest="boards", metavar="BOARD_ID",
+        help="build all compatible examples for this Board (repeat for multiple Boards)",
+    )
     args = parser.parse_args()
-    if args.firmware_dir is not None and not (args.all_examples or args.board):
+    if args.firmware_dir is not None and not (args.all_examples or args.boards):
         parser.error("--firmware-dir requires --all-examples or --board")
 
     with tempfile.TemporaryDirectory(prefix="ecos-ci-") as directory:
@@ -239,14 +243,14 @@ def main() -> int:
         matrix: list[dict[str, Any]] = []
         firmware: FirmwarePackage | None = None
         firmware_summary: dict[str, Any] | None = None
-        if args.all_examples or args.board:
+        if args.all_examples or args.boards:
             if args.firmware_dir is not None:
                 firmware_dir = args.firmware_dir
                 if not firmware_dir.is_absolute():
                     firmware_dir = SDK_ROOT / firmware_dir
                 firmware = FirmwarePackage(firmware_dir)
             matrix = _build_matrix(
-                cli, sdk_root, environment, workspace, args.board,
+                cli, sdk_root, environment, workspace, args.boards,
                 firmware.add if firmware is not None else None,
             )
             if firmware is not None:

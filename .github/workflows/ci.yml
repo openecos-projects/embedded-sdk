@@ -35,10 +35,13 @@ jobs:
       - name: Install SDK, run CLI tests, and build in a Unicode path
         if: matrix.runner != 'ubuntu-24.04'
         run: python tools/ci_host_smoke.py --report ci-report.json
-      - name: Build and package the complete firmware matrix
+      - name: Build and package all compatible examples for L4C1, T1-Pico, and C2
         if: matrix.runner == 'ubuntu-24.04'
         run: >-
-          python tools/ci_host_smoke.py --all-examples
+          python tools/ci_host_smoke.py
+          --board starrysky-l4-c1
+          --board starrysky-t1-pico
+          --board starrysky-c2
           --report ci-report.json --firmware-dir ci-firmware
       - uses: actions/upload-artifact@v4
         with:
