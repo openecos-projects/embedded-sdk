@@ -120,7 +120,13 @@ jobs:
             fi
             (cd "$existing" && sha256sum --check SHA256SUMS)
           else
-            release_options=(--verify-tag --generate-notes --title "ECOS Embedded SDK ${tag#v}")
+            release_options=(--verify-tag --title "ECOS Embedded SDK ${tag#v}")
+            release_notes="docs/release-notes-${tag#v}.md"
+            if [[ -f "$release_notes" ]]; then
+              release_options+=(--notes-file "$release_notes")
+            else
+              release_options+=(--generate-notes)
+            fi
             if [[ "$tag" == *-* ]]; then
               release_options+=(--prerelease)
             fi

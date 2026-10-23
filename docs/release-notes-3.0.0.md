@@ -145,7 +145,7 @@ Linux x64 的例程固件矩阵限定为 L4C1、T1-Pico、C2 各自兼容的例�
 
 ## 发布文件与完整性验证
 
-正式发布计划提供：
+本 Release 提供：
 
 - `ecos-embedded-sdk-3.0.0.tar.gz`
 - `ecos-embedded-sdk-3.0.0.zip`

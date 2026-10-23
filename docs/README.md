@@ -2,11 +2,11 @@
 
 面向应用的公共文档：
 
+- [release-notes-3.0.0.md](release-notes-3.0.0.md) — ECOS Embedded SDK 3.0.0 正式发布说明
 - [install.md](install.md) — 安装指南：Python 安装器、安装路径、工具链处理与多版本切换
 - [cli.md](cli.md) — `ecos` CLI 命令、JSON 输出和工程工作流
 - [schemas.md](schemas.md) — Board、Target、Component 和 Example 的离线 schema 与样例
 - [VS Code 扩展](../tools/vscode-ecos/README.md) — 3.0 CLI 的编辑器预览集成与构建任务
-- [sdk-3.0-manual-validation.md](sdk-3.0-manual-validation.md) — 需要真实宿主、板卡和外部设备完成的验收清单
 - [toolchain-cli.md](toolchain-cli.md) — Python 工具链命令：`ecos` CLI 的工具链识别、状态检查与安装
 - [api/README.md](api/README.md) — 3.x 公共 API 概览：分层架构、错误模型、配置惯例与应用骨架
 - [api/bsp.md](api/bsp.md) — BSP：控制台、LED、按键与板级资源宏

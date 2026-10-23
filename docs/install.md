@@ -1,8 +1,9 @@
 # ECOS SDK 3.0 安装指南
 
-`tools/sdk-manifest.json` 是 SDK 身份、版本和发布文件范围的来源。当前仓库的
-`channel` 为 `development`，因此从本 checkout 运行 `python3 tools/install.py`
-默认只注册源码树，不复制 SDK。带有 `release` 通道清单的正式制品才会部署到版本目录。
+`tools/sdk-manifest.json` 是 SDK 身份、版本和发布文件范围的来源。使用
+`development` 通道清单的 checkout 从源码运行 `python3 tools/install.py` 时默认只注册
+源码树，不复制 SDK；带有 `release` 通道清单的正式制品才会部署到版本目录。本
+3.0.0 正式发布使用 `release` 通道。
 
 ## 1. 开发 checkout
 

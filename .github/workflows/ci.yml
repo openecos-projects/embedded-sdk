@@ -2,9 +2,9 @@ name: SDK 3.0 CI
 
 on:
   push:
-    branches: [3.0-dev]
+    branches: [3.0-dev, '3.0.1']
   pull_request:
-    branches: [3.0-dev]
+    branches: [3.0-dev, '3.0.1']
   workflow_dispatch:
   workflow_call:
 

@@ -32,6 +32,14 @@ docs/hal_v2_design_guideline.md
 docs/menuconfig.md
 docs/releasing.md
 docs/sdk-3.0-development-boundary.md
+docs/*-manual-validation.md
+docs/*-test-checklist.md
+docs/internal/
+
+# Agent 操作指南仅供本地开发使用
+.agent/
+.agents/
+.codex/
 
 !boards/
 !boards/**
