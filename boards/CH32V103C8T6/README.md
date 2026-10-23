@@ -70,13 +70,51 @@ ecos build
 | 结果 | 复位后输出 `[I][hello] Hello, World!`，无异常 |
 
 已通过：复位入口、Flash 启动别名、USART1 引脚与波特率、Intel HEX 下载地址。
-仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性，以及
-`CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。
+仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性、OpenOCD 烧录路径，
+以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。
+
+## 手动 OpenOCD 烧录（待实机验证）
+
+本次实机验收使用的是 WCH-LinkUtility，OpenOCD 路径尚未在 CH32V103 上实测。
+本地 `tools/openocd-wch/` 提供社区 WCH/MRS OpenOCD（该目录被 Git 忽略，
+准备方法见 `tools/openocd-wch/ECOS-LOCAL-INSTALL.md`）。前提是 WCH-Link/WCH-LinkE
+处于 RISC-V 模式，目标板 SDI 已连接并共地。
+
+```bash
+cd /path/to/hello-ch32v103
+OPENOCD=/path/to/embedded-sdk/tools/openocd-wch/bin/openocd
+CFG=/path/to/embedded-sdk/tools/openocd-wch/bin/wch-riscv.cfg
+
+test -f "$CFG" || { echo "missing $CFG"; exit 1; }
+test -f build/retrosoc_fw.hex || { echo "run ecos build first"; exit 1; }
+
+# 1) 工具与配置自检（不接硬件）
+"$OPENOCD" --version
+"$OPENOCD" -f "$CFG" -c shutdown
+
+# 2) 连接探测（不写 Flash）
+"$OPENOCD" -f "$CFG" -c "init; targets; flash banks; shutdown"
+
+# 3) 烧录 + 校验 + 复位
+"$OPENOCD" -f "$CFG" -c "program build/retrosoc_fw.hex verify reset exit"
+```
+
+- `wch-riscv.cfg` 的 flash bank 基址为 `0x00000000`，与 Intel HEX 的地址一致，
+  因此优先烧 `.hex`。
+- 如果必须烧 `.bin`，地址使用与该 bank 匹配的 `0x00000000`：
+  `"$OPENOCD" -f "$CFG" -c "program build/retrosoc_fw.bin 0x00000000 verify reset exit"`。
+- 若该适配器上 `reset` 不生效，可改为 `... verify exit`，退出后按板载复位键。
+- 若提示 USB 权限不足，按发行包内的 `50-wch.rules` / `60-openocd.rules` 由管理员
+  安装 udev 规则；不要直接执行 `bin/start.sh`（它会用 sudo 复制库并修改系统规则）。
+
+判定成功的标准：OpenOCD 输出 `** Programming Finished **` 和 `** Verified OK **`，
+并且复位后串口输出 `[I][hello] Hello, World!`。请保留完整 OpenOCD 日志和串口输出；
+确认这套命令可用后，再把 OpenOCD 接入 `ecos flash` provider。
 
 ## 验证边界
 
-异常/中断行为、HSI 实际频偏、断电重启及长时间稳定性尚未验证；
-`CH32V103C8T6` 封装也未单独验收。编译成功不能代替这些测试。
+异常/中断行为、HSI 实际频偏、断电重启及长时间稳定性尚未验证；OpenOCD 烧录路径
+尚未实机验证；`CH32V103C8T6` 封装也未单独验收。编译成功不能代替这些测试。
 
 准备实物时，请先核对准确型号与开发板原理图，再按 WCH 官方下载工具/适配的 WCH-Link
 流程处理 ELF/HEX/BIN 的地址。BIN 不携带地址，按物理 Flash 基址 `0x08000000` 写入。
