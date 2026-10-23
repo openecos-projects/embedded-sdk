@@ -356,11 +356,11 @@ CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用。工具选�
 `Board.flash.unprotect: true` 或显式 `--unprotect` 时才执行 `wlink unprotect`
 （全片擦除）后继续烧录，否则返回配置错误；`--no-unprotect` 可显式拒绝自动解除保护。
 
-Windows x64 的 pinned wlink 使用 WinUSB，不能直接使用 WCH WDM 驱动。收到
-`incompatible driver` 时返回 `ECOS_FLASH_DRIVER_INCOMPATIBLE`（退出码 `3`），JSON
-诊断的 `suggestion` 和文本输出会说明 WinUSB 与兼容 x86 wlink 的处理方法。CLI 不会
-自动换工具、改绑驱动或继续擦写；保留 WDM 驱动可通过 `--tool PATH` / `ECOS_WLINK`
-明确选择 x86 版本。驱动安装与已安装 CLI 清单的刷新方法见 [install.md](install.md)。
+Windows 默认受管 wlink 使用 x86 构建，兼容常见的 WCH WDM 驱动；`windows-x86_64`
+是主机平台键，不表示默认下载 x64 wlink。收到 `incompatible driver` 时返回
+`ECOS_FLASH_DRIVER_INCOMPATIBLE`（退出码 `3`），JSON 诊断的 `suggestion` 和文本输出
+会说明 x86 默认路径，以及 x64 wlink 所需的 WinUSB/设备标识设置。CLI 不会自动换工具、
+改绑驱动或继续擦写；驱动安装与已安装 CLI 清单的刷新方法见 [install.md](install.md)。
 
 `ecos clean` 只删除 CMake 缓存指向当前工程及其生成配置的 `build/`；无法识别的目录
 会保留并报错。`--dry-run` 返回待删除路径，不写入文件。`ecos build --clean` 保留为

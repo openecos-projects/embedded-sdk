@@ -44,6 +44,16 @@ def wlink_manifest(digest: str) -> dict:
 
 
 class WlinkManagedToolTest(unittest.TestCase):
+    def test_windows_default_asset_uses_wdm_compatible_x86_build(self):
+        manifest = managed_tools.load_wlink_manifest()
+        asset = manifest["hosts"]["windows-x86_64"]
+        self.assertEqual(asset["file"], "wlink-v0.1.3-win-x86.zip")
+        self.assertEqual(asset["archive_root"], "wlink-win-x86")
+        self.assertEqual(
+            asset["sha256"],
+            "c51e2f060cf71abfb773ac5efa0003377e4cb4256f7bd18869b5f9c28c3b683c",
+        )
+
     def test_install_reuse_and_resolve(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -19,10 +19,10 @@
       "sha256": "24e473effa04e31d5bfe1f37c2de7107846c5f8222692da606bf25affd16e1ce"
     },
     "windows-x86_64": {
-      "file": "wlink-v0.1.3-win-x64.zip",
+      "file": "wlink-v0.1.3-win-x86.zip",
       "archive": "zip",
-      "archive_root": "wlink-win-x64",
-      "sha256": "b5a7d34bb64287d6383650dd2e0637c2fa488601783a8e04185a7275f2294c78"
+      "archive_root": "wlink-win-x86",
+      "sha256": "c51e2f060cf71abfb773ac5efa0003377e4cb4256f7bd18869b5f9c28c3b683c"
     }
   }
 }

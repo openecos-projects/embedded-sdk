@@ -65,14 +65,12 @@ flash:
 
 `tools/install.py` 会安装 pinned wlink `0.1.3`（Windows 为
 `%LOCALAPPDATA%\ECOS\lib\ecos\tools\wlink\`），`ecos flash` 会自动使用它。
-Windows 固定的 x64 资产使用 nusb/WinUSB 后端，需要 WCH-Link 调试接口绑定 WinUSB
-（复合设备还需正确的 USBCCGP 父驱动），不能直接使用常见的 WCH WDM 驱动
-`WCHLink_A64`。补 `CH375DLL64.dll` 不能使该 x64 程序使用 WDM 驱动。
+Windows 默认受管资产是 x86 wlink，即使主机是 Windows x64 也使用
+`wlink-v0.1.3-win-x86.zip`；它兼容常见的 WCH WDM 驱动 `WCHLink_A64`，不需要修改
+WCH-Link 设备标识。旧版本已安装 x64 wlink 时，从修复后的 checkout 执行：
 
-保留 WCH-LinkUtility/MRS 的 WDM 驱动时，可下载支持原生 WCH 驱动的 x86 版本：
-
-```text
-https://github.com/ch32-rs/wlink/releases/download/v0.1.3/wlink-v0.1.3-win-x86.zip
+```powershell
+python tools/install.py --force --skip-toolchain --shell none
 ```
 
 保留发行包文件，并按 x86 工具要求准备 WCH DLL。构建后任选一种方式覆盖：
@@ -89,8 +87,9 @@ ecos flash
 受管安装存在时，仅把其他 wlink 放进 `PATH` 不会覆盖它。
 `incompatible driver is installed for this interface` 会返回
 `ECOS_FLASH_DRIVER_INCOMPATIBLE`，而不是“设备未找到”；CLI 不会自动换用其他工具或
-驱动。也可自行给调试接口安装 WinUSB，但这可能影响 WCH-LinkUtility/MRS；请确认
-接口后操作，不要替换串口接口驱动。
+驱动。若确实需要 x64 wlink，需从 wlink release 手动下载 x64 资产，并使用其他工具
+修改 WCH-Link 调试设备标识或绑定 WinUSB；这不是默认支持路径，可能影响
+WCH-LinkUtility/MRS。请确认接口后操作，不要替换串口接口驱动。
 
 `unprotect: true` 表示芯片处于读保护时允许先执行 `wlink unprotect`（会全片擦除）
 再烧录。若希望遇到保护状态直接失败：

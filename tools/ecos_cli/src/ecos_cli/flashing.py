@@ -32,13 +32,15 @@ class FlashDriverError(FlashConfigurationError):
     """The programmer cannot use the installed host USB driver."""
 
     suggestion = (
-        "The pinned Windows x64 wlink requires WinUSB for the WCH-Link debug "
+        "The selected Windows x64 wlink requires WinUSB for the WCH-Link debug "
         "interface (USBCCGP may be needed for composite devices); it cannot use "
-        "the WCH WDM driver (WCHLink_A64). Keep the WDM driver by selecting a "
-        "compatible x86 wlink with 'ecos flash --tool C:\\path\\to\\wlink.exe' or "
-        "ECOS_WLINK, or deliberately install WinUSB on the debug interface only. "
-        "Changing drivers can affect WCH-LinkUtility/MRS; do not replace the "
-        "serial interface driver. No alternative tool is selected automatically."
+        "the WCH WDM driver (WCHLink_A64). The SDK's default Windows wlink is "
+        "the x86 build for WDM compatibility. Keep the WDM driver by selecting "
+        "that x86 wlink with 'ecos flash --tool C:\\path\\to\\wlink.exe' or "
+        "ECOS_WLINK, or deliberately use an external device-identifier/driver "
+        "setup before selecting the x64 build. Changing drivers can affect "
+        "WCH-LinkUtility/MRS; do not replace the serial interface driver. No "
+        "alternative tool is selected automatically."
     )
 
 
