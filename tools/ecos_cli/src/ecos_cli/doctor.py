@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Any, Optional
@@ -148,8 +149,9 @@ def inspect_environment(
     if isinstance(board, dict):
         flash = board.get("flash")
         if isinstance(flash, dict):
+            provider = flash.get("provider")
             label = flash.get("volume_label")
-            if flash.get("provider") == "mass-storage" and isinstance(label, str):
+            if provider == "mass-storage" and isinstance(label, str):
                 devices = flashing.discover_mass_storage(label)
                 checks["flash"] = {
                     "state": "ready" if devices else "disconnected",
@@ -167,6 +169,35 @@ def inspect_environment(
                             suggestion="Connect the programmer before running 'ecos flash'.",
                         )
                     )
+            elif provider == "wlink":
+                command = os.environ.get("ECOS_WLINK") or flash.get("tool", "wlink")
+                try:
+                    executable = flashing.resolve_flash_tool(command)
+                except flashing.FlashConfigurationError as exc:
+                    checks["flash"] = {
+                        "state": "unavailable",
+                        "provider": "wlink",
+                        "tool": str(command),
+                        "error": str(exc),
+                    }
+                    diagnostics.append(
+                        _issue(
+                            "ECOS_DOCTOR_FLASH_TOOL_MISSING",
+                            "warning",
+                            str(exc),
+                            resource=board["id"],
+                            suggestion=(
+                                "Install wlink, or set Board.flash.tool / ECOS_WLINK."
+                            ),
+                        )
+                    )
+                else:
+                    checks["flash"] = {
+                        "state": "ready",
+                        "provider": "wlink",
+                        "tool": str(executable),
+                        "chip": flash.get("chip"),
+                    }
         monitor = board.get("monitor")
         if isinstance(monitor, dict):
             try:

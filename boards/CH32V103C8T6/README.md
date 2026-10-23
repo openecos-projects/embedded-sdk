@@ -12,9 +12,10 @@ Target 为 `ch32v103`。
 - 默认 `flash` profile，保留 2 KiB 栈；提供基本 `.data` 搬运和 `.bss` 清零。
 - 仅轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
-- 不提供 GPIO、Timer、PFIC 中断驱动、PLL 切换、USB 或自动下载 provider。
+- 不提供 GPIO、Timer、PFIC 中断驱动、PLL 切换或 USB。
 - 未支持 WCH 特有快速中断 ABI；启动路径保持全局中断关闭，异常默认停留。
-- 没有声明 `flash` provider，因此 `ecos flash` 会明确报不支持，不能套用 StarrySky 的挂载盘下载流程。
+- 声明 `wlink` 烧录 provider：`ecos flash` 通过 wlink CLI 烧录 Intel HEX；
+  芯片处于读保护时按 Board 配置先执行 `unprotect`（全片擦除）。
 
 ## 创建与编译
 
@@ -44,6 +45,53 @@ ecos build
 等支持 Intel HEX 的工具；`.bin` 不含地址，按物理 Flash 基址 `0x08000000` 写入
 （与启动别名 `0x00000000` 等价）。
 
+## 通过 ecos flash 烧录（wlink）
+
+Board 已声明 `wlink` provider：
+
+```yaml
+flash:
+  provider: wlink
+  artifact: hex
+  chip: CH32V103
+  unprotect: true
+  erase: true
+```
+
+先准备 wlink（Windows x64）：
+
+```text
+https://github.com/ch32-rs/wlink/releases/download/nightly/wlink-win-x64.zip
+```
+
+解压后任选一种方式让 `ecos` 找到它：
+
+```powershell
+# 1) 放进 PATH，或
+# 2) 设置环境变量
+$env:ECOS_WLINK = "C:\tools\wlink.exe"
+# 3) 或每次显式指定
+ecos flash --tool C:\tools\wlink.exe
+```
+
+然后：
+
+```powershell
+ecos build
+ecos flash
+```
+
+`unprotect: true` 表示芯片处于读保护时允许先执行 `wlink unprotect`（会全片擦除）
+再烧录。若希望遇到保护状态直接失败：
+
+```powershell
+ecos flash --no-unprotect
+```
+
+成功时文本模式会输出 Probe、Chip 和 SHA-256；如果执行了解除保护，还会提示
+`Read protection disabled (chip mass-erased).`。`--format json` 会返回
+`provider`、`chip`、`read_protected`、`unprotected`、`tool_output` 等字段。
+
 ## 下载与上电检查
 
 `hello` 只在复位后输出一次。请**先打开串口监视器，再复位或重新上电**，否则很容易
@@ -65,17 +113,23 @@ ecos build
 | --- | --- |
 | 日期 | 2026-10-23 |
 | 硬件 | CH32V103R8T6（64 KiB Flash / 20 KiB SRAM） |
-| 下载方式 | WCH-LinkUtility，烧录 Intel HEX（数据起始 `0x00000000`） |
+| 下载方式 | wlink CLI（`unprotect` + `flash`）及 WCH-LinkUtility，Intel HEX（数据起始 `0x00000000`） |
 | 串口 | USART1 PA9/PA10，115200 8N1，3.3 V 电平，共地 |
-| 结果 | 复位后输出 `[I][hello] Hello, World!`，无异常 |
+| 结果 | 复位后输出当前 hello 日志（`Hello, World windows!`），无异常 |
 
-已通过：复位入口、Flash 启动别名、USART1 引脚与波特率、Intel HEX 下载地址。
+已通过：复位入口、Flash 启动别名、USART1 引脚与波特率、Intel HEX 下载地址、
+wlink 解除读保护与烧录。
 仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性、OpenOCD 烧录路径，
-以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。
+以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。`ecos flash` 的 wlink
+provider 已实现并通过单元测试，待用实物复测。
 
-## 手动 OpenOCD 烧录（待实机验证）
+## 手动 OpenOCD 烧录（在 CH32V103 上实测失败，仅作记录）
 
-本次实机验收使用的是 WCH-LinkUtility，OpenOCD 路径尚未在 CH32V103 上实测。
+> 2026-10-23 实测：社区 WCH OpenOCD 能连接并识别 RISC-V 核，但 `flash probe` 读到
+> `device id = 0xffffffff`、`flash size = 65535KB`，`program ... verify` 在
+> `0x00000000` offset 0 写失败。该路径不作为本 Board 的烧录方式；请使用
+> `ecos flash`（wlink）或 WCH-LinkUtility。以下命令仅作记录。
+
 `tools/openocd-wch/` 提供的是 **Linux x86_64** 社区 WCH/MRS OpenOCD（该目录被
 Git 忽略，准备方法见 `tools/openocd-wch/ECOS-LOCAL-INSTALL.md`），不能在 Windows
 上运行。前提是 WCH-Link/WCH-LinkE 处于 RISC-V 模式，目标板 SDI 已连接并共地。
@@ -129,13 +183,13 @@ $CFG     = "C:\path\to\OpenOCD\bin\wch-riscv.cfg"
   由管理员安装 udev 规则；不要直接执行 `bin/start.sh`（它会用 sudo 复制库并修改系统规则）。
 
 判定成功的标准：OpenOCD 输出 `** Programming Finished **` 和 `** Verified OK **`，
-并且复位后串口输出 `[I][hello] Hello, World!`。请保留完整 OpenOCD 日志和串口输出；
-确认这套命令可用后，再把 OpenOCD 接入 `ecos flash` provider。
+并且复位后串口输出 `[I][hello] Hello, World!`。当前 OpenOCD 未接入 `ecos flash`；
+本 Board 的烧录 provider 是 `wlink`。
 
 ## 验证边界
 
-异常/中断行为、HSI 实际频偏、断电重启及长时间稳定性尚未验证；OpenOCD 烧录路径
-尚未实机验证；`CH32V103C8T6` 封装也未单独验收。编译成功不能代替这些测试。
+异常/中断行为、HSI 实际频偏、断电重启及长时间稳定性尚未验证；OpenOCD 路径在
+CH32V103 上实测失败，未采用；`CH32V103C8T6` 封装也未单独验收。编译成功不能代替这些测试。
 
 准备实物时，请先核对准确型号与开发板原理图，再按 WCH 官方下载工具/适配的 WCH-Link
 流程处理 ELF/HEX/BIN 的地址。BIN 不携带地址，按物理 Flash 基址 `0x08000000` 写入。

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import ctypes
 import os
+import re
 import shutil
 import string
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -174,11 +176,198 @@ def _copy_and_sync(source: Path, destination: Path) -> None:
         ) from exc
 
 
+def resolve_flash_tool(command: str) -> Path:
+    """Resolve a flash programmer command from an explicit path or PATH lookup."""
+    if not isinstance(command, str) or not command:
+        raise FlashConfigurationError("flash tool command must be a non-empty string")
+    expanded = os.path.expandvars(os.path.expanduser(command))
+    candidate = Path(expanded)
+    has_separator = (
+        candidate.is_absolute()
+        or os.sep in expanded
+        or (os.altsep is not None and os.altsep in expanded)
+    )
+    if has_separator:
+        if candidate.is_file():
+            return candidate.resolve()
+        raise FlashConfigurationError(f"flash tool does not exist: {candidate}")
+    found = shutil.which(expanded)
+    if found:
+        return Path(found).resolve()
+    raise FlashConfigurationError(
+        f"flash tool {command!r} was not found in PATH; install wlink or set "
+        "Board.flash.tool, ECOS_WLINK, or --tool to the executable"
+    )
+
+
+def _last_protection_state(output: str) -> Optional[bool]:
+    matches = re.findall(
+        r"(?:Flash|Read) protected:\s*(true|false)", output, re.IGNORECASE
+    )
+    if not matches:
+        return None
+    return matches[-1].casefold() == "true"
+
+
+def _parse_probe(output: str) -> Optional[str]:
+    match = re.search(r"Connected to (.+)", output)
+    return match.group(1).strip() if match else None
+
+
+def _parse_attached_chip(output: str) -> Optional[str]:
+    match = re.search(r"Attached chip:\s*(.+)", output)
+    return match.group(1).strip() if match else None
+
+
+def _run_wlink(
+    executable: Path,
+    chip: str,
+    arguments: list[str],
+    *,
+    timeout: float,
+) -> str:
+    command = [str(executable), "--chip", chip, *arguments]
+    try:
+        completed = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise FlashWriteError(
+            f"wlink command timed out after {timeout:.0f}s: {' '.join(command)}"
+        ) from exc
+    except OSError as exc:
+        raise FlashConfigurationError(
+            f"cannot run flash tool {executable}: {exc}"
+        ) from exc
+    output = (completed.stdout or "").strip()
+    if completed.returncode != 0:
+        detail = output or f"exit code {completed.returncode}"
+        raise FlashWriteError(
+            f"wlink command failed: {' '.join(command)}\n{detail}"
+        )
+    return output
+
+
+def _flash_wlink(
+    config: dict[str, Any],
+    source: Path,
+    *,
+    tool: Optional[Path],
+    unprotect: Optional[bool],
+) -> dict[str, Any]:
+    chip = config.get("chip")
+    if not isinstance(chip, str) or not chip:
+        raise FlashConfigurationError(
+            "wlink flash provider requires a non-empty Board.flash.chip"
+        )
+    command = tool or os.environ.get("ECOS_WLINK") or config.get("tool") or "wlink"
+    executable = resolve_flash_tool(str(command))
+    allow_unprotect = bool(config.get("unprotect", False))
+    if unprotect is not None:
+        allow_unprotect = bool(unprotect)
+    erase = bool(config.get("erase", True))
+
+    try:
+        status_output = _run_wlink(executable, chip, ["status"], timeout=30)
+    except FlashWriteError as exc:
+        raise FlashDeviceNotFound(str(exc)) from exc
+    protected = _last_protection_state(status_output)
+    if protected is None:
+        raise FlashDeviceNotFound(
+            "wlink did not report the chip protection state; check the WCH-Link "
+            "connection and target power:\n" + status_output
+        )
+    probe = _parse_probe(status_output)
+    attached_chip = _parse_attached_chip(status_output)
+    outputs = [status_output]
+    unprotected_now = False
+
+    if protected:
+        if not allow_unprotect:
+            raise FlashConfigurationError(
+                "target is read-protected; run 'ecos flash --unprotect' or set "
+                "Board.flash.unprotect: true (unprotect mass-erases the chip)"
+            )
+        unprotect_output = _run_wlink(executable, chip, ["unprotect"], timeout=300)
+        outputs.append(unprotect_output)
+        state = _last_protection_state(unprotect_output)
+        if state is not False:
+            status_output = _run_wlink(executable, chip, ["status"], timeout=30)
+            outputs.append(status_output)
+            state = _last_protection_state(status_output)
+        if state is not False:
+            raise FlashWriteError(
+                "wlink could not disable read protection; use WCH-LinkUtility or "
+                "ISP/WCHISPTool deprotection:\n"
+                + "\n".join(part for part in outputs if part)
+            )
+        unprotected_now = True
+
+    flash_arguments = ["flash"]
+    if erase:
+        flash_arguments.append("-e")
+    flash_arguments.append(str(source))
+    flash_output = _run_wlink(executable, chip, flash_arguments, timeout=300)
+    outputs.append(flash_output)
+    if "Flash done" not in flash_output:
+        raise FlashWriteError(
+            "wlink did not report successful programming:\n" + flash_output
+        )
+    return {
+        "chip": chip,
+        "attached_chip": attached_chip or chip,
+        "probe": probe,
+        "tool": str(executable),
+        "read_protected": protected,
+        "unprotected": unprotected_now,
+        "erase": erase,
+        "tool_output": "\n".join(part for part in outputs if part),
+    }
+
+
+def _flash_mass_storage(
+    config: dict[str, Any],
+    source: Path,
+    *,
+    device: Optional[Path],
+) -> dict[str, Any]:
+    destination_root = _select_device(config, device)
+    destination = destination_root / source.name
+    copy_count = config.get("copy_count", 1)
+    settle_seconds = float(config.get("settle_seconds", 0))
+    completed = 0
+    for attempt in range(copy_count):
+        if attempt and not destination_root.is_dir():
+            break
+        _copy_and_sync(source, destination)
+        completed += 1
+        if attempt + 1 < copy_count and settle_seconds:
+            time.sleep(settle_seconds)
+    if completed < 1:
+        raise FlashWriteError(
+            f"programmer disappeared before firmware was copied: {destination_root}"
+        )
+    return {
+        "device": str(destination_root),
+        "destination": str(destination),
+        "copies": completed,
+    }
+
+
 def flash_project(
     context: SdkContext,
     *,
     project_root: Optional[Path] = None,
     device: Optional[Path] = None,
+    tool: Optional[Path] = None,
+    unprotect: Optional[bool] = None,
 ) -> dict[str, Any]:
     root = (project_root or Path.cwd()).expanduser().resolve()
     try:
@@ -204,7 +393,7 @@ def flash_project(
             f"Board {board['id']!r} does not declare a flash provider"
         )
     provider = config.get("provider")
-    if provider != "mass-storage":
+    if provider not in {"mass-storage", "wlink"}:
         raise FlashConfigurationError(
             f"Board {board['id']!r} uses unsupported flash provider {provider!r}"
         )
@@ -231,21 +420,11 @@ def flash_project(
             f"artifact manifest does not contain required {artifact_name!r} output"
         )
     source = (root / item["path"]).resolve()
-    destination_root = _select_device(config, device)
-    destination = destination_root / source.name
-    copy_count = config.get("copy_count", 1)
-    settle_seconds = float(config.get("settle_seconds", 0))
-    completed = 0
-    for attempt in range(copy_count):
-        if attempt and not destination_root.is_dir():
-            break
-        _copy_and_sync(source, destination)
-        completed += 1
-        if attempt + 1 < copy_count and settle_seconds:
-            time.sleep(settle_seconds)
-    if completed < 1:
-        raise FlashWriteError(
-            f"programmer disappeared before firmware was copied: {destination_root}"
+    if provider == "mass-storage":
+        provider_result = _flash_mass_storage(config, source, device=device)
+    else:
+        provider_result = _flash_wlink(
+            config, source, tool=tool, unprotect=unprotect
         )
     return {
         "path": str(root),
@@ -255,7 +434,5 @@ def flash_project(
         "artifact": str(source),
         "sha256": item["sha256"],
         "configuration_fingerprint": resolved["configuration"]["fingerprint"],
-        "device": str(destination_root),
-        "destination": str(destination),
-        "copies": completed,
+        **provider_result,
     }

@@ -18,3 +18,9 @@ resources:
     instance: 0
 monitor:
   baudrate: 115200
+flash:
+  provider: wlink
+  artifact: hex
+  chip: CH32V103
+  unprotect: true
+  erase: true

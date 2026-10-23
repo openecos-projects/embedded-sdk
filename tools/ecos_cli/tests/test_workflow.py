@@ -16,6 +16,7 @@ sys.path.insert(0, str(SOURCE_ROOT))
 
 from ecos_cli import artifacts, configuration, doctor, flashing, monitoring  # noqa: E402
 from ecos_cli.cli import ExitCode, main  # noqa: E402
+from ecos_cli.project_model import ManifestValidationError, _read_manifest  # noqa: E402
 from ecos_cli.sdk_context import SdkContext  # noqa: E402
 from ecos_cli.sdk_manifest import context_from_root  # noqa: E402
 from test_project import create_sdk  # noqa: E402
@@ -37,6 +38,43 @@ def add_board_io_contract(sdk: Path) -> None:
         + "  baudrate: 115200\n",
         encoding="utf-8",
     )
+
+
+def add_wlink_board_contract(
+    sdk: Path, tool: Path, *, unprotect: bool = True
+) -> None:
+    path = sdk / "boards" / "StarrySkyL4" / "ecos-board.yml"
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        + "flash:\n"
+        + "  provider: wlink\n"
+        + "  artifact: hex\n"
+        + "  chip: CH32V103\n"
+        + f"  tool: {json.dumps(str(tool))}\n"
+        + f"  unprotect: {'true' if unprotect else 'false'}\n"
+        + "  erase: true\n",
+        encoding="utf-8",
+    )
+
+
+def prepare_wlink_project(
+    root: Path, *, unprotect: bool = True
+) -> tuple[Path, Path, Path]:
+    sdk = create_sdk(root / "sdk")
+    tool = root / "wlink"
+    tool.write_text("", encoding="utf-8")
+    tool.chmod(0o755)
+    add_wlink_board_contract(sdk, tool, unprotect=unprotect)
+    workspace = root / "workspace"
+    workspace.mkdir()
+    project = create_project(sdk, workspace)
+    configured = configuration.configure_project(
+        sdk_context(sdk), project_root=project
+    )
+    write_fake_outputs(project)
+    with mock.patch("ecos_cli.artifacts.inspect_elf", return_value=fake_elf()):
+        artifacts.create_manifest(project, configured.resolved)
+    return sdk, project, tool
 
 
 def create_project(
@@ -1093,6 +1131,178 @@ class DeviceWorkflowTest(unittest.TestCase):
                     ),
                     [windows_volume.resolve()],
                 )
+
+
+class WlinkFlashTest(unittest.TestCase):
+    @staticmethod
+    def status_output(protected: bool) -> str:
+        state = "true" if protected else "false"
+        return (
+            "[INFO] Connected to WCH-Link v3.2(v38) (WCH-LinkE-CH32V305)\n"
+            "[INFO] Attached chip: CH32V103\n"
+            "[INFO] Chip ESIG: FlashSize(64KB) UID(01-02-03)\n"
+            f"[INFO] Flash protected: {state}\n"
+        )
+
+    def test_wlink_unprotects_and_flashes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk, project, tool = prepare_wlink_project(root)
+            run = mock.Mock()
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout=self.status_output(True), stderr=None),
+                mock.Mock(
+                    returncode=0,
+                    stdout="[INFO] Unprotect Flash\n[INFO] Read protected: false\n",
+                    stderr=None,
+                ),
+                mock.Mock(
+                    returncode=0,
+                    stdout="[INFO] Flashing 4 bytes to 0x08000000\n[INFO] Flash done\n",
+                    stderr=None,
+                ),
+            ]
+            with mock.patch("ecos_cli.flashing.subprocess.run", run):
+                data = flashing.flash_project(
+                    sdk_context(sdk), project_root=project
+                )
+
+            self.assertEqual(data["provider"], "wlink")
+            self.assertEqual(data["chip"], "CH32V103")
+            self.assertEqual(data["attached_chip"], "CH32V103")
+            self.assertIn("WCH-LinkE", data["probe"])
+            self.assertTrue(data["read_protected"])
+            self.assertTrue(data["unprotected"])
+            self.assertTrue(data["erase"])
+            self.assertTrue(data["artifact"].endswith("retrosoc_fw.hex"))
+            self.assertIn("[INFO] Flash done", data["tool_output"])
+            self.assertEqual(
+                [call.args[0] for call in run.call_args_list],
+                [
+                    [str(tool), "--chip", "CH32V103", "status"],
+                    [str(tool), "--chip", "CH32V103", "unprotect"],
+                    [
+                        str(tool),
+                        "--chip",
+                        "CH32V103",
+                        "flash",
+                        "-e",
+                        str(project / "build" / "retrosoc_fw.hex"),
+                    ],
+                ],
+            )
+
+    def test_wlink_requires_opt_in_for_protected_chip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk, project, _ = prepare_wlink_project(root, unprotect=False)
+            run = mock.Mock(
+                return_value=mock.Mock(
+                    returncode=0, stdout=self.status_output(True), stderr=None
+                )
+            )
+            with mock.patch("ecos_cli.flashing.subprocess.run", run):
+                with self.assertRaisesRegex(
+                    flashing.FlashConfigurationError, "read-protected"
+                ):
+                    flashing.flash_project(
+                        sdk_context(sdk), project_root=project
+                    )
+            self.assertEqual(run.call_count, 1)
+
+    def test_wlink_flash_failure_reports_tool_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk, project, _ = prepare_wlink_project(root)
+            run = mock.Mock()
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout=self.status_output(False), stderr=None),
+                mock.Mock(
+                    returncode=1,
+                    stdout="[ERROR] failed to write flash\n",
+                    stderr=None,
+                ),
+            ]
+            with mock.patch("ecos_cli.flashing.subprocess.run", run):
+                with self.assertRaisesRegex(
+                    flashing.FlashWriteError, "failed to write flash"
+                ):
+                    flashing.flash_project(
+                        sdk_context(sdk), project_root=project
+                    )
+
+    def test_wlink_board_requires_chip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = create_sdk(Path(directory) / "sdk")
+            path = sdk / "boards" / "StarrySkyL4" / "ecos-board.yml"
+            path.write_text(
+                path.read_text(encoding="utf-8")
+                + "flash:\n"
+                + "  provider: wlink\n"
+                + "  artifact: hex\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ManifestValidationError, "chip"):
+                _read_manifest(path, "Board")
+
+    def test_wlink_missing_tool_is_configuration_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk, project, tool = prepare_wlink_project(root)
+            tool.unlink()
+            with self.assertRaisesRegex(
+                flashing.FlashConfigurationError, "does not exist"
+            ):
+                flashing.flash_project(sdk_context(sdk), project_root=project)
+
+    def test_cli_wlink_flash_json_and_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk, project, _ = prepare_wlink_project(root)
+            for output_format in ("json", "text"):
+                run = mock.Mock()
+                run.side_effect = [
+                    mock.Mock(
+                        returncode=0,
+                        stdout=self.status_output(False),
+                        stderr=None,
+                    ),
+                    mock.Mock(
+                        returncode=0,
+                        stdout="[INFO] Flash done\n",
+                        stderr=None,
+                    ),
+                ]
+                output = StringIO()
+                log_output = StringIO()
+                with (
+                    mock.patch("ecos_cli.flashing.subprocess.run", run),
+                    redirect_stdout(output),
+                    redirect_stderr(log_output),
+                ):
+                    result = main(
+                        [
+                            "--sdk",
+                            str(sdk),
+                            "flash",
+                            "--project",
+                            str(project),
+                            "--format",
+                            output_format,
+                        ]
+                    )
+                self.assertEqual(result, ExitCode.OK)
+                if output_format == "json":
+                    payload = json.loads(output.getvalue())
+                    self.assertEqual(payload["data"]["provider"], "wlink")
+                    self.assertEqual(payload["data"]["chip"], "CH32V103")
+                    self.assertFalse(payload["data"]["unprotected"])
+                else:
+                    text = log_output.getvalue()
+                    self.assertIn("Probe: WCH-Link", text)
+                    self.assertIn("Chip: CH32V103", text)
+                    self.assertIn("SHA-256:", text)
+
 
 
 if __name__ == "__main__":

@@ -320,7 +320,8 @@ ecos menuconfig [--project PATH]
 ecos build [--project PATH] [--clean] [--format text|json]
 ecos clean [--project PATH] [--dry-run] [--format text|json]
 ecos doctor [--project PATH] [--format text|json]
-ecos flash [--project PATH] [--device DIRECTORY] [--format text|json]
+ecos flash [--project PATH] [--device DIRECTORY] [--tool PATH]
+           [--unprotect|--no-unprotect] [--format text|json]
 ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
              [--timeout SECONDS] [--expect TEXT] [--format text|json]
 ```
@@ -345,6 +346,12 @@ ecos monitor [--project PATH] [--port PORT] [--baudrate RATE]
 StarrySky L4C1 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上由 Python 查找
 卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
 模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
+
+CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用；`ecos flash` 调用
+Board 的 `flash.tool`（默认 `wlink`），也可用 `--tool` 或环境变量 `ECOS_WLINK`
+覆盖。命令会先运行 `wlink status` 检查读保护：若芯片处于保护状态，只有在
+`Board.flash.unprotect: true` 或显式 `--unprotect` 时才执行 `wlink unprotect`
+（全片擦除）后继续烧录，否则返回配置错误；`--no-unprotect` 可显式拒绝自动解除保护。
 
 `ecos clean` 只删除 CMake 缓存指向当前工程及其生成配置的 `build/`；无法识别的目录
 会保留并报错。`--dry-run` 返回待删除路径，不写入文件。`ecos build --clean` 保留为

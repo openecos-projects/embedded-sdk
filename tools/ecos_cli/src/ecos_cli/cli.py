@@ -1077,7 +1077,20 @@ def run_flash(argv: Sequence[str], sdk_context: SdkContext) -> int:
         dest="device",
         type=Path,
         metavar="DIRECTORY",
-        help="programmer mount directory (auto-detected by volume label by default)",
+        help="mass-storage programmer mount directory (auto-detected by volume label by default)",
+    )
+    parser.add_argument(
+        "--tool",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="flash programmer executable for the wlink provider (overrides Board.flash.tool)",
+    )
+    parser.add_argument(
+        "--unprotect",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="allow the wlink provider to disable chip read protection (mass erase)",
     )
     parser.add_argument(
         "--format", choices=("text", "json"), default="text", dest="output_format"
@@ -1094,15 +1107,26 @@ def run_flash(argv: Sequence[str], sdk_context: SdkContext) -> int:
         )
     try:
         data = flashing.flash_project(
-            sdk_context, project_root=args.project, device=args.device
+            sdk_context,
+            project_root=args.project,
+            device=args.device,
+            tool=args.tool,
+            unprotect=args.unprotect,
         )
         if args.output_format == "json":
             emit_json(envelope("flash", "ok", data))
         else:
             console = ConsoleProgress()
             console.info(f"Firmware flashed: {data['artifact']}")
-            console.info(f"Device: {data['device']}")
+            if data.get("probe"):
+                console.info(f"Probe: {data['probe']}")
+            if data.get("attached_chip"):
+                console.info(f"Chip: {data['attached_chip']}")
+            if data.get("device"):
+                console.info(f"Device: {data['device']}")
             console.info(f"SHA-256: {data['sha256']}")
+            if data.get("unprotected"):
+                console.info("Read protection disabled (chip mass-erased).")
         return int(ExitCode.OK)
     except (project.ProjectError, project_model.ProjectModelError) as exc:
         return _project_error("flash", args.output_format, exc)

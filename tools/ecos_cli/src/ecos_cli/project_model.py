@@ -739,17 +739,36 @@ def _resolve_board(
                 "volume_label",
                 "copy_count",
                 "settle_seconds",
+                "chip",
+                "tool",
+                "unprotect",
+                "erase",
             },
             kind="Board flash",
             path=path,
         )
-        _string(flash.get("provider"), "Board.flash.provider", path)
+        provider = _string(flash.get("provider"), "Board.flash.provider", path)
         flash_artifact = _string(
             flash.get("artifact", "bin"), "Board.flash.artifact", path
         )
         project.validate_selection("Board flash artifact", flash_artifact)
         if "volume_label" in flash:
             _string(flash["volume_label"], "Board.flash.volume_label", path)
+        chip = flash.get("chip")
+        if chip is not None:
+            _string(chip, "Board.flash.chip", path)
+        elif provider == "wlink":
+            raise ManifestValidationError(
+                f"Board.flash.chip is required for the wlink provider in {path}"
+            )
+        tool = flash.get("tool")
+        if tool is not None:
+            _string(tool, "Board.flash.tool", path)
+        for flag in ("unprotect", "erase"):
+            if flag in flash and not isinstance(flash[flag], bool):
+                raise ManifestValidationError(
+                    f"Board.flash.{flag} must be a boolean in {path}"
+                )
         copy_count = flash.get("copy_count", 1)
         settle_seconds = flash.get("settle_seconds", 0)
         if not isinstance(copy_count, int) or isinstance(copy_count, bool) or copy_count < 1:

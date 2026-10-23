@@ -36,8 +36,13 @@ target: demo-soc
 | `build.default_profile`, `build.profiles`, `build.components` | 默认 profile、profile 的 Kconfig 预设、板级构建单元 ID。 |
 | `resources` | 逻辑资源映射；`gpio-demo`、`led`、`qspi-bus`、`soft-spi-bus`、`display` 等有专门字段约束。 |
 | `kconfig.board` | Board 使用的板级 Kconfig 路径。 |
-| `flash`, `monitor` | 显式烧录方式、固件类型及串口参数；不声明时不自动推测。 |
+| `flash` | 显式烧录方式、固件类型及参数；`provider: mass-storage` 使用 `volume_label` 等字段，`provider: wlink` 使用 `chip`、`tool`、`unprotect`、`erase`。不声明时不自动推测。 |
+| `monitor` | 串口参数（`baudrate`、可选的 `vid`/`pid`/`serial_number`）。 |
 | `debug` | 可选 `cppdbg` 适配器、已运行调试服务器的 `server_address` 和入口暂停设置。 |
+
+`flash.artifact` 选择 `artifacts.json` 中的产物，默认 `bin`。`wlink` provider 的
+`chip` 是必填的芯片族（例如 `CH32V103`），`tool` 默认 `wlink`，`unprotect` 和
+`erase` 分别默认 `false` 和 `true`；`unprotect` 会全片擦除受保护的芯片。
 
 典型错误：删除 `target` 后执行 `ecos schema validate board PATH --format json`，
 返回 `ECOS_SCHEMA_INVALID`，`field` 为 `/`，错误信息指出缺少 `target`。

@@ -113,8 +113,21 @@
         "artifact": {"$ref": "#/$defs/selection"},
         "volume_label": {"$ref": "#/$defs/text"},
         "copy_count": {"type": "integer", "minimum": 1},
-        "settle_seconds": {"type": "number", "minimum": 0}
-      }
+        "settle_seconds": {"type": "number", "minimum": 0},
+        "chip": {"$ref": "#/$defs/text"},
+        "tool": {"$ref": "#/$defs/text"},
+        "unprotect": {"type": "boolean"},
+        "erase": {"type": "boolean"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"provider": {"const": "wlink"}},
+            "required": ["provider"]
+          },
+          "then": {"required": ["chip"]}
+        }
+      ]
     },
     "monitor": {
       "type": "object",
