@@ -28,6 +28,20 @@ class FlashConfigurationError(FlashError):
     """The selected Board has no usable flash configuration."""
 
 
+class FlashDriverError(FlashConfigurationError):
+    """The programmer cannot use the installed host USB driver."""
+
+    suggestion = (
+        "The pinned Windows x64 wlink requires WinUSB for the WCH-Link debug "
+        "interface (USBCCGP may be needed for composite devices); it cannot use "
+        "the WCH WDM driver (WCHLink_A64). Keep the WDM driver by selecting a "
+        "compatible x86 wlink with 'ecos flash --tool C:\\path\\to\\wlink.exe' or "
+        "ECOS_WLINK, or deliberately install WinUSB on the debug interface only. "
+        "Changing drivers can affect WCH-LinkUtility/MRS; do not replace the "
+        "serial interface driver. No alternative tool is selected automatically."
+    )
+
+
 class FlashDeviceNotFound(FlashError):
     """The configured programmer volume cannot be found."""
 
@@ -260,6 +274,10 @@ def _run_wlink(
     output = (completed.stdout or "").strip()
     if completed.returncode != 0:
         detail = output or f"exit code {completed.returncode}"
+        if "incompatible driver" in output.casefold():
+            raise FlashDriverError(
+                f"wlink USB driver is incompatible: {' '.join(command)}\n{detail}"
+            )
         raise FlashWriteError(
             f"wlink command failed: {' '.join(command)}\n{detail}"
         )

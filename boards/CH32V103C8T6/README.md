@@ -29,6 +29,11 @@ python3 tools/ecos.py --sdk . build \
   --project /path/to/workspace/hello-ch32v103
 ```
 
+如果更新前已安装过全局 `ecos`，请从修复后的 checkout 运行
+`python3 tools/install.py --skip-toolchain --skip-wlink --shell none`（Windows 使用
+`python`），同步刷新 CLI 内置的工具链清单。仅修改 checkout 的 JSON 不会更新已安装
+CLI 的副本；同名 SDK 注册冲突的处理见 `docs/install.md`。
+
 安装并正确选择本开发 SDK 后，也可使用：
 
 ```bash
@@ -60,31 +65,32 @@ flash:
 
 `tools/install.py` 会安装 pinned wlink `0.1.3`（Windows 为
 `%LOCALAPPDATA%\ECOS\lib\ecos\tools\wlink\`），`ecos flash` 会自动使用它。
-Windows 上 `wlink.exe` 需要 WCH-Link 驱动提供的 `CH375DLL64.dll`（WCH-LinkUtility/MRS
-已带）；若提示找不到 DLL，先安装 WCH-LinkUtility。
-只有在使用 `--skip-wlink`、宿主没有对应资产，或想换用其他 wlink 版本时，才需要
-手动准备（例如 nightly）：
+Windows 固定的 x64 资产使用 nusb/WinUSB 后端，需要 WCH-Link 调试接口绑定 WinUSB
+（复合设备还需正确的 USBCCGP 父驱动），不能直接使用常见的 WCH WDM 驱动
+`WCHLink_A64`。补 `CH375DLL64.dll` 不能使该 x64 程序使用 WDM 驱动。
+
+保留 WCH-LinkUtility/MRS 的 WDM 驱动时，可下载支持原生 WCH 驱动的 x86 版本：
 
 ```text
-https://github.com/ch32-rs/wlink/releases/download/nightly/wlink-win-x64.zip
+https://github.com/ch32-rs/wlink/releases/download/v0.1.3/wlink-v0.1.3-win-x86.zip
 ```
 
-然后任选一种方式覆盖：
-
-```powershell
-# 1) 放进 PATH，或
-# 2) 设置环境变量
-$env:ECOS_WLINK = "C:\tools\wlink.exe"
-# 3) 或每次显式指定
-ecos flash --tool C:\tools\wlink.exe
-```
-
-然后：
+保留发行包文件，并按 x86 工具要求准备 WCH DLL。构建后任选一种方式覆盖：
 
 ```powershell
 ecos build
+# 1) 每次显式指定（优先于环境变量）
+ecos flash --tool C:\tools\wlink-x86\wlink.exe
+# 2) 或在当前会话设置环境变量后使用默认命令
+$env:ECOS_WLINK = "C:\tools\wlink-x86\wlink.exe"
 ecos flash
 ```
+
+受管安装存在时，仅把其他 wlink 放进 `PATH` 不会覆盖它。
+`incompatible driver is installed for this interface` 会返回
+`ECOS_FLASH_DRIVER_INCOMPATIBLE`，而不是“设备未找到”；CLI 不会自动换用其他工具或
+驱动。也可自行给调试接口安装 WinUSB，但这可能影响 WCH-LinkUtility/MRS；请确认
+接口后操作，不要替换串口接口驱动。
 
 `unprotect: true` 表示芯片处于读保护时允许先执行 `wlink unprotect`（会全片擦除）
 再烧录。若希望遇到保护状态直接失败：
@@ -126,7 +132,8 @@ ecos flash --no-unprotect
 wlink 解除读保护与烧录。
 仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性、OpenOCD 烧录路径，
 以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。`ecos flash` 的 wlink
-provider 已实现并通过单元测试，待用实物复测。
+provider 已实现并通过单元测试，待用实物复测。#30 的 Windows x64 驱动错误诊断和
+x86 工具覆盖路径有自动化回归测试，但本次修复未进行 Windows/WCH-Link 实机复测。
 
 ## 手动 OpenOCD 烧录（在 CH32V103 上实测失败，仅作记录）
 

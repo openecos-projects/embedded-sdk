@@ -347,11 +347,20 @@ StarrySky L4C1 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上�
 卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
 模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
 
-CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用；`ecos flash` 优先使用
-SDK 安装器下载的受管 wlink，其次使用 Board 的 `flash.tool`（默认 `wlink`）；也可用
-`--tool` 或环境变量 `ECOS_WLINK` 覆盖。命令会先运行 `wlink status` 检查读保护：若芯片处于保护状态，只有在
+CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用。工具选择顺序为
+`--tool`、`ECOS_WLINK`、Board 的显式 `flash.tool` 路径或自定义命令；Board 未指定工具
+或使用默认名称 `wlink` / `wlink.exe` 时，先查受管安装，缺失时才查 `PATH`。已有受管
+安装时，仅把其他 wlink 放到 `PATH` 不会覆盖它。
+
+命令会先运行 `wlink status` 检查读保护：若芯片处于保护状态，只有在
 `Board.flash.unprotect: true` 或显式 `--unprotect` 时才执行 `wlink unprotect`
 （全片擦除）后继续烧录，否则返回配置错误；`--no-unprotect` 可显式拒绝自动解除保护。
+
+Windows x64 的 pinned wlink 使用 WinUSB，不能直接使用 WCH WDM 驱动。收到
+`incompatible driver` 时返回 `ECOS_FLASH_DRIVER_INCOMPATIBLE`（退出码 `3`），JSON
+诊断的 `suggestion` 和文本输出会说明 WinUSB 与兼容 x86 wlink 的处理方法。CLI 不会
+自动换工具、改绑驱动或继续擦写；保留 WDM 驱动可通过 `--tool PATH` / `ECOS_WLINK`
+明确选择 x86 版本。驱动安装与已安装 CLI 清单的刷新方法见 [install.md](install.md)。
 
 `ecos clean` 只删除 CMake 缓存指向当前工程及其生成配置的 `build/`；无法识别的目录
 会保留并报错。`--dry-run` 返回待删除路径，不写入文件。`ecos build --clean` 保留为

@@ -90,8 +90,26 @@ wlink 同样按 `<release>/<host>` 安装在主机级目录：
 当前锁定 wlink `0.1.3`。`ecos flash` 默认使用该受管安装；`--tool PATH` 或
 `ECOS_WLINK` 可覆盖。当前 pin 提供 `linux-x86_64`、`macos-arm64` 和
 `windows-x86_64` 资产；其他宿主会跳过 wlink 安装，需要手动提供可执行文件。
-Windows 上 wlink 依赖 WCH-Link 驱动提供的 `CH375DLL64.dll`，安装
-WCH-LinkUtility/MRS 时已一并安装。
+Windows 受管资产 `wlink-v0.1.3-win-x64.zip` 使用 nusb/WinUSB 后端，需要 WCH-Link
+调试接口绑定 WinUSB（复合设备还需正确的 USBCCGP 父驱动），不能直接使用 WCH WDM
+驱动 `WCHLink_A64`。给该 x64 程序补 `CH375DLL64.dll` 不能解决驱动不兼容问题。
+
+如果需要保留 WCH-LinkUtility/MRS 使用的 WDM 驱动，可自行下载支持原生 WCH 驱动的
+[x86 wlink 0.1.3](https://github.com/ch32-rs/wlink/releases/download/v0.1.3/wlink-v0.1.3-win-x86.zip)，
+保留发行包文件并按其要求准备 WCH DLL，用明确路径覆盖受管程序：
+
+```powershell
+ecos flash --tool C:\tools\wlink-x86\wlink.exe
+# 或在当前 PowerShell 会话设置
+$env:ECOS_WLINK = "C:\tools\wlink-x86\wlink.exe"
+ecos flash
+```
+
+仅把另一个 wlink 放到 `PATH` 不会覆盖已有的受管安装。遇到
+`incompatible driver is installed for this interface` 时，CLI 返回配置诊断
+`ECOS_FLASH_DRIVER_INCOMPATIBLE`，提示使用兼容的 x86 工具或为调试接口安装 WinUSB；
+不会自动换工具、重绑驱动或继续擦写。若选择改绑 WinUSB，请先确认 USB 接口，勿替换
+串口接口驱动；更换调试接口驱动可能影响 WCH-LinkUtility/MRS。
 
 用户 BSP 存在版本目录之外：
 
@@ -138,6 +156,20 @@ python3 tools/install.py --skip-wlink
 ```
 
 `--skip-wlink` 之后可设置 `ECOS_WLINK` 或 `--tool` 指向手动准备的 wlink。
+
+### 更新已安装 CLI 的内置清单
+
+全局 `ecos` 使用主机级安装中的 Python 包和工具链清单；修改 SDK checkout 中的 JSON
+不会自动更新该副本。更新到修复 CH32V103 ISA/ABI 声明的代码后，应从此 checkout
+重跑安装器以刷新 CLI（PowerShell 将 `python3` 换为 `python`）：
+
+```bash
+python3 tools/install.py --skip-toolchain --skip-wlink --shell none
+```
+
+该命令仍会检查/安装主机 Python、CMake/Ninja 依赖并注册 SDK；不会重装交叉工具链和
+wlink，也不修改 Shell 配置。若有同名 SDK 注册冲突，确认目标 checkout 后添加
+`--replace-registration`。不要只修改已安装目录里的 JSON 作为长期修复。
 
 ## 5. 注册表与多版本
 

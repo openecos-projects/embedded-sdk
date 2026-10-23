@@ -1258,6 +1258,127 @@ class WlinkFlashTest(unittest.TestCase):
                         sdk_context(sdk), project_root=project
                     )
 
+    def test_wlink_incompatible_driver_is_not_reported_as_missing_device(self):
+        for operation in ("status", "unprotect", "flash"):
+            with self.subTest(operation=operation):
+                responses = []
+                if operation != "status":
+                    responses.append(mock.Mock(
+                        returncode=0,
+                        stdout=self.status_output(operation == "unprotect"),
+                    ))
+                responses.append(mock.Mock(
+                    returncode=1,
+                    stdout="Error: USB error: incompatible driver is installed for this interface",
+                ))
+                with (
+                    mock.patch(
+                        "ecos_cli.flashing.resolve_flash_tool", return_value=Path("wlink.exe")
+                    ),
+                    mock.patch(
+                        "ecos_cli.flashing.subprocess.run", side_effect=responses
+                    ) as run,
+                ):
+                    with self.assertRaisesRegex(
+                        flashing.FlashDriverError, "incompatible driver"
+                    ):
+                        flashing._flash_wlink(
+                            {"chip": "CH32V103", "unprotect": True},
+                            Path("firmware.hex"), tool=Path("wlink.exe"),
+                            unprotect=None,
+                        )
+                self.assertEqual(run.call_count, len(responses))
+                self.assertEqual(run.call_args.args[0][3], operation)
+
+    def test_cli_wlink_driver_error_has_actionable_diagnostic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk, project, tool = prepare_wlink_project(Path(directory))
+            for output_format in ("json", "text"):
+                with self.subTest(output_format=output_format):
+                    output = StringIO()
+                    errors = StringIO()
+                    with (
+                        mock.patch(
+                            "ecos_cli.flashing.subprocess.run",
+                            return_value=mock.Mock(
+                                returncode=1,
+                                stdout="USB error: Incompatible driver is installed for this interface",
+                            ),
+                        ) as run,
+                        redirect_stdout(output),
+                        redirect_stderr(errors),
+                    ):
+                        result = main([
+                            "--sdk", str(sdk), "flash", "--project", str(project),
+                            "--format", output_format,
+                        ])
+                    self.assertEqual(result, ExitCode.CONFIG)
+                    if output_format == "json":
+                        payload = json.loads(output.getvalue())
+                        self.assertEqual(payload["status"], "error")
+                        diagnostic = payload["diagnostics"][0]
+                        self.assertEqual(
+                            diagnostic["code"], "ECOS_FLASH_DRIVER_INCOMPATIBLE"
+                        )
+                        self.assertIn(str(tool), diagnostic["message"])
+                        advice = diagnostic["suggestion"]
+                    else:
+                        self.assertEqual(output.getvalue(), "")
+                        self.assertIn("ECOS_FLASH_DRIVER_INCOMPATIBLE", errors.getvalue())
+                        advice = errors.getvalue()
+                    for text in ("WinUSB", "WDM", "x86", "--tool", "ECOS_WLINK"):
+                        self.assertIn(text, advice)
+                    run.assert_called_once()
+                    self.assertEqual(run.call_args.args[0][-1], "status")
+
+    def test_wlink_explicit_tool_and_environment_override_managed_tool(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            explicit = root / "explicit-wlink.exe"
+            environment = root / "environment-wlink.exe"
+            for executable in (explicit, environment):
+                executable.write_text("", encoding="utf-8")
+                executable.chmod(0o755)
+            for override, expected in ((explicit, explicit), (None, environment)):
+                with (
+                    self.subTest(override=override),
+                    mock.patch.dict(os.environ, {"ECOS_WLINK": str(environment)}),
+                    mock.patch("ecos_cli.flashing.managed_tools.resolve_wlink") as managed,
+                    mock.patch(
+                        "ecos_cli.flashing.subprocess.run",
+                        side_effect=[
+                            mock.Mock(returncode=0, stdout=self.status_output(False)),
+                            mock.Mock(returncode=0, stdout="[INFO] Flash done"),
+                        ],
+                    ) as run,
+                ):
+                    result = flashing._flash_wlink(
+                        {"chip": "CH32V103", "tool": "wlink"},
+                        root / "firmware.hex", tool=override, unprotect=None,
+                    )
+                self.assertEqual(result["tool"], str(expected.resolve()))
+                self.assertTrue(all(
+                    call.args[0][0] == str(expected.resolve())
+                    for call in run.call_args_list
+                ))
+                managed.assert_not_called()
+
+    def test_wlink_status_connection_error_remains_device_not_found(self):
+        with (
+            mock.patch(
+                "ecos_cli.flashing.resolve_flash_tool", return_value=Path("wlink.exe")
+            ),
+            mock.patch(
+                "ecos_cli.flashing.subprocess.run",
+                return_value=mock.Mock(returncode=1, stdout="WCH-Link device not found"),
+            ),
+        ):
+            with self.assertRaisesRegex(flashing.FlashDeviceNotFound, "device not found"):
+                flashing._flash_wlink(
+                    {"chip": "CH32V103"}, Path("firmware.hex"),
+                    tool=Path("wlink.exe"), unprotect=None,
+                )
+
     def test_wlink_board_requires_chip(self):
         with tempfile.TemporaryDirectory() as directory:
             sdk = create_sdk(Path(directory) / "sdk")

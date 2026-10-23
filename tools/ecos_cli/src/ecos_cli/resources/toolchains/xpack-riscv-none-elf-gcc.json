@@ -20,6 +20,11 @@
       "abi": "ilp32"
     },
     {
+      "names": ["ch32v103", "CH32V103C8T6"],
+      "isa": "rv32imac_zicsr_zifencei",
+      "abi": "ilp32"
+    },
+    {
       "names": ["StarrySkyT1Pico"],
       "isa": "rv32imc_zicsr_zifencei",
       "abi": "ilp32"

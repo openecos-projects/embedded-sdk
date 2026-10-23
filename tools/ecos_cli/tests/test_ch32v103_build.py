@@ -3,17 +3,19 @@
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 SDK_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SDK_ROOT / "tools/ecos_cli/src"))
 
-from ecos_cli import dependencies, toolchain
+from ecos_cli import dependencies, installer, toolchain
 from ecos_cli.cli import main
 
 
@@ -75,6 +77,42 @@ def intel_hex_image(text):
 
 
 class CH32V103SelectionTest(unittest.TestCase):
+    def test_hello_creation_does_not_require_installed_compiler(self):
+        output = StringIO()
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(toolchain, "compatible_installation_status") as status,
+            redirect_stdout(output),
+            redirect_stderr(output),
+        ):
+            result = main([
+                "--sdk", str(SDK_ROOT), "project", "create", "hello",
+                "--board", "ch32v103c8t6", "--path", directory, "--format", "json",
+            ])
+            self.assertEqual(result, 0, output.getvalue())
+            self.assertTrue((Path(directory) / "hello/.ecos/project.yml").is_file())
+            status.assert_not_called()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
+        self.assertEqual(payload["data"]["target"], "ch32v103")
+        self.assertIsNone(payload["data"]["profile"])  # Inherit the Board default.
+
+    def test_installed_cli_includes_ch32v103_toolchain_support(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            host = root / "host"
+            installer.install_host_cli(SDK_ROOT, host)
+            result = subprocess.run([
+                sys.executable, str(host / "bin/ecos"),
+                "--sdk", str(SDK_ROOT), "project", "create", "hello",
+                "--board", "ch32v103c8t6", "--path", str(root),
+                "--dry-run", "--format", "json",
+            ], capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
+            self.assertFalse((root / "hello").exists())
+
     def test_unsupported_blink_is_rejected(self):
         output = StringIO()
         with tempfile.TemporaryDirectory() as directory, redirect_stdout(output), redirect_stderr(output):

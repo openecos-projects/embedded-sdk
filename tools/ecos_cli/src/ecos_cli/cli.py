@@ -1130,6 +1130,15 @@ def run_flash(argv: Sequence[str], sdk_context: SdkContext) -> int:
         return int(ExitCode.OK)
     except (project.ProjectError, project_model.ProjectModelError) as exc:
         return _project_error("flash", args.output_format, exc)
+    except flashing.FlashDriverError as exc:
+        return emit_error(
+            "flash",
+            args.output_format,
+            "ECOS_FLASH_DRIVER_INCOMPATIBLE",
+            str(exc),
+            ExitCode.CONFIG,
+            suggestion=exc.suggestion,
+        )
     except flashing.FlashConfigurationError as exc:
         return emit_error(
             "flash",
