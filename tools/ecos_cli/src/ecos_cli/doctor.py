@@ -170,9 +170,9 @@ def inspect_environment(
                         )
                     )
             elif provider == "wlink":
-                command = os.environ.get("ECOS_WLINK") or flash.get("tool", "wlink")
+                command = os.environ.get("ECOS_WLINK") or flash.get("tool")
                 try:
-                    executable = flashing.resolve_flash_tool(command)
+                    executable = flashing.resolve_wlink_command(command)
                 except flashing.FlashConfigurationError as exc:
                     checks["flash"] = {
                         "state": "unavailable",

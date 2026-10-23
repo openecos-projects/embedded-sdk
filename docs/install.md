@@ -15,9 +15,9 @@ ecos sdk current
 ```
 
 开发模式把 checkout 注册为 `checkout`，源码修改立即生效。安装器还会在用户级目录安装
-Python `ecos` 启动器、CLI 依赖、CMake、Ninja、Shell 补全，以及缺失时的锁定工具链。
+Python `ecos` 启动器、CLI 依赖、CMake、Ninja、wlink、Shell 补全，以及缺失时的锁定工具链。
 `--dry-run` 不写文件也不访问网络。使用 `--skip-toolchain` 可暂缓交叉编译器安装；随后运行
-`ecos toolchain install`。
+`ecos toolchain install`。使用 `--skip-wlink` 可暂缓 wlink 烧录工具安装。
 
 要注册另一个 checkout 而不运行安装器，可执行：
 
@@ -64,7 +64,7 @@ release 模式把声明的 SDK 文件先复制到同一文件系统的 staging �
 
 全局 `ecos` CLI 不绑定某个 SDK 版本。GNU/Linux 和 macOS 默认入口是
 `~/.local/bin/ecos`，Windows 默认入口是 `%LOCALAPPDATA%\ECOS\bin\ecos.cmd`。
-CLI 包、Python 依赖、CMake、Ninja 和补全安装在主机级目录；切换 active SDK 只修改
+CLI 包、Python 依赖、CMake、Ninja、wlink 和补全安装在主机级目录；切换 active SDK 只修改
 注册表，不重写 `PATH`。可通过 `--host-prefix PATH` 指定主机工具前缀。
 
 交叉编译器按 `<toolchain-id>/<release>/<host>` 共享安装：
@@ -78,6 +78,20 @@ CLI 包、Python 依赖、CMake、Ninja 和补全安装在主机级目录；切�
 当前 SDK 锁定 xPack GNU RISC-V Embedded GCC `15.2.0-1`，编译器命令前缀是
 `riscv-none-elf-`。`ecos build` 通过工具链状态解析绝对路径，不要求把交叉编译器加入
 全局 `PATH`。下载缓存独立于安装目录；清理缓存不会删除已安装工具链。
+
+wlink 同样按 `<release>/<host>` 安装在主机级目录：
+
+| 平台 | 默认 wlink 根目录 |
+| --- | --- |
+| GNU/Linux | `~/.local/lib/ecos/tools/wlink/` |
+| macOS | `~/.local/lib/ecos/tools/wlink/` |
+| Windows | `%LOCALAPPDATA%\ECOS\lib\ecos\tools\wlink\` |
+
+当前锁定 wlink `0.1.3`。`ecos flash` 默认使用该受管安装；`--tool PATH` 或
+`ECOS_WLINK` 可覆盖。当前 pin 提供 `linux-x86_64`、`macos-arm64` 和
+`windows-x86_64` 资产；其他宿主会跳过 wlink 安装，需要手动提供可执行文件。
+Windows 上 wlink 依赖 WCH-Link 驱动提供的 `CH375DLL64.dll`，安装
+WCH-LinkUtility/MRS 时已一并安装。
 
 用户 BSP 存在版本目录之外：
 
@@ -115,6 +129,15 @@ ecos toolchain status --format json
 python3 tools/install.py --skip-toolchain
 ecos toolchain install
 ```
+
+wlink 也可离线安装或暂缓：
+
+```bash
+python3 tools/install.py --wlink-archive /path/to/wlink-v0.1.3-linux-x64.tar.gz
+python3 tools/install.py --skip-wlink
+```
+
+`--skip-wlink` 之后可设置 `ECOS_WLINK` 或 `--tool` 指向手动准备的 wlink。
 
 ## 5. 注册表与多版本
 

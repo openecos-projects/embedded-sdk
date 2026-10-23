@@ -347,9 +347,9 @@ StarrySky L4C1 的 mass-storage provider 在 GNU/Linux、macOS 和 Windows 上�
 卷标，也允许 `--device` 显式指定挂载目录。`monitor` 使用 PySerial 发现或打开串口；JSON
 模式必须通过 `--timeout` 或 `--expect` 保证命令能够结束。
 
-CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用；`ecos flash` 调用
-Board 的 `flash.tool`（默认 `wlink`），也可用 `--tool` 或环境变量 `ECOS_WLINK`
-覆盖。命令会先运行 `wlink status` 检查读保护：若芯片处于保护状态，只有在
+CH32V103C8T6 声明 `provider: wlink`。此时 `--device` 不适用；`ecos flash` 优先使用
+SDK 安装器下载的受管 wlink，其次使用 Board 的 `flash.tool`（默认 `wlink`）；也可用
+`--tool` 或环境变量 `ECOS_WLINK` 覆盖。命令会先运行 `wlink status` 检查读保护：若芯片处于保护状态，只有在
 `Board.flash.unprotect: true` 或显式 `--unprotect` 时才执行 `wlink unprotect`
 （全片擦除）后继续烧录，否则返回配置错误；`--no-unprotect` 可显式拒绝自动解除保护。
 

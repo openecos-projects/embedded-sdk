@@ -136,7 +136,7 @@ class SdkInstallerTest(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable, "-S", str(SDK_ROOT / "tools/install.py"),
-                    "--dry-run", "--skip-toolchain", "--shell", "none",
+                    "--dry-run", "--skip-toolchain", "--skip-wlink", "--shell", "none",
                     "--host-prefix", str(root / "host"),
                     "--registry", str(root / "registry.json"),
                     "--format", "json",
@@ -177,7 +177,7 @@ class SdkInstallerTest(unittest.TestCase):
                     [
                         "--prefix", str(install_base),
                         "--host-prefix", str(host_prefix),
-                        "--skip-toolchain", "--shell", "none",
+                        "--skip-toolchain", "--skip-wlink", "--shell", "none",
                         "--registry", str(registry_path),
                     ],
                     sdk_root=source,
@@ -453,7 +453,7 @@ class SdkInstallerTest(unittest.TestCase):
                         str(install_base),
                         "--host-prefix",
                         str(root / "host"),
-                        "--skip-toolchain",
+                        "--skip-toolchain", "--skip-wlink",
                         "--shell",
                         "bash",
                         "--shell-profile",
@@ -523,7 +523,7 @@ class SdkInstallerTest(unittest.TestCase):
                                 str(install_base),
                                 "--host-prefix",
                                 str(root / "host"),
-                                "--skip-toolchain",
+                                "--skip-toolchain", "--skip-wlink",
                                 "--shell",
                                 "none",
                                 "--registry",
@@ -564,7 +564,7 @@ class SdkInstallerTest(unittest.TestCase):
                 str(install_base),
                 "--host-prefix",
                 str(root / "host"),
-                "--skip-toolchain",
+                "--skip-toolchain", "--skip-wlink",
                 "--shell",
                 "none",
                 "--registry",
@@ -680,7 +680,7 @@ class SdkInstallerTest(unittest.TestCase):
                         str(prefix),
                         "--host-prefix",
                         str(root / "host"),
-                        "--skip-toolchain",
+                        "--skip-toolchain", "--skip-wlink",
                         "--dry-run",
                         "--shell",
                         "none",
@@ -709,7 +709,7 @@ class SdkInstallerTest(unittest.TestCase):
                         str(prefix),
                         "--host-prefix",
                         str(root / "host"),
-                        "--skip-toolchain",
+                        "--skip-toolchain", "--skip-wlink",
                         "--dry-run",
                         "--format",
                         "json",
@@ -760,6 +760,10 @@ class SdkInstallerTest(unittest.TestCase):
             self.assertEqual(
                 payload["data"]["toolchain"]["selection"]["release"],
                 "15.2.0-1",
+            )
+            self.assertEqual(
+                payload["data"]["wlink"]["selection"]["release"],
+                "0.1.3",
             )
             self.assertEqual(
                 payload["data"]["prefix"], str((prefix / "3.0.0").resolve())

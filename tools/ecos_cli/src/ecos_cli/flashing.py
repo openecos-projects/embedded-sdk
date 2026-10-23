@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping, Optional
 
 from . import artifacts
 from . import configuration
+from . import managed_tools
 from .project_model import ProjectModelError, resolve_project
 from .sdk_context import SdkContext
 
@@ -195,9 +196,19 @@ def resolve_flash_tool(command: str) -> Path:
     if found:
         return Path(found).resolve()
     raise FlashConfigurationError(
-        f"flash tool {command!r} was not found in PATH; install wlink or set "
-        "Board.flash.tool, ECOS_WLINK, or --tool to the executable"
+        f"flash tool {command!r} was not found; install wlink with the SDK "
+        "installer, or set Board.flash.tool, ECOS_WLINK, or --tool to the executable"
     )
+
+
+def resolve_wlink_command(command: Optional[str] = None) -> Path:
+    """Resolve the wlink executable, preferring the SDK-managed installation."""
+    if command and command not in {"wlink", "wlink.exe"}:
+        return resolve_flash_tool(command)
+    managed = managed_tools.resolve_wlink()
+    if managed is not None:
+        return managed
+    return resolve_flash_tool(command or "wlink")
 
 
 def _last_protection_state(output: str) -> Optional[bool]:
@@ -267,8 +278,11 @@ def _flash_wlink(
         raise FlashConfigurationError(
             "wlink flash provider requires a non-empty Board.flash.chip"
         )
-    command = tool or os.environ.get("ECOS_WLINK") or config.get("tool") or "wlink"
-    executable = resolve_flash_tool(str(command))
+    override = tool or os.environ.get("ECOS_WLINK")
+    if override:
+        executable = resolve_flash_tool(str(override))
+    else:
+        executable = resolve_wlink_command(config.get("tool"))
     allow_unprotect = bool(config.get("unprotect", False))
     if unprotect is not None:
         allow_unprotect = bool(unprotect)

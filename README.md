@@ -24,6 +24,7 @@ SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户
   (`riscv-none-elf-gcc`，安装脚本按宿主平台下载并校验)
 - CMake 3.20 或更高版本（安装脚本锁定 `cmake==3.31.10` 并安装到 SDK 私有目录）
 - Ninja（安装脚本锁定 `ninja==1.11.1.4` 并安装到 SDK 私有目录）
+- wlink 0.1.3（安装脚本按宿主平台下载并校验，用于 `ecos flash`）
 - Python 3.9 或更高版本
 
 #### 快速安装
@@ -31,7 +32,7 @@ SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户
 [docs/install.md](docs/install.md)。
 
 运行 Python 安装器。在 GNU/Linux 上默认安装到
-`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链以及 CMake/Ninja：
+`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链、CMake/Ninja 和 wlink：
 ```bash
 python3 tools/install.py
 ```
@@ -44,9 +45,10 @@ SDK CLI、CMake/Ninja 路径和补全，不会持久设置 `ECOS_SDK_HOME`。安
 python3 tools/install.py --dry-run
 ```
 
-离线安装 xPack 工具链使用 `--archive <path>`；首次安装 Python/CMake/Ninja 依赖仍需
-PyPI 或 pip 本地缓存。`--skip-toolchain` 只跳过交叉编译器，SDK
-所需的 Python、CMake 和 Ninja 依赖仍会安装。使用
+离线安装 xPack 工具链使用 `--archive <path>`，wlink 使用 `--wlink-archive <path>`；
+首次安装 Python/CMake/Ninja 依赖仍需 PyPI 或 pip 本地缓存。`--skip-toolchain`
+只跳过交叉编译器，`--skip-wlink` 只跳过 wlink；SDK 所需的 Python、CMake 和 Ninja
+依赖仍会安装。使用
 `--shell bash|zsh|fish|powershell` 可以覆盖自动识别结果，
 `--shell-profile <path>` 可以指定启动文件，`--shell none` 可以禁用 Shell 配置。
 `--prefix <path>` 表示版本目录的父目录，安装器会从 SDK 清单自动追加版本号；例如

@@ -58,13 +58,18 @@ flash:
   erase: true
 ```
 
-先准备 wlink（Windows x64）：
+`tools/install.py` 会安装 pinned wlink `0.1.3`（Windows 为
+`%LOCALAPPDATA%\ECOS\lib\ecos\tools\wlink\`），`ecos flash` 会自动使用它。
+Windows 上 `wlink.exe` 需要 WCH-Link 驱动提供的 `CH375DLL64.dll`（WCH-LinkUtility/MRS
+已带）；若提示找不到 DLL，先安装 WCH-LinkUtility。
+只有在使用 `--skip-wlink`、宿主没有对应资产，或想换用其他 wlink 版本时，才需要
+手动准备（例如 nightly）：
 
 ```text
 https://github.com/ch32-rs/wlink/releases/download/nightly/wlink-win-x64.zip
 ```
 
-解压后任选一种方式让 `ecos` 找到它：
+然后任选一种方式覆盖：
 
 ```powershell
 # 1) 放进 PATH，或

@@ -41,8 +41,9 @@ target: demo-soc
 | `debug` | 可选 `cppdbg` 适配器、已运行调试服务器的 `server_address` 和入口暂停设置。 |
 
 `flash.artifact` 选择 `artifacts.json` 中的产物，默认 `bin`。`wlink` provider 的
-`chip` 是必填的芯片族（例如 `CH32V103`），`tool` 默认 `wlink`，`unprotect` 和
-`erase` 分别默认 `false` 和 `true`；`unprotect` 会全片擦除受保护的芯片。
+`chip` 是必填的芯片族（例如 `CH32V103`），`tool` 默认 `wlink`（优先使用 SDK
+安装器安装的受管版本，其次查找 `PATH`），`unprotect` 和 `erase` 分别默认
+`false` 和 `true`；`unprotect` 会全片擦除受保护的芯片。
 
 典型错误：删除 `target` 后执行 `ecos schema validate board PATH --format json`，
 返回 `ECOS_SCHEMA_INVALID`，`field` 为 `/`，错误信息指出缺少 `target`。

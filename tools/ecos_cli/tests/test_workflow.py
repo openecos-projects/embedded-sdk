@@ -1192,6 +1192,33 @@ class WlinkFlashTest(unittest.TestCase):
                 ],
             )
 
+    def test_wlink_resolution_prefers_managed_tool(self):
+        managed = Path("/managed/wlink")
+        with mock.patch(
+            "ecos_cli.flashing.managed_tools.resolve_wlink", return_value=managed
+        ):
+            self.assertEqual(flashing.resolve_wlink_command("wlink"), managed)
+            self.assertEqual(flashing.resolve_wlink_command(None), managed)
+        with (
+            mock.patch(
+                "ecos_cli.flashing.managed_tools.resolve_wlink", return_value=None
+            ),
+            mock.patch(
+                "ecos_cli.flashing.shutil.which", return_value="/path/wlink"
+            ),
+        ):
+            self.assertEqual(
+                flashing.resolve_wlink_command("wlink"), Path("/path/wlink")
+            )
+        explicit = Path("/explicit/wlink")
+        with mock.patch(
+            "ecos_cli.flashing.resolve_flash_tool", return_value=explicit
+        ) as resolve:
+            self.assertEqual(
+                flashing.resolve_wlink_command("/explicit/wlink"), explicit
+            )
+            resolve.assert_called_once_with("/explicit/wlink")
+
     def test_wlink_requires_opt_in_for_protected_chip(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

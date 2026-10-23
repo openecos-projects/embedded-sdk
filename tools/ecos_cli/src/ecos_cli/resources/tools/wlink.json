@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "wlink",
+  "name": "wlink WCH-Link CLI",
+  "release": "0.1.3",
+  "base_url": "https://github.com/ch32-rs/wlink/releases/download/v0.1.3",
+  "executable": "wlink",
+  "hosts": {
+    "linux-x86_64": {
+      "file": "wlink-v0.1.3-linux-x64.tar.gz",
+      "archive": "tar.gz",
+      "archive_root": "wlink-linux-x64",
+      "sha256": "b0d55a32adf55214e7b6bf29b5eb45c61a13252622e2be3bf5dba7573e4359d8"
+    },
+    "macos-arm64": {
+      "file": "wlink-v0.1.3-macos-arm64.tar.gz",
+      "archive": "tar.gz",
+      "archive_root": "wlink-macos-arm64",
+      "sha256": "24e473effa04e31d5bfe1f37c2de7107846c5f8222692da606bf25affd16e1ce"
+    },
+    "windows-x86_64": {
+      "file": "wlink-v0.1.3-win-x64.zip",
+      "archive": "zip",
+      "archive_root": "wlink-win-x64",
+      "sha256": "b5a7d34bb64287d6383650dd2e0637c2fa488601783a8e04185a7275f2294c78"
+    }
+  }
+}

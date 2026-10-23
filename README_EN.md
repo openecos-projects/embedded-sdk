@@ -52,12 +52,13 @@ ecos/embedded-sdk/
   (`riscv-none-elf-gcc`, selected and verified for the host by the installer)
 - CMake 3.20 or newer (the installer pins `cmake==3.31.10` in the SDK)
 - Ninja (the installer pins `ninja==1.11.1.4` in the SDK)
+- wlink 0.1.3 (selected and verified for the host by the installer; used by `ecos flash`)
 - Python 3.9 or newer
 
 #### Quick Installation
 Run the Python installer. On GNU/Linux it installs to
-`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain and the
-CMake/Ninja build dependencies selected for the current host:
+`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain, wlink and
+the CMake/Ninja build dependencies selected for the current host:
 ```bash
 python3 tools/install.py
 ```
@@ -72,9 +73,10 @@ without writes or network access first with:
 python3 tools/install.py --dry-run
 ```
 
-Use `--archive <path>` for an offline xPack archive; the first Python/CMake/Ninja install
-still needs PyPI or a populated pip cache. `--skip-toolchain` skips only the cross compiler;
-the SDK's Python, CMake, and Ninja dependencies are still installed. Use
+Use `--archive <path>` for an offline xPack archive and `--wlink-archive <path>` for an
+offline wlink archive; the first Python/CMake/Ninja install still needs PyPI or a populated
+pip cache. `--skip-toolchain` skips only the cross compiler and `--skip-wlink` skips only
+wlink; the SDK's Python, CMake, and Ninja dependencies are still installed. Use
 `--shell bash|zsh|fish|powershell` to override shell
 detection, `--shell-profile <path>` to select a startup file, or `--shell none` to
 disable shell configuration. `--prefix <path>` names the parent directory; the installer

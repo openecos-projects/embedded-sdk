@@ -19,6 +19,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 from . import __version__
 from . import completion
 from . import dependencies
+from . import managed_tools
 from . import sdk_manifest
 from . import toolchain
 from . import user_bsp
@@ -52,11 +53,13 @@ PYTHON_PACKAGE_IGNORE = shutil.ignore_patterns(
 INSTALLED_ECOS_LAUNCHER = '''#!/usr/bin/env python3
 """Installed ECOS Python CLI launcher."""
 
+import os
 import sys
 from pathlib import Path
 
 
 HOST_ROOT = Path(__file__).resolve().parent.parent
+os.environ.setdefault("ECOS_HOST_PREFIX", str(HOST_ROOT))
 SOURCE_ROOT = HOST_ROOT / "lib" / "ecos" / "cli"
 DEPENDENCY_ROOT = HOST_ROOT / "lib" / "ecos" / "python"
 if str(SOURCE_ROOT) not in sys.path:
@@ -1071,9 +1074,19 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-dir", type=Path, default=toolchain.default_cache_root())
     parser.add_argument("--archive", type=Path, help="install the toolchain from an offline archive")
     parser.add_argument(
+        "--wlink-archive",
+        type=Path,
+        help="install wlink from an offline archive",
+    )
+    parser.add_argument(
         "--skip-toolchain",
         action="store_true",
         help="skip the cross compiler but install SDK host dependencies",
+    )
+    parser.add_argument(
+        "--skip-wlink",
+        action="store_true",
+        help="skip the pinned wlink WCH-Link CLI",
     )
     parser.add_argument(
         "--force-toolchain", action="store_true", help="replace an invalid toolchain installation"
@@ -1081,7 +1094,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="reinstall SDK files, replace its registration, and reinstall the toolchain",
+        help="reinstall SDK files, replace its registration, and reinstall the toolchain/wlink",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="show the plan without writing or downloading"
@@ -1158,6 +1171,18 @@ def _print_text(data: dict[str, Any], console: ConsoleProgress) -> None:
         installation = toolchain_result["installation"]
         console.info(f"Toolchain: {installation['state']}")
         console.info(f"Compiler: {installation['compiler']['path']}")
+    wlink_result = data.get("wlink")
+    if wlink_result is None:
+        console.info("wlink: skipped")
+    elif wlink_result.get("state") == "unsupported":
+        console.warning(
+            "wlink: unsupported on this host; install it manually and use "
+            "--tool/ECOS_WLINK"
+        )
+    else:
+        console.info(f"wlink: {wlink_result.get('state')}")
+        if wlink_result.get("executable"):
+            console.info(f"wlink executable: {wlink_result['executable']}")
     python_dependencies = data["python_dependencies"]["installation"]
     console.info(f"Python dependencies: {python_dependencies['state']}")
     host_dependencies = data["host_dependencies"]["installation"]
@@ -1189,6 +1214,10 @@ def main(
         if args.skip_toolchain and (args.archive or args.force_toolchain):
             raise InstallerError(
                 "--archive and --force-toolchain cannot be used with --skip-toolchain"
+            )
+        if args.skip_wlink and args.wlink_archive:
+            raise InstallerError(
+                "--wlink-archive cannot be used with --skip-wlink"
             )
         if shell == "none" and args.shell_profile:
             raise InstallerError("--shell-profile cannot be used with --shell none")
@@ -1266,6 +1295,13 @@ def main(
                 )
             host = toolchain.detect_host()
             selection = toolchain.selection_data(manifest, host)
+        wlink_selection = None
+        if not args.skip_wlink:
+            wlink_manifest = managed_tools.load_wlink_manifest()
+            wlink_host = toolchain.detect_host()
+            wlink_selection = managed_tools.selection_data(
+                wlink_manifest, wlink_host
+            )
         configuration_plan = configure_shell(
             host_prefix,
             shell,
@@ -1283,6 +1319,15 @@ def main(
                     "selection": selection,
                     "archive": str(args.archive.expanduser().resolve())
                     if args.archive
+                    else None,
+                    "installation": None,
+                },
+                "wlink": None
+                if args.skip_wlink
+                else {
+                    "selection": wlink_selection,
+                    "archive": str(args.wlink_archive.expanduser().resolve())
+                    if args.wlink_archive
                     else None,
                     "installation": None,
                 },
@@ -1321,6 +1366,20 @@ def main(
                         "Toolchain: "
                         f"{plan['toolchain']['selection']['name']} "
                         f"{plan['toolchain']['selection']['release']}"
+                    )
+                wlink_plan = plan.get("wlink")
+                if wlink_plan is None:
+                    console.info("wlink: skip")
+                elif wlink_plan["selection"]["state"] == "unsupported":
+                    console.warning(
+                        "wlink: unsupported host; install it manually and use "
+                        "--tool/ECOS_WLINK"
+                    )
+                else:
+                    console.info(
+                        "wlink: "
+                        f"{wlink_plan['selection']['release']} "
+                        f"({wlink_plan['selection']['host']})"
                     )
                 console.info(
                     "Python dependencies: "
@@ -1385,6 +1444,16 @@ def main(
                 "selection": selection,
                 "installation": installation,
             }
+        wlink_result = None
+        if not args.skip_wlink:
+            wlink_result = managed_tools.install_wlink(
+                host_prefix,
+                args.cache_dir,
+                archive_override=args.wlink_archive,
+                force=args.force,
+                progress=console.message,
+                download_progress=console.download,
+            )
         registration = registry.register(
             prefix,
             name=args.registration_name,
@@ -1403,6 +1472,7 @@ def main(
             "install_base": str(install_base) if mode == "release" else None,
             "force": args.force,
             "toolchain": toolchain_result,
+            "wlink": wlink_result,
             "registration": registration,
             "environment": {
                 "shell": shell,
@@ -1428,6 +1498,17 @@ def main(
             "ECOS_HOST_DEPENDENCY_INSTALL_FAILED",
             str(exc),
             6,
+        )
+    except managed_tools.ManagedToolError as exc:
+        return _emit_error(
+            args.output_format,
+            "ECOS_WLINK_INSTALL_FAILED",
+            str(exc),
+            5,
+            suggestion=(
+                "Rerun with --skip-wlink to install the SDK without wlink, "
+                "or pass --wlink-archive for an offline archive."
+            ),
         )
     except InstallerError as exc:
         return _emit_error(args.output_format, "ECOS_INSTALL_CONFIG_INVALID", str(exc), 3)
