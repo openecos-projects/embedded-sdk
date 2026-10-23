@@ -76,9 +76,9 @@ ecos build
 ## 手动 OpenOCD 烧录（待实机验证）
 
 本次实机验收使用的是 WCH-LinkUtility，OpenOCD 路径尚未在 CH32V103 上实测。
-本地 `tools/openocd-wch/` 提供社区 WCH/MRS OpenOCD（该目录被 Git 忽略，
-准备方法见 `tools/openocd-wch/ECOS-LOCAL-INSTALL.md`）。前提是 WCH-Link/WCH-LinkE
-处于 RISC-V 模式，目标板 SDI 已连接并共地。
+`tools/openocd-wch/` 提供的是 **Linux x86_64** 社区 WCH/MRS OpenOCD（该目录被
+Git 忽略，准备方法见 `tools/openocd-wch/ECOS-LOCAL-INSTALL.md`），不能在 Windows
+上运行。前提是 WCH-Link/WCH-LinkE 处于 RISC-V 模式，目标板 SDI 已连接并共地。
 
 ```bash
 cd /path/to/hello-ch32v103
@@ -99,13 +99,32 @@ test -f build/retrosoc_fw.hex || { echo "run ecos build first"; exit 1; }
 "$OPENOCD" -f "$CFG" -c "program build/retrosoc_fw.hex verify reset exit"
 ```
 
+Windows 没有随仓库提供 OpenOCD。请使用 MounRiver Studio 自带的
+`...\MounRiver_Studio\toolchain\OpenOCD\bin\openocd.exe`，或
+Community-PIO-CH32V/tool-openocd-riscv-wch 的 Windows 发行包（含 `openocd.exe`、
+DLL 和 `wch-riscv.cfg`）。通用 xPack OpenOCD 不带 WCH SDI/`wch_riscv` Flash 驱动，
+无法驱动 WCH-Link；WCH-Link 驱动随 WCH-LinkUtility/MRS 安装。Windows 下优先使用
+发行包自带的 cfg：
+
+```powershell
+cd C:\path\to\hello-ch32v103
+
+$OPENOCD = "C:\path\to\OpenOCD\bin\openocd.exe"
+$CFG     = "C:\path\to\OpenOCD\bin\wch-riscv.cfg"
+
+& $OPENOCD --version
+& $OPENOCD -f $CFG -c shutdown
+& $OPENOCD -f $CFG -c "init; targets; flash banks; shutdown"
+& $OPENOCD -f $CFG -c "program build/retrosoc_fw.hex verify reset exit"
+```
+
 - `wch-riscv.cfg` 的 flash bank 基址为 `0x00000000`，与 Intel HEX 的地址一致，
   因此优先烧 `.hex`。
 - 如果必须烧 `.bin`，地址使用与该 bank 匹配的 `0x00000000`：
   `"$OPENOCD" -f "$CFG" -c "program build/retrosoc_fw.bin 0x00000000 verify reset exit"`。
 - 若该适配器上 `reset` 不生效，可改为 `... verify exit`，退出后按板载复位键。
-- 若提示 USB 权限不足，按发行包内的 `50-wch.rules` / `60-openocd.rules` 由管理员
-  安装 udev 规则；不要直接执行 `bin/start.sh`（它会用 sudo 复制库并修改系统规则）。
+- 若提示 USB 权限不足（Linux），按发行包内的 `50-wch.rules` / `60-openocd.rules`
+  由管理员安装 udev 规则；不要直接执行 `bin/start.sh`（它会用 sudo 复制库并修改系统规则）。
 
 判定成功的标准：OpenOCD 输出 `** Programming Finished **` 和 `** Verified OK **`，
 并且复位后串口输出 `[I][hello] Hello, World!`。请保留完整 OpenOCD 日志和串口输出；
