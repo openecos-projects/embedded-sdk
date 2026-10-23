@@ -169,7 +169,8 @@ Core Runtime 和 libc 子集是 SDK 3.0 工程的默认组件。Core Runtime 提
 仓库当前采用“版本分支 + 产品分支”的方式管理长期演进：
 
 - `1.0`：维护 `v1.0.0` 及后续 `1.x` 稳定修复
-- `3.0`：当前主开发分支
+- `main`：默认分支，集成已发布的 SDK 版本
+- `v3.0`：SDK 3.0 版本维护分支（原 `3.0-dev`）
 - `starryskypi`：StarrySkyPi 产品线分支
 
 完整规则见 [docs/branching.md](docs/branching.md)。
