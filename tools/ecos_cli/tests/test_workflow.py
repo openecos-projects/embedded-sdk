@@ -60,6 +60,7 @@ def add_wlink_board_contract(
 def prepare_wlink_project(
     root: Path, *, unprotect: bool = True
 ) -> tuple[Path, Path, Path]:
+    root = root.resolve()
     sdk = create_sdk(root / "sdk")
     tool = root / "wlink"
     tool.write_text("", encoding="utf-8")
@@ -1208,7 +1209,7 @@ class WlinkFlashTest(unittest.TestCase):
             ),
         ):
             self.assertEqual(
-                flashing.resolve_wlink_command("wlink"), Path("/path/wlink")
+                flashing.resolve_wlink_command("wlink"), Path("/path/wlink").resolve()
             )
         explicit = Path("/explicit/wlink")
         with mock.patch(
