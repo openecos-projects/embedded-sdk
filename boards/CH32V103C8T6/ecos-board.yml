@@ -1,0 +1,20 @@
+schema: 2
+id: ch32v103c8t6
+name: CH32V103C8T6 minimal board (experimental)
+aliases:
+  - ch32v103-c8t6
+category: CH32V103
+arch: riscv
+target: ch32v103
+build:
+  default_profile: flash
+  profiles:
+    - flash
+  components:
+    - bsp-ch32v103c8t6
+resources:
+  console:
+    driver: driver-uart
+    instance: 0
+monitor:
+  baudrate: 115200

@@ -1,0 +1,42 @@
+schema: 1
+id: ch32v103
+name: CH32V103 (experimental)
+arch: riscv
+description: Compile-validated CH32V103C8T6 target; polling USART1 only, hardware validation pending.
+cpu:
+  march: rv32imac_zicsr_zifencei
+  abi: ilp32
+toolchain:
+  prefix: riscv-none-elf-
+  triple: riscv-none-elf
+memory:
+  flash:
+    origin: 0x00000000
+    size: 64K
+  sram:
+    origin: 0x20000000
+    size: 20K
+build:
+  cmake: CMakeLists.txt
+  toolchain_file: toolchain.cmake
+  kconfig: Kconfig
+  linker_script: linker/sections.lds
+  startup: startup/start.S
+  sources:
+    - startup/start.S
+  capability_sources:
+    uart:
+      - hal/uart/uart.c
+  capability_include_dirs:
+    uart:
+      - ../../../hal/uart/include
+  outputs:
+    - elf
+    - bin
+    - hex
+    - txt
+    - map
+    - size
+    - compile_commands
+capabilities:
+  - uart

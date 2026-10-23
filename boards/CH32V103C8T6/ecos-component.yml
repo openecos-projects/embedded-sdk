@@ -1,0 +1,12 @@
+schema: 1
+id: bsp-ch32v103c8t6
+name: CH32V103C8T6 minimal console BSP
+cmake_target: ecos::bsp::ch32v103c8t6
+sources:
+  - bsp/console.c
+include_dirs:
+  - ../include
+dependencies:
+  - core-runtime
+private_dependencies:
+  - driver-uart
