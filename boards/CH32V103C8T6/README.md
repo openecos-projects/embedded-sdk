@@ -102,7 +102,9 @@ test -f build/retrosoc_fw.hex || { echo "run ecos build first"; exit 1; }
 Windows 没有随仓库提供 OpenOCD。请使用 MounRiver Studio 自带的
 `...\MounRiver_Studio\toolchain\OpenOCD\bin\openocd.exe`，或
 Community-PIO-CH32V/tool-openocd-riscv-wch 的 Windows 发行包（含 `openocd.exe`、
-DLL 和 `wch-riscv.cfg`）。通用 xPack OpenOCD 不带 WCH SDI/`wch_riscv` Flash 驱动，
+DLL 和 `wch-riscv.cfg`）。该仓库的 `main` 分支就是 Windows 包，可直接下载：
+`https://github.com/Community-PIO-CH32V/tool-openocd-riscv-wch/archive/refs/heads/main.zip`。
+通用 xPack OpenOCD 不带 WCH SDI/`wch_riscv` Flash 驱动，
 无法驱动 WCH-Link；WCH-Link 驱动随 WCH-LinkUtility/MRS 安装。Windows 下优先使用
 发行包自带的 cfg：
 
