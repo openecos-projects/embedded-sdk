@@ -27,7 +27,12 @@ REPOSITORY_ROOT = Path(__file__).parents[3]
 
 class ToolchainInstallerTest(unittest.TestCase):
     def setUp(self):
-        environment = mock.patch.dict(os.environ, {"ECOS_SDK_HOME": ""})
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        environment = mock.patch.dict(os.environ, {
+            "ECOS_SDK_HOME": "",
+            "ECOS_SDK_REGISTRY": str(Path(directory.name) / "sdks.json"),
+        })
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -265,6 +270,8 @@ class ToolchainInstallerTest(unittest.TestCase):
         with redirect_stdout(output):
             result = main(
                 [
+                    "--sdk",
+                    str(REPOSITORY_ROOT),
                     "toolchain",
                     "detect",
                     "--host",
@@ -291,6 +298,8 @@ class ToolchainInstallerTest(unittest.TestCase):
         with redirect_stdout(output):
             result = main(
                 [
+                    "--sdk",
+                    str(REPOSITORY_ROOT),
                     "toolchain",
                     "detect",
                     "--host",
@@ -313,6 +322,8 @@ class ToolchainInstallerTest(unittest.TestCase):
         with redirect_stdout(output):
             result = main(
                 [
+                    "--sdk",
+                    str(REPOSITORY_ROOT),
                     "toolchain",
                     "detect",
                     "--format",
@@ -337,6 +348,8 @@ class ToolchainInstallerTest(unittest.TestCase):
             with redirect_stdout(output), redirect_stderr(errors):
                 result = main(
                     [
+                        "--sdk",
+                        str(REPOSITORY_ROOT),
                         "toolchain",
                         "install",
                         "--host",
