@@ -25,10 +25,16 @@ build:
   sources:
     - startup/start.S
   capability_sources:
+    adc:
+      - hal/adc/adc.c
     gpio:
       - hal/gpio/gpio.c
     i2c:
       - hal/i2c/i2c.c
+    pwm:
+      - hal/pwm/pwm.c
+    rtc:
+      - hal/rtc/rtc.c
     spi:
       - hal/spi/spi.c
     timer:
@@ -38,10 +44,16 @@ build:
     uart:
       - hal/uart/uart.c
   capability_include_dirs:
+    adc:
+      - ../../../hal/adc/include
     gpio:
       - ../../../hal/gpio/include
     i2c:
       - ../../../hal/i2c/include
+    pwm:
+      - ../../../hal/pwm/include
+    rtc:
+      - ../../../hal/rtc/include
     spi:
       - ../../../hal/spi/include
     timer:
@@ -59,9 +71,12 @@ build:
     - size
     - compile_commands
 capabilities:
+  - adc
   - uart
   - gpio
   - i2c
+  - pwm
+  - rtc
   - spi
   - timer
   - wdg

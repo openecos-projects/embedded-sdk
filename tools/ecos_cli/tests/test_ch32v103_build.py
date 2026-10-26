@@ -114,7 +114,7 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertFalse((root / "hello").exists())
 
     def test_basic_ip_examples_are_supported(self):
-        for example in ("gpio-basic", "i2c-scan", "spi-loopback", "timer-polling", "wdg-reset"):
+        for example in ("adc-oneshot", "gpio-basic", "i2c-scan", "pwm-basic", "rtc-counter", "spi-loopback", "timer-polling", "wdg-reset"):
             with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
                 output = StringIO()
                 with redirect_stdout(output), redirect_stderr(output):
@@ -232,9 +232,24 @@ class CH32V103BuildTest(unittest.TestCase):
                 ("<ecos_wdg_init>", "<hal_wdg_feed>"),
             ),
             (
+                "adc-oneshot",
+                ("components/soc/ch32v103/hal/adc/adc.c", "drivers/adc/src/adc.c"),
+                ("<ecos_adc_read>", "<hal_adc_read>"),
+            ),
+            (
                 "i2c-scan",
                 ("components/soc/ch32v103/hal/i2c/i2c.c", "drivers/i2c/src/i2c.c"),
                 ("<ecos_i2c_probe>", "<hal_i2c_probe>"),
+            ),
+            (
+                "pwm-basic",
+                ("components/soc/ch32v103/hal/pwm/pwm.c", "drivers/pwm/src/pwm.c"),
+                ("<ecos_pwm_start>", "<hal_pwm_set_duty_cycle>"),
+            ),
+            (
+                "rtc-counter",
+                ("components/soc/ch32v103/hal/rtc/rtc.c", "drivers/rtc/src/rtc.c"),
+                ("<ecos_rtc_get_counter>", "<hal_rtc_set_alarm>"),
             ),
             (
                 "spi-loopback",

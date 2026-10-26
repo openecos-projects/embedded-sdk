@@ -16,7 +16,10 @@ Target 为 `ch32v103`。
 - 提供 IWDG 看门狗：使用 LSI，支持合法硬件分频和 12-bit reload；启用后只能复位关闭。
 - 提供 I2C1 轮询主机：默认 PB6=SCL、PB7=SDA，标准模式，需外接上拉电阻。
 - 提供 SPI1 轮询主机：PA5=SCK、PA6=MISO、PA7=MOSI，PA4 由 Driver 作为软件 CS。
-- 当前 I2C/SPI 仅完成轮询、编译和链接验证，外设实机通信仍需按接线单独复测。
+- 提供 TIM1 CH1 PWM 轮询输出，默认 PA8。
+- 提供 RTC/LSI 计数器和闹钟比较基础后端。
+- 提供 ADC1 单通道轮询采样，支持外部通道 0～15 和内部通道 16/17。
+- 当前 I2C/SPI/PWM/RTC 仅完成轮询、编译和链接验证，外设实机通信/波形/计时仍需按接线单独复测。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
 - 不提供 GPIO 中断、Timer 中断、PFIC、PLL 切换或 USB。
 - 未支持 WCH 特有快速中断 ABI；启动路径保持全局中断关闭，异常默认停留。
@@ -124,6 +127,53 @@ ecos monitor --port <串口设备>
 用短线连接 PA7（MOSI）到 PA6（MISO），PA5 为 SCK、PA4 为软件 CS，保持 3.3 V
 电平。收到 `SPI1 loopback PASS` 才算回环通过；该测试不代表外部 Flash 或显示器
 设备驱动已经通过。
+
+### ADC1、PWM 和 RTC
+
+```bash
+ecos project create adc-oneshot --board ch32v103c8t6
+cd adc-oneshot
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+`adc-oneshot` 默认采样 ADC1 channel 0（PA0）。模拟输入必须保持在 0～3.3 V，不能
+直接接入数字高电平以外的电压范围；ADC 数值的实际电压换算需要按板上 VDD 校准。
+
+```bash
+ecos project create pwm-basic --board ch32v103c8t6
+cd pwm-basic
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+
+ecos project create rtc-counter --board ch32v103c8t6
+cd rtc-counter
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+PWM 默认使用 PA8/TIM1 CH1，RTC 使用 LSI 计数器。PWM 波形需用示波器确认；RTC 的
+LSI 频率和闹钟时间精度尚未校准。
+
+```bash
+ecos project create pwm-basic --board ch32v103c8t6
+cd pwm-basic
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+
+ecos project create rtc-counter --board ch32v103c8t6
+cd rtc-counter
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+PWM 默认使用 PA8/TIM1 CH1，RTC 使用 LSI 计数器。PWM 波形需用示波器确认；RTC 的
+LSI 频率和闹钟时间精度尚未校准。
 
 ### IWDG 看门狗
 

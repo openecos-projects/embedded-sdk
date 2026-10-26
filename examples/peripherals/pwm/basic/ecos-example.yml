@@ -8,3 +8,9 @@ components:
 requires:
   - console
   - pwm-output
+unsupported_boards:
+  - starrysky-c1
+  - starrysky-c2
+  - starrysky-l3
+  - starrysky-l3-1
+  - starrysky-t1-pico

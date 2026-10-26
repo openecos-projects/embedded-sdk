@@ -1,0 +1,11 @@
+schema: 1
+id: driver-adc
+name: ADC Driver
+cmake_target: ecos::driver::adc
+sources:
+  - src/adc.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-adc

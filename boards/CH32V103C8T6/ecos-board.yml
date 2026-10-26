@@ -41,6 +41,16 @@ resources:
     cs_gpio:
       controller: 0
       pin: 4
+  pwm-output:
+    driver: driver-pwm
+    controller: 0
+    channel: 0
+    gpio:
+      controller: 0
+      pin: 8
+  rtc:
+    driver: driver-rtc
+    controller: 0
 monitor:
   baudrate: 115200
 flash:

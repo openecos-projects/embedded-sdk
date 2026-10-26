@@ -13,6 +13,7 @@
 | --- | --- | --- | --- |
 | StarrySky L4C1 | `starrysky-l4-c1` 或 `l4c1` | 支持 | 已提供 PWM0 通道 0 及 `pwm-output` 资源 |
 | StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 暂不支持 | CL1-2512 尚未提供 PWM HAL |
+| CH32V103C8T6 | `ch32v103c8t6` | 实验性 | TIM1 CH1，默认 PA8 |
 
 当前示例要求板卡同时提供 `console`、`pwm-output` 资源，并要求对应 Target 支持
 PWM 和 Timer。StarrySky T1-Pico 当前既未提供 PWM 能力，也未注册板级 PWM 输出资源。
@@ -36,5 +37,16 @@ cd pwm-basic
 ecos build
 ```
 
-可以用示波器或逻辑分析仪观察 `GPIO1[14]`。在其他 Target 上使用前，请先查询 PWM
-实例数量，并根据板卡原理图确认通道对应的输出引脚。
+可以用示波器或逻辑分析仪观察 `GPIO1[14]`。CH32V103C8T6 使用 PA8（TIM1 CH1）：
+
+```bash
+ecos project create pwm-basic --board ch32v103c8t6
+cd pwm-basic
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+CH32 的 PWM 当前只完成 TIM1 CH1 轮询输出的编译/链接验证，实际频率和占空比需上板
+用示波器确认。在其他 Target 上使用前，请先查询 PWM 实例数量，并根据板卡原理图确认
+通道对应的输出引脚。

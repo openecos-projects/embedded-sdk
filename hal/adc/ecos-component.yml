@@ -1,0 +1,10 @@
+schema: 1
+id: hal-adc
+name: ADC HAL Contract
+cmake_target: ecos::hal::adc
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - adc
