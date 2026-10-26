@@ -1,0 +1,20 @@
+schema: 1
+name: timer-polling
+sources:
+  - main.c
+components:
+  - driver-gpio
+  - driver-timer
+unsupported_boards:
+  - starrysky-c1
+  - starrysky-c2
+  - starrysky-l3
+  - starrysky-l3-1
+  - starrysky-l4-c1
+  - starrysky-l4-c2
+  - starrysky-l4-c3
+  - starrysky-t1-pico
+requires:
+  - console
+  - gpio-demo
+  - timer

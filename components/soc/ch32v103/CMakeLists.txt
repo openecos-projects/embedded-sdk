@@ -64,7 +64,8 @@ target_compile_options(ecos_build_options INTERFACE
     "$<$<COMPILE_LANGUAGE:C>:-include>"
     "$<$<COMPILE_LANGUAGE:C>:${ECOS_CONFIG_HEADER}>"
 )
-# Minimal CH32V103 port: polling console only, no interrupt ABI extensions.
+# Experimental CH32V103 port: polling console, GPIO, and TIM2 timer only;
+# no interrupt ABI extensions are enabled.
 
 set(_ecos_component_include_dirs)
 foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)

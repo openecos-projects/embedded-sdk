@@ -43,6 +43,12 @@ jobs:
           --board starrysky-t1-pico
           --board starrysky-c2
           --report ci-report.json --firmware-dir ci-firmware
+      - name: Build experimental CH32V103 GPIO and Timer examples
+        if: matrix.runner == 'ubuntu-24.04'
+        run: >-
+          python tools/ci_host_smoke.py
+          --board ch32v103c8t6
+          --report ch32v103-ci-report.json
       - uses: actions/upload-artifact@v4
         with:
           name: ecos-ci-${{ matrix.runner }}
@@ -53,6 +59,12 @@ jobs:
         with:
           name: ecos-firmware-matrix-${{ github.sha }}
           path: ci-firmware
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: matrix.runner == 'ubuntu-24.04'
+        with:
+          name: ecos-ci-ch32v103-${{ github.sha }}
+          path: ch32v103-ci-report.json
           if-no-files-found: error
 
   python-minimum:

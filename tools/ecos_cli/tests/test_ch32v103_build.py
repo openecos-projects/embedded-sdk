@@ -1,4 +1,4 @@
-"""Experimental CH32V103 hello compile/link validation (not a hardware test)."""
+"""CH32V103 compile/link validation for hello and basic GPIO/timer IP tests."""
 
 import importlib.util
 import json
@@ -113,6 +113,21 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
             self.assertFalse((root / "hello").exists())
 
+    def test_gpio_and_timer_examples_are_supported(self):
+        for example in ("gpio-basic", "timer-polling"):
+            with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
+                output = StringIO()
+                with redirect_stdout(output), redirect_stderr(output):
+                    result = main([
+                        "--sdk", str(SDK_ROOT), "project", "create", example,
+                        "--board", "ch32v103c8t6", "--path", directory,
+                        "--dry-run", "--format", "json",
+                    ])
+                self.assertEqual(result, 0, output.getvalue())
+                payload = json.loads(output.getvalue())
+                self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
+                self.assertEqual(payload["data"]["target"], "ch32v103")
+
     def test_unsupported_blink_is_rejected(self):
         output = StringIO()
         with tempfile.TemporaryDirectory() as directory, redirect_stdout(output), redirect_stderr(output):
@@ -171,6 +186,73 @@ class CH32V103BuildTest(unittest.TestCase):
             disassembly = (build / "retrosoc_fw.txt").read_text()
             for symbol in ("<_start>", "<main>", "<hal_uart_init>", "<bsp_console_init>"):
                 self.assertIn(symbol, disassembly)
+
+    def test_gpio_demo_resources_map_to_pa0_pa1(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = StringIO()
+            with redirect_stdout(output), redirect_stderr(output):
+                result = main([
+                    "--sdk", str(SDK_ROOT), "project", "create", "gpio-basic",
+                    "--board", "ch32v103c8t6", "--path", directory,
+                ])
+                self.assertEqual(result, 0, output.getvalue())
+                project = Path(directory) / "gpio-basic"
+                result = main([
+                    "--sdk", str(SDK_ROOT), "configure", "--project", str(project),
+                ])
+            self.assertEqual(result, 0, output.getvalue())
+            header = (
+                Path(directory) / "gpio-basic/.ecos/generated/include/ecos/board_resources.h"
+            ).read_text()
+            self.assertIn('#define ECOS_BOARD_GPIO_DEMO_INPUT_LABEL "PA0"', header)
+            self.assertIn('#define ECOS_BOARD_GPIO_DEMO_OUTPUT_LABEL "PA1"', header)
+            self.assertIn("{ ECOS_GPIO_PORT_0, 0u }", header)
+            self.assertIn("{ ECOS_GPIO_PORT_0, 1u }", header)
+
+    def test_gpio_and_timer_builds_link_ch32_hal_sources(self):
+        for example, sources, symbols in (
+            (
+                "gpio-basic",
+                ("components/soc/ch32v103/hal/gpio/gpio.c", "drivers/gpio/src/gpio.c"),
+                ("<ecos_gpio_configure>", "<hal_gpio_set_level>"),
+            ),
+            (
+                "timer-polling",
+                (
+                    "components/soc/ch32v103/hal/timer/timer.c",
+                    "components/soc/ch32v103/hal/gpio/gpio.c",
+                    "drivers/timer/src/timer.c",
+                    "drivers/gpio/src/gpio.c",
+                ),
+                ("<ecos_timer_start>", "<hal_timer_is_expired>", "<hal_gpio_set_level>"),
+            ),
+        ):
+            with self.subTest(example=example):
+                workspace = SDK_ROOT / "testdir"
+                workspace.mkdir(exist_ok=True)
+                with tempfile.TemporaryDirectory(prefix=f"{example}-test-", dir=workspace) as directory:
+                    project = Path(directory) / example
+                    output = StringIO()
+                    with redirect_stdout(output), redirect_stderr(output):
+                        create_result = main([
+                            "--sdk", str(SDK_ROOT), "project", "create", example,
+                            "--board", "ch32v103c8t6", "--path", directory,
+                        ])
+                        build_result = main([
+                            "--sdk", str(SDK_ROOT), "build", "--project", str(project),
+                        ])
+                    self.assertEqual(create_result, 0, output.getvalue())
+                    self.assertEqual(build_result, 0, output.getvalue())
+                    build = project / "build"
+                    compiled = {
+                        Path(item["file"]).resolve()
+                        for item in json.loads((build / "compile_commands.json").read_text())
+                    }
+                    for source in sources:
+                        self.assertIn((SDK_ROOT / source).resolve(), compiled)
+                    disassembly = (build / "retrosoc_fw.txt").read_text()
+                    for symbol in symbols:
+                        self.assertIn(symbol, disassembly)
 
 
 if __name__ == "__main__":

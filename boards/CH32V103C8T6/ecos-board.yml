@@ -16,6 +16,18 @@ resources:
   console:
     driver: driver-uart
     instance: 0
+  gpio-demo:
+    driver: driver-gpio
+    input:
+      controller: 0
+      pin: 0
+      label: PA0
+      idle_level: low
+    output:
+      controller: 0
+      pin: 1
+      label: PA1
+      initial_level: low
 monitor:
   baudrate: 115200
 flash:

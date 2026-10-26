@@ -10,9 +10,11 @@ Target 为 `ch32v103`。
 - RV32IMAC + Zicsr/Zifencei、ILP32，使用 SDK 锁定的 xPack GCC 15.2.0-1。
 - 64 KiB Flash、20 KiB SRAM；Flash 链接至启动别名 `0x00000000`。
 - 默认 `flash` profile，保留 2 KiB 栈；提供基本 `.data` 搬运和 `.bss` 清零。
-- 仅轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
+- 轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
+- 提供 GPIOA-D 的 0..15 号引脚基础输入/输出，Board 的 `gpio-demo` 使用 PA0 输入、PA1 输出。
+- 提供 TIM2 轮询定时器：HSI 8 MHz、APB1 一分频、1 MHz 计数、最大约 65.5 ms 单次周期。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
-- 不提供 GPIO、Timer、PFIC 中断驱动、PLL 切换或 USB。
+- 不提供 GPIO 中断、Timer 中断、PFIC、PLL 切换或 USB。
 - 未支持 WCH 特有快速中断 ABI；启动路径保持全局中断关闭，异常默认停留。
 - 声明 `wlink` 烧录 provider：`ecos flash` 通过 wlink CLI 烧录 Intel HEX；
   芯片处于读保护时按 Board 配置先执行 `unprotect`（全片擦除）。
@@ -49,6 +51,34 @@ ecos build
 `.hex` 为标准 Intel HEX，数据记录从 `0x00000000` 开始，可直接交给 WCH-LinkUtility
 等支持 Intel HEX 的工具；`.bin` 不含地址，按物理 Flash 基址 `0x08000000` 写入
 （与启动别名 `0x00000000` 等价）。
+
+## 基础 IP 测试
+
+### GPIO 轮询
+
+```bash
+ecos project create gpio-basic --board ch32v103c8t6
+cd gpio-basic
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+将 PA0 接到 3.3 V 或 GND，PA1 接示波器或逻辑分析仪。串口应报告输入电平变化，
+PA1 应跟随 PA0。PA0/PA1 不得接入超过 3.3 V 的电平；该测试不覆盖 GPIO 中断。
+
+### TIM2 轮询
+
+```bash
+ecos project create timer-polling --board ch32v103c8t6
+cd timer-polling
+ecos build
+ecos flash
+ecos monitor --port <串口设备> --expect "timer polling completed"
+```
+
+预期出现 5 次 `period elapsed` 和 `timer polling completed`。TIM2 使用 HSI 8 MHz
+和 1 MHz tick，当前只验证轮询 update flag，不代表 HSI 频率精度或中断周期精度。
 
 ## 通过 ecos flash 烧录（wlink）
 
@@ -129,6 +159,8 @@ ecos flash --no-unprotect
 
 已通过：复位入口、Flash 启动别名、USART1 引脚与波特率、Intel HEX 下载地址、
 wlink 解除读保护与烧录。
+GPIO 和 TIM2 轮询固件已经完成编译、链接和产物回归测试；尚未完成 PA0/PA1 实机环回、
+示波器波形和 TIM2 周期实测。
 仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性、OpenOCD 烧录路径，
 以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。`ecos flash` 的 wlink
 provider 已实现并通过单元测试，待用实物复测。#30 的 Windows x64 驱动错误诊断和
