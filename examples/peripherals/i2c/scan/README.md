@@ -11,6 +11,7 @@
 | StarrySky L4C2 | `starrysky-l4-c2` 或 `l4c2` | 不支持 | 板级未引出 I2C |
 | StarrySky L4C3 | `starrysky-l4-c3` 或 `l4c3` | 不支持 | 板级未引出 I2C |
 | StarrySky T1-Pico | `starrysky-t1-pico` 或 `t1-pico` | 支持 | CL1-2512 I2C0 |
+| CH32V103C8T6 | `ch32v103c8t6` | 实验性 | I2C1，PB6/PB7 |
 
 当前示例要求板卡提供 `console`、`i2c-bus` 资源，并要求对应 Target 支持 I2C。
 StarrySky L4C2/L4C3 未在板级引出 I2C 总线，示例清单已通过
@@ -28,11 +29,21 @@ ecos build
 
 使用 StarrySky T1-Pico 时，将板卡参数改为 `--board t1-pico`。
 
+CH32V103C8T6 使用 PB6=SCL、PB7=SDA，需 3.3 V 外接上拉：
+
+```bash
+ecos project create i2c-scan --board ch32v103c8t6
+cd i2c-scan
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
 ## 连接和运行
 
 ysyx-2512-1 与 CL1-2512 SoC 适配均使用 I2C0，其中 ysyx-2512-1 的 SCL 复用到
-GPIO0[27]、SDA 复用到 GPIO0[28]。连接设备时需要确认总线电压兼容并为 SCL、SDA
-提供合适的上拉电阻。
+GPIO0[27]、SDA 复用到 GPIO0[28]；CH32V103 使用 PB6/PB7。连接设备时需要确认
+总线电压兼容并为 SCL、SDA 提供合适的上拉电阻。
 运行后，串口会以 i2cdetect 风格的二维地址图打印扫描结果：行是地址高 4 位、
 列是低 4 位，返回 ACK 的地址显示其十六进制值，其余显示 `--`：
 

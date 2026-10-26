@@ -2,7 +2,7 @@ schema: 1
 id: ch32v103
 name: CH32V103 (experimental)
 arch: riscv
-description: Experimental CH32V103C8T6 target with polling USART1, GPIOA-D basic GPIO, TIM2 polling, and IWDG support; interrupt and clock-accuracy validation pending.
+description: Experimental CH32V103C8T6 target with polling USART1, GPIOA-D basic GPIO, I2C1, SPI1, TIM2 polling, and IWDG support; interrupt and clock-accuracy validation pending.
 cpu:
   march: rv32imac_zicsr_zifencei
   abi: ilp32
@@ -27,6 +27,10 @@ build:
   capability_sources:
     gpio:
       - hal/gpio/gpio.c
+    i2c:
+      - hal/i2c/i2c.c
+    spi:
+      - hal/spi/spi.c
     timer:
       - hal/timer/timer.c
     wdg:
@@ -36,6 +40,10 @@ build:
   capability_include_dirs:
     gpio:
       - ../../../hal/gpio/include
+    i2c:
+      - ../../../hal/i2c/include
+    spi:
+      - ../../../hal/spi/include
     timer:
       - ../../../hal/timer/include
     wdg:
@@ -53,5 +61,7 @@ build:
 capabilities:
   - uart
   - gpio
+  - i2c
+  - spi
   - timer
   - wdg

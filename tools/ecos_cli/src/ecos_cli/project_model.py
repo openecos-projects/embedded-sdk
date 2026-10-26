@@ -340,6 +340,68 @@ def _qspi_bus_resource(
     }
 
 
+def _i2c_bus_resource(
+    value: dict[str, Any], path: Path, resource_id: str = "i2c-bus"
+) -> dict[str, Any]:
+    field = f"Board.resources.{resource_id}"
+    _check_keys(value, {"driver", "controller", "clock_divider"}, kind=field, path=path)
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    controller = _integer(value.get("controller"), f"{field}.controller", path)
+    clock_divider = _integer(value.get("clock_divider", 100), f"{field}.clock_divider", path)
+    assert driver is not None
+    if driver != "driver-i2c":
+        raise ManifestValidationError(f"{field}.driver must be 'driver-i2c' in {path}")
+    if controller is None or not 0 <= controller <= 255:
+        raise ManifestValidationError(f"{field}.controller is invalid in {path}")
+    if clock_divider is None or not 1 <= clock_divider <= 0xFFFFFFFF:
+        raise ManifestValidationError(f"{field}.clock_divider must be positive in {path}")
+    return {"driver": driver, "controller": controller, "clock_divider": clock_divider}
+
+
+def _spi_bus_resource(
+    value: dict[str, Any], path: Path, resource_id: str = "spi-bus"
+) -> dict[str, Any]:
+    field = f"Board.resources.{resource_id}"
+    _check_keys(
+        value,
+        {"driver", "controller", "clock_hz", "mode", "bit_order", "cs_gpio"},
+        kind=field,
+        path=path,
+    )
+    driver = _string(value.get("driver"), f"{field}.driver", path)
+    controller = _integer(value.get("controller"), f"{field}.controller", path)
+    clock_hz = _integer(value.get("clock_hz"), f"{field}.clock_hz", path)
+    mode = _integer(value.get("mode"), f"{field}.mode", path)
+    bit_order = _string(value.get("bit_order"), f"{field}.bit_order", path)
+    cs_gpio = _mapping(value.get("cs_gpio"), f"{field}.cs_gpio", path)
+    _check_keys(cs_gpio, {"controller", "pin"}, kind=f"{field}.cs_gpio", path=path)
+    cs_controller = _integer(cs_gpio.get("controller"), f"{field}.cs_gpio.controller", path)
+    cs_pin = _integer(cs_gpio.get("pin"), f"{field}.cs_gpio.pin", path)
+    assert driver is not None and bit_order is not None
+    if driver != "driver-spi":
+        raise ManifestValidationError(f"{field}.driver must be 'driver-spi' in {path}")
+    if not 0 <= controller <= 255 or not 1 <= clock_hz <= 100000000:
+        raise ManifestValidationError(f"{field} controller/clock_hz is invalid in {path}")
+    if not 0 <= mode <= 3:
+        raise ManifestValidationError(f"{field}.mode must be between 0 and 3 in {path}")
+    if bit_order not in {"msb-first", "lsb-first"}:
+        raise ManifestValidationError(
+            f"{field}.bit_order must be 'msb-first' or 'lsb-first' in {path}"
+        )
+    if (cs_controller is None or cs_pin is None or
+            not 0 <= cs_controller <= GPIO_CONTROLLER_MAX or
+            not 0 <= cs_pin <= GPIO_PIN_MAX):
+        raise ManifestValidationError(f"{field}.cs_gpio is invalid in {path}")
+    return {
+        "driver": driver,
+        "controller": controller,
+        "clock_hz": clock_hz,
+        "mode": mode,
+        "bit_order": bit_order,
+        "cs_gpio": {"controller": cs_controller, "pin": cs_pin},
+    }
+
+
 def _soft_spi_resource(
     value: dict[str, Any], path: Path, resource_id: str = "soft-spi-bus"
 ) -> dict[str, Any]:
@@ -630,10 +692,14 @@ def _resolve_board(
             )
         if resource_id == "gpio-demo":
             resources[resource_id] = _gpio_demo_resource(resource, path)
+        elif resource_id in {"i2c-bus", "i2c0"}:
+            resources[resource_id] = _i2c_bus_resource(resource, path, resource_id)
         elif resource_id == "led":
             resources[resource_id] = _led_resource(resource, path)
         elif resource_id in {"qspi-bus", "qspi0"}:
             resources[resource_id] = _qspi_bus_resource(resource, path, resource_id)
+        elif resource_id in {"spi-bus", "spi0"}:
+            resources[resource_id] = _spi_bus_resource(resource, path, resource_id)
         elif resource_id == "soft-spi-bus":
             resources[resource_id] = _soft_spi_resource(resource, path)
         elif resource_id in {"display", "display-st7789"}:

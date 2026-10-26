@@ -1,0 +1,10 @@
+schema: 1
+id: hal-spi
+name: SPI HAL Contract
+cmake_target: ecos::hal::spi
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - spi

@@ -291,6 +291,47 @@ def _board_resources_header(
                 f"#define ECOS_BOARD_SOFT_SPI_MODE {soft_spi['mode']}u",
             ]
         )
+    i2c_bus = resources.get("i2c-bus") or resources.get("i2c0")
+    i2c_requested = _wants("i2c-bus") or _wants("i2c0")
+    if i2c_bus is None or not i2c_requested:
+        lines.extend(["", "#define ECOS_BOARD_HAS_I2C_BUS 0"])
+    else:
+        lines.extend(
+            [
+                '#include "ecos/driver/i2c.h"',
+                "",
+                "#define ECOS_BOARD_HAS_I2C_BUS 1",
+                "#define ECOS_BOARD_I2C_BUS_CONTROLLER "
+                f"((ecos_i2c_id_t){i2c_bus['controller']}u)",
+                "#define ECOS_BOARD_I2C_BUS_CLOCK_DIVIDER "
+                f"{i2c_bus['clock_divider']}u",
+            ]
+        )
+    spi_bus = resources.get("spi-bus") or resources.get("spi0")
+    spi_requested = _wants("spi-bus") or _wants("spi0")
+    if spi_bus is None or not spi_requested:
+        lines.extend(["", "#define ECOS_BOARD_HAS_SPI_BUS 0"])
+    else:
+        lines.extend(
+            [
+                '#include "ecos/driver/spi.h"',
+                '#include "ecos/driver/gpio.h"',
+                "",
+                "#define ECOS_BOARD_HAS_SPI_BUS 1",
+                "#define ECOS_BOARD_SPI_BUS_CONTROLLER "
+                f"((ecos_spi_id_t){spi_bus['controller']}u)",
+                "#define ECOS_BOARD_SPI_BUS_CLOCK_HZ "
+                f"{spi_bus['clock_hz']}u",
+                "#define ECOS_BOARD_SPI_BUS_MODE "
+                f"ECOS_SPI_MODE_{spi_bus['mode']}",
+                "#define ECOS_BOARD_SPI_BUS_BIT_ORDER "
+                f"ECOS_SPI_{'MSB_FIRST' if spi_bus['bit_order'] == 'msb-first' else 'LSB_FIRST'}",
+                "#define ECOS_BOARD_SPI_BUS_CS_PORT "
+                f"ECOS_GPIO_PORT_{spi_bus['cs_gpio']['controller']}",
+                "#define ECOS_BOARD_SPI_BUS_CS_PIN "
+                f"{spi_bus['cs_gpio']['pin']}u",
+            ]
+        )
     qspi_bus = resources.get("qspi-bus") or resources.get("qspi0")
     qspi_requested = (
         _wants("qspi-bus") or _wants("qspi0") or _wants("display")

@@ -114,7 +114,7 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertFalse((root / "hello").exists())
 
     def test_basic_ip_examples_are_supported(self):
-        for example in ("gpio-basic", "timer-polling", "wdg-reset"):
+        for example in ("gpio-basic", "i2c-scan", "spi-loopback", "timer-polling", "wdg-reset"):
             with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
                 output = StringIO()
                 with redirect_stdout(output), redirect_stderr(output):
@@ -230,6 +230,16 @@ class CH32V103BuildTest(unittest.TestCase):
                 "wdg-reset",
                 ("components/soc/ch32v103/hal/wdg/wdg.c", "drivers/wdg/src/wdg.c"),
                 ("<ecos_wdg_init>", "<hal_wdg_feed>"),
+            ),
+            (
+                "i2c-scan",
+                ("components/soc/ch32v103/hal/i2c/i2c.c", "drivers/i2c/src/i2c.c"),
+                ("<ecos_i2c_probe>", "<hal_i2c_probe>"),
+            ),
+            (
+                "spi-loopback",
+                ("components/soc/ch32v103/hal/spi/spi.c", "drivers/spi/src/spi.c"),
+                ("<ecos_spi_transfer>", "<hal_spi_transfer_byte>"),
             ),
         ):
             with self.subTest(example=example):

@@ -1,0 +1,12 @@
+schema: 1
+id: driver-spi
+name: SPI Driver
+cmake_target: ecos::driver::spi
+sources:
+  - src/spi.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - driver-gpio
+  - hal-spi
