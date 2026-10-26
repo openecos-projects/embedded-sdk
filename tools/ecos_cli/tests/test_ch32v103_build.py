@@ -113,8 +113,8 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
             self.assertFalse((root / "hello").exists())
 
-    def test_gpio_and_timer_examples_are_supported(self):
-        for example in ("gpio-basic", "timer-polling"):
+    def test_basic_ip_examples_are_supported(self):
+        for example in ("gpio-basic", "timer-polling", "wdg-reset"):
             with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
                 output = StringIO()
                 with redirect_stdout(output), redirect_stderr(output):
@@ -225,6 +225,11 @@ class CH32V103BuildTest(unittest.TestCase):
                     "drivers/gpio/src/gpio.c",
                 ),
                 ("<ecos_timer_start>", "<hal_timer_is_expired>", "<hal_gpio_set_level>"),
+            ),
+            (
+                "wdg-reset",
+                ("components/soc/ch32v103/hal/wdg/wdg.c", "drivers/wdg/src/wdg.c"),
+                ("<ecos_wdg_init>", "<hal_wdg_feed>"),
             ),
         ):
             with self.subTest(example=example):

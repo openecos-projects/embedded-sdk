@@ -6,9 +6,15 @@
 
 #define LOG_TAG "wdg-reset"
 
+#ifdef ECOS_SOC_CH32V103
+#define WDG_TEST_CONFIG { 32u, 4000u, 1u }
+#else
+#define WDG_TEST_CONFIG ECOS_WDG_CONFIG_DEFAULT
+#endif
+
 int main(void)
 {
-    const ecos_wdg_config_t config = ECOS_WDG_CONFIG_DEFAULT;
+    const ecos_wdg_config_t config = WDG_TEST_CONFIG;
     uint32_t status;
 
     ECOS_PANIC_ON_ERROR(LOG_TAG, bsp_console_init(), "initialize console");

@@ -13,6 +13,7 @@ Target 为 `ch32v103`。
 - 轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
 - 提供 GPIOA-D 的 0..15 号引脚基础输入/输出，Board 的 `gpio-demo` 使用 PA0 输入、PA1 输出。
 - 提供 TIM2 轮询定时器：HSI 8 MHz、APB1 一分频、1 MHz 计数、最大约 65.5 ms 单次周期。
+- 提供 IWDG 看门狗：使用 LSI，支持合法硬件分频和 12-bit reload；启用后只能复位关闭。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
 - 不提供 GPIO 中断、Timer 中断、PFIC、PLL 切换或 USB。
 - 未支持 WCH 特有快速中断 ABI；启动路径保持全局中断关闭，异常默认停留。
@@ -79,6 +80,18 @@ ecos monitor --port <串口设备> --expect "timer polling completed"
 
 预期出现 5 次 `period elapsed` 和 `timer polling completed`。TIM2 使用 HSI 8 MHz
 和 1 MHz tick，当前只验证轮询 update flag，不代表 HSI 频率精度或中断周期精度。
+
+### IWDG 看门狗
+
+```bash
+ecos project create wdg-reset --board ch32v103c8t6
+cd wdg-reset
+ecos build
+ecos flash
+```
+
+该示例会启用 IWDG，之后芯片预计自动复位。IWDG 启用后不能由软件关闭，请先
+准备好串口、烧录和恢复流程；不要在有未保存数据时运行。
 
 ## 通过 ecos flash 烧录（wlink）
 
