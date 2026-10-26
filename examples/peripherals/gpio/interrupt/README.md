@@ -1,6 +1,7 @@
 # GPIO 双边沿中断示例
 
-例程名：`gpio-interrupt`。当前兼容板卡：StarrySky T1-Pico（`starrysky-t1-pico`）。
+例程名：`gpio-interrupt`。兼容 StarrySky T1-Pico（`starrysky-t1-pico`）和实验性
+CH32V103C8T6（`ch32v103c8t6`）。
 要求 `gpio-demo` 板级资源和 GPIO 中断能力；不能仅因其他板卡提供普通 GPIO 就认为兼容。
 程序使用生成的 `ECOS_BOARD_GPIO_DEMO_INPUT`，不在应用中硬编码引脚。
 
@@ -9,6 +10,10 @@
 T1-Pico 当前输入资源为板载 Button：`GPIOA7`，默认上拉、按下为低电平。
 使用板载按钮即可；如改用外部信号，应遵循板卡电气规格、共地且避免输入悬空，
 禁止接入超出 GPIO 允许范围的电压。示例不驱动 LED。
+
+CH32V103 使用 PA0（EXTI0/PFIC IRQ22），不是已确认的板载按键。需自行核对原理图并
+外接稳定上拉/下拉和 0～3.3 V 干净边沿信号；普通 xPack 软件保存现场，不使用
+WCH 私有 fast-interrupt ABI。本例仅有自动化构建/寄存器模型验证，CH32 实机待测。
 
 ## 创建、构建和运行
 
@@ -21,11 +26,12 @@ ecos monitor
 ```
 
 控制台默认 115200 波特率；可用 `ecos monitor --port /dev/ttyUSB0` 指定串口。
-CI 对应固件为 `gpio-interrupt-starrysky-t1-pico.bin`，按板卡下载流程烧录。
+T1-Pico 的 CI BIN 为 `gpio-interrupt-starrysky-t1-pico.bin`。
+CH32 创建时改用 `--board ch32v103c8t6`，按其 wlink 流程烧录，不要混用固件。
 
 ## 测试步骤与预期结果
 
-1. 复位后确认出现 `GPIOA7 interrupt ready`。
+1. 复位后确认出现 `GPIOA7 interrupt ready`（T1-Pico）或 `PA0 interrupt ready`（CH32）。
 2. 按下并松开按钮，串口应出现 `edges: N`，计数持续增加。
 3. 重复操作至少 10 次，确认后续操作仍能使计数变化，无 panic 或意外复位。
 4. 输入稳定时观察计数；若持续无操作增加，应检查抖动、干扰或输入电平。

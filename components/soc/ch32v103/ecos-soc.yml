@@ -2,7 +2,7 @@ schema: 1
 id: ch32v103
 name: CH32V103 (experimental)
 arch: riscv
-description: Experimental CH32V103C8T6 target with polling USART1, GPIOA-D basic GPIO, I2C1, SPI1, TIM2 polling, and IWDG support; interrupt and clock-accuracy validation pending.
+description: Experimental CH32V103 target with PFIC software-context interrupts, GPIO EXTI, TIM2 callbacks, and polling peripherals; hardware interrupt validation pending.
 cpu:
   march: rv32imac_zicsr_zifencei
   abi: ilp32
@@ -24,11 +24,18 @@ build:
   startup: startup/start.S
   sources:
     - startup/start.S
+  include_dirs:
+    - include
   capability_sources:
     adc:
       - hal/adc/adc.c
     gpio:
       - hal/gpio/gpio.c
+    gpio-interrupt:
+      - hal/gpio/gpio_interrupt.c
+    interrupt:
+      - hal/interrupt/interrupt.c
+      - hal/interrupt/trap.S
     i2c:
       - hal/i2c/i2c.c
     pwm:
@@ -39,6 +46,8 @@ build:
       - hal/spi/spi.c
     timer:
       - hal/timer/timer.c
+    timer-interrupt:
+      - hal/timer/timer_interrupt.c
     wdg:
       - hal/wdg/wdg.c
     uart:
@@ -48,6 +57,10 @@ build:
       - ../../../hal/adc/include
     gpio:
       - ../../../hal/gpio/include
+    gpio-interrupt:
+      - ../../../hal/gpio_interrupt/include
+    interrupt:
+      - ../../../hal/interrupt/include
     i2c:
       - ../../../hal/i2c/include
     pwm:
@@ -57,6 +70,9 @@ build:
     spi:
       - ../../../hal/spi/include
     timer:
+      - ../../../hal/timer/include
+    timer-interrupt:
+      - ../../../hal/interrupt/include
       - ../../../hal/timer/include
     wdg:
       - ../../../hal/wdg/include
@@ -74,9 +90,12 @@ capabilities:
   - adc
   - uart
   - gpio
+  - gpio-interrupt
+  - interrupt
   - i2c
   - pwm
   - rtc
   - spi
   - timer
+  - timer-interrupt
   - wdg

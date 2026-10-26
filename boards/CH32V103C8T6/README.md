@@ -12,7 +12,8 @@ Target 为 `ch32v103`。
 - 默认 `flash` profile，保留 2 KiB 栈；提供基本 `.data` 搬运和 `.bss` 清零。
 - 轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
 - 提供 GPIOA-D 的 0..15 号引脚基础输入/输出，Board 的 `gpio-demo` 使用 PA0 输入、PA1 输出。
-- 提供 TIM2 轮询定时器：HSI 8 MHz、APB1 一分频、1 MHz 计数、最大约 65.5 ms 单次周期。
+- 提供 TIM2 轮询/中断定时器：固定 HSI/APB1 8 MHz，长周期自动选择预分频量子，
+  支持 1～536870912 微秒周期，1 秒周期无需改例程。
 - 提供 IWDG 看门狗：使用 LSI，支持合法硬件分频和 12-bit reload；启用后只能复位关闭。
 - 提供 I2C1 轮询主机：默认 PB6=SCL、PB7=SDA，标准模式，需外接上拉电阻。
 - 提供 SPI1 轮询主机：PA5=SCK、PA6=MISO、PA7=MOSI，PA4 由 Driver 作为软件 CS。
@@ -21,8 +22,10 @@ Target 为 `ch32v103`。
 - 提供 ADC1 单通道轮询采样，支持外部通道 0～15 和内部通道 16/17。
 - 当前 I2C/SPI/PWM/RTC 仅完成轮询、编译和链接验证，外设实机通信/波形/计时仍需按接线单独复测。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
-- 不提供 GPIO 中断、Timer 中断、PFIC、PLL 切换或 USB。
-- 未支持 WCH 特有快速中断 ABI；启动路径保持全局中断关闭，异常默认停留。
+- 提供实验性 PFIC 中断、GPIO EXTI 边沿中断和 TIM2 周期回调；不提供 PLL 切换或 USB。
+- 使用普通 RISC-V ABI 和软件保存现场，关闭 PFIC 硬件压栈/嵌套/VTF，不依赖
+  `WCH-Interrupt-fast`；启动保持全局中断关闭，应用显式使能。
+- 异常默认记录 `mcause/mepc/mtval` 并停机；无 PLIC，也没有外设 DMA/异步 API。
 - 声明 `wlink` 烧录 provider：`ecos flash` 通过 wlink CLI 烧录 Intel HEX；
   芯片处于读保护时按 Board 配置先执行 `unprotect`（全片擦除）。
 
@@ -86,6 +89,44 @@ ecos monitor --port <串口设备> --expect "timer polling completed"
 
 预期出现 5 次 `period elapsed` 和 `timer polling completed`。TIM2 使用 HSI 8 MHz
 和 1 MHz tick，当前只验证轮询 update flag，不代表 HSI 频率精度或中断周期精度。
+
+### PFIC、GPIO EXTI 和 TIM2 中断
+
+GPIO 外部中断（PA0 外接测试输入，需稳定上拉/下拉，0～3.3 V）：
+
+```bash
+ecos project create gpio-interrupt --board ch32v103c8t6
+cd gpio-interrupt
+ecos build
+# 先开串口，再烧录/手动复位，避免错过 ready 日志
+ecos monitor --port <串口设备>
+```
+
+在另一终端烧录 `ecos flash --project <工程路径>`，确认 `PA0 interrupt ready` 后，
+让 PA0 输入产生至少 10 次上升/下降沿，`edges` 应持续增加。示例没有软件消抖，
+不能用机械按键判断精确计数。
+
+TIM2 周期中断（无需外接信号）：
+
+```bash
+ecos project create timer-interrupt --board ch32v103c8t6
+cd timer-interrupt
+ecos build
+ecos flash
+ecos monitor --port <串口设备>
+```
+
+先打开串口再手动复位。应出现 `Timer0 interrupt ready`，随后 `ticks` 约每秒增加，
+连续观察至少 60 秒，并检查停止、注销、重新注册与重复启动。
+`Timer0` 是公共实例 0，CH32 后端对应 TIM2/PFIC IRQ44。
+
+EXTI0..4 独立 IRQ；5..9、10..15 分别共享 IRQ39/56，同组注册优先级必须相同。
+每个编号 EXTI line 只能由一个 GPIO port 占用；不支持电平触发。
+优先级 1..16（越大越紧急）、阈值 0 放行全部；不支持中断嵌套或回调中打开全局中断。
+
+本次没有连接实物执行这些步骤：寄存器模拟、向量/现场 ELF 检查和构建通过，不能
+据此宣称真实中断已验收。UART/SPI/I2C/ADC/DMA 中断模式仍未提供。
+详情见 [中断 API](../../docs/api/interrupt.md)。
 
 ### I2C1 扫描
 
@@ -266,8 +307,8 @@ ecos flash --no-unprotect
 
 已通过：复位入口、Flash 启动别名、USART1 引脚与波特率、Intel HEX 下载地址、
 wlink 解除读保护与烧录。
-GPIO 和 TIM2 轮询固件已经完成编译、链接和产物回归测试；尚未完成 PA0/PA1 实机环回、
-示波器波形和 TIM2 周期实测。
+GPIO/TIM2 固件已覆盖编译、链接和产物回归；PFIC/TIM2/EXTI 增加寄存器模拟和
+向量表/保存现场 ELF 检查。PA0/PA1 环回、波形、真实中断进入/返回及周期精度尚未实测。
 仍未覆盖：异常/中断行为、HSI 实际频偏、断电重启与长时间稳定性、OpenOCD 烧录路径，
 以及 `CH32V103C8T6` 封装实物（当前实机为 CH32V103R8T6）。`ecos flash` 的 wlink
 provider 已实现并通过单元测试，待用实物复测。#30 的 Windows x64 驱动错误诊断和

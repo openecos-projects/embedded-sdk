@@ -6,3 +6,4 @@ components:
   - driver-interrupt
 requires:
   - console
+  - plic

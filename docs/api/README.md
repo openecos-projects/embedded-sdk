@@ -10,8 +10,8 @@
 - [archinfo.md](archinfo.md) / [rng.md](rng.md) / [crc.md](crc.md) /
   [rcu.md](rcu.md) / [rtc.md](rtc.md) — 芯片服务类驱动（标识、随机数、校验、
   时钟复位、计数闹钟）
-- [clint.md](clint.md) / [interrupt.md](interrupt.md) / [sdram.md](sdram.md) — T1-Pico
-  的机器计时器、中断和 SDRAM 初始化
+- [interrupt.md](interrupt.md) — 通用机器中断（T1-Pico PLIC、CH32V103 PFIC）
+- [clint.md](clint.md) / [sdram.md](sdram.md) — T1-Pico 的机器计时器和 SDRAM 初始化
 - [gpio-interrupt.md](gpio-interrupt.md) / [timer-interrupt.md](timer-interrupt.md) — GPIO
   外部中断和 Timer 周期回调
 - [devices.md](devices.md) — 设备驱动（AHT20、AT24C64、蜂鸣器、ESP01S、SGP30、

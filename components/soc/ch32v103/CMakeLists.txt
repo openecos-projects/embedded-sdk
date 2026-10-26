@@ -65,8 +65,8 @@ target_compile_options(ecos_build_options INTERFACE
     "$<$<COMPILE_LANGUAGE:C>:${ECOS_CONFIG_HEADER}>"
 )
 target_compile_definitions(ecos_build_options INTERFACE ECOS_SOC_CH32V103=1)
-# Experimental CH32V103 port: polling console, GPIO, TIM2 timer, and IWDG;
-# no interrupt ABI extensions are enabled.
+# Interrupt-capable builds use ordinary RV32 software-context handlers;
+# no WCH private fast-interrupt compiler attributes or hardware stacking.
 
 set(_ecos_component_include_dirs)
 foreach(_ecos_component_key IN LISTS ECOS_COMPONENT_KEYS)

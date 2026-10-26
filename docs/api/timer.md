@@ -87,7 +87,11 @@ int main(void)
   实例。
 - `get_count` 在部分 Target 上返回 `ECOS_ERR_UNSUPPORTED`，移植代码时做好
   分支处理。
-- 没有中断回调 API，定时事件用 `is_expired` 轮询。
+- 周期回调见 [timer-interrupt.md](timer-interrupt.md)；未声明 `timer-interrupt` 能力的
+  Target 仍需使用 `is_expired` 轮询。
+- CH32V103 公共 Timer0 对应 TIM2，固定 HSI/APB1 8 MHz；支持最大 536870912 微秒周期，
+  长周期采用 2 的幂微秒量子并向上取整。`get_count` 换算返回微秒，注册回调后
+  同实例的重新初始化、反初始化和延时会返回 `ECOS_ERR_BUSY`。
 - 不要与 2.x 遗留头文件 `hal/timer/hal_timer.h` 混用：其 `hal_timer_config_t`
   与新契约 `ecos/hal/timer.h` 中的同名类型冲突（见 [README.md](README.md) 的
   遗留警告）。

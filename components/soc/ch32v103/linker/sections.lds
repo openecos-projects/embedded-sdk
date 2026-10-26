@@ -13,6 +13,7 @@ SECTIONS
     .text : ALIGN(4)
     {
         KEEP(*(.text.start))
+        KEEP(*(.text.ch32v103_vectors))
         *(.text .text.*)
         *(.rodata .rodata.* .srodata .srodata.*)
         . = ALIGN(4);

@@ -43,7 +43,7 @@ jobs:
           --board starrysky-t1-pico
           --board starrysky-c2
           --report ci-report.json --firmware-dir ci-firmware
-      - name: Build experimental CH32V103 GPIO, Timer, and IWDG examples
+      - name: Build experimental CH32V103 peripheral and PFIC interrupt examples
         if: matrix.runner == 'ubuntu-24.04'
         run: >-
           python tools/ci_host_smoke.py

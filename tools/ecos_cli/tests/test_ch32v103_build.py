@@ -16,6 +16,7 @@ SDK_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SDK_ROOT / "tools/ecos_cli/src"))
 
 from ecos_cli import dependencies, installer, toolchain
+from ecos_cli.artifacts import inspect_elf
 from ecos_cli.cli import main
 
 
@@ -114,7 +115,7 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertFalse((root / "hello").exists())
 
     def test_basic_ip_examples_are_supported(self):
-        for example in ("adc-oneshot", "gpio-basic", "i2c-scan", "pwm-basic", "rtc-counter", "spi-loopback", "timer-polling", "wdg-reset"):
+        for example in ("adc-oneshot", "gpio-basic", "gpio-interrupt", "i2c-scan", "pwm-basic", "rtc-counter", "spi-loopback", "timer-polling", "timer-interrupt", "wdg-reset"):
             with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
                 output = StringIO()
                 with redirect_stdout(output), redirect_stderr(output):
@@ -127,6 +128,19 @@ class CH32V103SelectionTest(unittest.TestCase):
                 payload = json.loads(output.getvalue())
                 self.assertEqual(payload["data"]["board"], "ch32v103c8t6")
                 self.assertEqual(payload["data"]["target"], "ch32v103")
+
+    def test_ch32_does_not_claim_plic_support(self):
+        output = StringIO()
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(output):
+            result = main([
+                "--sdk", str(SDK_ROOT), "project", "create", "plic",
+                "--board", "ch32v103c8t6", "--path", directory,
+                "--dry-run", "--format", "json",
+            ])
+        self.assertEqual(result, 3, output.getvalue())
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["diagnostics"][0]["code"], "ECOS_PROJECT_CAPABILITY_MISMATCH")
+        self.assertIn("plic", payload["diagnostics"][0]["message"])
 
     def test_unsupported_blink_is_rejected(self):
         output = StringIO()
@@ -183,6 +197,8 @@ class CH32V103BuildTest(unittest.TestCase):
             ):
                 self.assertIn(SDK_ROOT / source, compiled)
             self.assertFalse(any("cl1-2512" in str(path) for path in compiled))
+            self.assertFalse(any("hal/interrupt" in str(path) for path in compiled))
+            self.assertNotIn("ecos_ch32v103_vector_table", inspect_elf(build / "retrosoc_fw.elf")["symbols"])
             disassembly = (build / "retrosoc_fw.txt").read_text()
             for symbol in ("<_start>", "<main>", "<hal_uart_init>", "<bsp_console_init>"):
                 self.assertIn(symbol, disassembly)
@@ -208,6 +224,87 @@ class CH32V103BuildTest(unittest.TestCase):
             self.assertIn('#define ECOS_BOARD_GPIO_DEMO_OUTPUT_LABEL "PA1"', header)
             self.assertIn("{ ECOS_GPIO_PORT_0, 0u }", header)
             self.assertIn("{ ECOS_GPIO_PORT_0, 1u }", header)
+
+    def test_interrupt_builds_have_fixed_vectors_and_full_software_context(self):
+        workspace = SDK_ROOT / "testdir"
+        workspace.mkdir(exist_ok=True)
+        for example, peripheral_source in (
+            ("timer-interrupt", "hal/timer/timer_interrupt.c"),
+            ("gpio-interrupt", "hal/gpio/gpio_interrupt.c"),
+        ):
+            with self.subTest(example=example), tempfile.TemporaryDirectory(
+                prefix="ch32-irq-build-", dir=workspace
+            ) as directory:
+                project = Path(directory) / example
+                output = StringIO()
+                with redirect_stdout(output), redirect_stderr(output):
+                    created = main([
+                        "--sdk", str(SDK_ROOT), "project", "create", example,
+                        "--board", "ch32v103c8t6", "--path", directory,
+                    ])
+                    self.assertEqual(created, 0, output.getvalue())
+                    built = main(["--sdk", str(SDK_ROOT), "build", "--project", str(project)])
+                self.assertEqual(built, 0, output.getvalue())
+                build = project / "build"
+                compiled = {Path(item["file"]).resolve() for item in json.loads(
+                    (build / "compile_commands.json").read_text()
+                )}
+                for source in (peripheral_source, "hal/interrupt/interrupt.c", "hal/interrupt/trap.S"):
+                    self.assertIn((SDK_ROOT / "components/soc/ch32v103" / source).resolve(), compiled)
+                elf_path = build / "retrosoc_fw.elf"
+                elf = inspect_elf(elf_path)
+                self.assertEqual(elf["entry"], 0)
+                symbols = elf["symbols"]
+                start = symbols["ecos_ch32v103_vector_table"]
+                end = symbols["ecos_ch32v103_vector_table_end"]
+                trap = symbols["ecos_ch32v103_trap_entry"]
+                trap_end = symbols["ecos_ch32v103_trap_entry_end"]
+                self.assertEqual(start % 256, 0)
+                self.assertEqual(end - start, 60 * 4)
+
+                def at(address, size):
+                    section = next(item for item in elf["sections"] if
+                                   item["name"] == ".text")
+                    offset = section["offset"] + address - section["address"]
+                    return elf_path.read_bytes()[offset:offset + size]
+
+                # Every PFIC slot must be a 32-bit JAL x0 to the common entry,
+                # never a compressed instruction, address word or relaxed call.
+                vectors = at(start, end - start)
+                for slot in range(60):
+                    word = int.from_bytes(vectors[slot * 4:slot * 4 + 4], "little")
+                    self.assertEqual(word & 0xFFF, 0x06F)
+                    imm = (((word >> 31) & 1) << 20 | ((word >> 21) & 0x3FF) << 1 |
+                           ((word >> 20) & 1) << 11 | ((word >> 12) & 0xFF) << 12)
+                    if imm & (1 << 20):
+                        imm -= 1 << 21
+                    self.assertEqual(start + slot * 4 + imm, trap)
+
+                body = at(trap, trap_end - trap)
+                words = [int.from_bytes(body[i:i + 4], "little") for i in range(0, len(body), 4)]
+                stores = {}
+                loads = {}
+                for word in words:
+                    opcode = word & 0x7F
+                    base = (word >> 15) & 31
+                    funct3 = (word >> 12) & 7
+                    if base == 2 and funct3 == 2:
+                        if opcode == 0x23:
+                            offset = ((word >> 25) << 5) | ((word >> 7) & 31)
+                            stores.setdefault((word >> 20) & 31, []).append(offset)
+                        elif opcode == 0x03:
+                            loads[(word >> 7) & 31] = word >> 20
+                registers = [1, 3, 4, *range(5, 32)]
+                for offset, register in enumerate(registers):
+                    self.assertIn(offset * 4, stores[register])
+                    self.assertEqual(loads[register], offset * 4)
+                self.assertEqual(words[0], 0xF7010113)  # addi sp,sp,-144
+                self.assertEqual(words[-2], 0x09010113)  # addi sp,sp,144
+                self.assertEqual(words[-1], 0x30200073)  # mret
+                self.assertIn(0x34129073, words)  # csrw mepc,t0
+                self.assertIn(0x30029073, words)  # csrw mstatus,t0
+                binary = (build / "retrosoc_fw.bin").read_bytes()
+                self.assertEqual(intel_hex_image((build / "retrosoc_fw.hex").read_text()), (0, binary))
 
     def test_gpio_and_timer_builds_link_ch32_hal_sources(self):
         for example, sources, symbols in (

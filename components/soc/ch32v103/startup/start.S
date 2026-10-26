@@ -1,5 +1,6 @@
-/* Minimal polling-only reset path. Interrupt support is intentionally absent.
- * Written for ECOS; memory/CSR conventions checked against openwch/ch32v103 EVT.
+/* Reset path: interrupts stay disabled until the application enables them.
+ * If the interrupt capability is linked, install the PFIC software-context
+ * vectors after .bss initialization. Polling-only applications keep a halt trap.
  */
 .section .text.start, "ax", @progbits
 .balign 4
@@ -12,9 +13,10 @@ _start:
 .option pop
 
 .Lreset:
-    /* Do not enable WCH fast-interrupt mode or globally enable interrupts. */
+    /* No WCH fast ABI. Clear both global/previous interrupt-enable bits. */
     csrw mie, zero
-    csrci mstatus, 8
+    li t0, 0x88
+    csrc mstatus, t0
     la sp, _stack_pointer
     la t0, .Ltrap
     csrw mtvec, t0
@@ -40,6 +42,11 @@ _start:
 .Lmain:
     fence rw, rw
     fence.i
+    .weak hal_interrupt_init
+    la t0, hal_interrupt_init
+    beqz t0, .Lapplication
+    jalr ra, t0, 0
+.Lapplication:
     call main
 .balign 4
 .Ltrap:

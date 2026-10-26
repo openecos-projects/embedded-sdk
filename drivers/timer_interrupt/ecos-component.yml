@@ -11,5 +11,6 @@ dependencies:
   - driver-timer
 private_dependencies:
   - hal-timer
+  - hal-interrupt
 requires:
   - timer-interrupt
