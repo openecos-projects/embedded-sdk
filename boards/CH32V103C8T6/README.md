@@ -5,6 +5,9 @@
 Target 为 `ch32v103`。
 这不是 CH32F103（ARM）适配，也不是其他 CH32V 系列芯片的通用适配。
 
+Windows 实机测试请按 [3.0.1 测试 Checklist](../../docs/ch32v103-windows-test-checklist.md)
+逐项记录；其中区分原样示例、需修改的扩展测试和当前未实现的范围。
+
 ## 当前范围
 
 - RV32IMAC + Zicsr/Zifencei、ILP32，使用 SDK 锁定的 xPack GCC 15.2.0-1。
