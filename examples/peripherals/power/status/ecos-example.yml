@@ -1,0 +1,8 @@
+schema: 1
+name: power-status
+sources:
+  - main.c
+components:
+  - driver-power
+requires:
+  - console

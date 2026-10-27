@@ -22,6 +22,7 @@
 #define TIM_CC1E       0x0001u
 #define TIM_MOE        0x8000u
 #define TIM_OC1M_PWM1  0x0060u
+#define TIM_OC1M_FORCE_ACTIVE 0x0050u
 #define TIM_OC1PE      0x0008u
 
 static uint8_t initialized;
@@ -69,7 +70,16 @@ ecos_err_t hal_pwm_set_duty_cycle(hal_pwm_id_t id,
         return ECOS_ERR_INVALID_ARGUMENT;
     if (initialized == 0u)
         return ECOS_ERR_NOT_INITIALIZED;
-    TIM1_CH1CVR = (uint16_t)((period_ticks * duty_percent) / 100u);
+    /* PWM1 cannot represent ARR+1 in the 16-bit CCR register.  Use the
+     * timer's forced-active compare mode for an exact 100% output, and return
+     * to PWM1 for all other duty values. */
+    if (duty_percent == 100u) {
+        TIM1_CHCTLR1 = TIM_OC1M_FORCE_ACTIVE | TIM_OC1PE;
+        TIM1_CH1CVR = 0u;
+    } else {
+        TIM1_CHCTLR1 = TIM_OC1M_PWM1 | TIM_OC1PE;
+        TIM1_CH1CVR = (uint16_t)((period_ticks * duty_percent) / 100u);
+    }
     return ECOS_OK;
 }
 

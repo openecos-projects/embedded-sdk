@@ -1,0 +1,15 @@
+schema: 1
+id: driver-systick
+name: SysTick Driver
+cmake_target: ecos::driver::systick
+sources:
+  - src/systick.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-systick
+private_dependencies:
+  - hal-interrupt
+requires:
+  - systick

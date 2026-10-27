@@ -1,0 +1,8 @@
+schema: 1
+name: backup-registers
+sources:
+  - main.c
+components:
+  - driver-backup
+requires:
+  - console

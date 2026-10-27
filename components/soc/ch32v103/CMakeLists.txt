@@ -8,10 +8,16 @@ if(NOT EXISTS "${ECOS_PROJECT_CONFIG}")
 endif()
 include("${ECOS_PROJECT_CONFIG}")
 
-if(CMAKE_PROJECT_NAME)
-    enable_language(ASM)
-else()
+# CMake preserves CMAKE_PROJECT_NAME in the build cache on reconfigure, even
+# before this Target has called project().  Test the language state instead of
+# using the project name; otherwise a second build can lose the C linker
+# language and fail with "cannot determine linker language".
+if(NOT CMAKE_C_COMPILER_LOADED)
     project(ecos_ch32v103 LANGUAGES C ASM)
+else()
+    if(NOT CMAKE_ASM_COMPILER_LOADED)
+        enable_language(ASM)
+    endif()
 endif()
 
 if(NOT DEFINED FIRMWARE_NAME OR FIRMWARE_NAME STREQUAL "")

@@ -23,11 +23,13 @@
 #define I2C_STAR1     REG16(I2C1_BASE + 0x14u)
 #define I2C_STAR2     REG16(I2C1_BASE + 0x18u)
 #define I2C_CKCFGR    REG16(I2C1_BASE + 0x1Cu)
+#define I2C_TRISE     REG16(I2C1_BASE + 0x20u)
 
 #define I2C_CR1_PE    0x0001u
 #define I2C_CR1_START 0x0100u
 #define I2C_CR1_STOP  0x0200u
 #define I2C_CR1_ACK   0x0400u
+#define I2C_CR1_POS   0x0800u
 #define I2C_SR1_SB    0x0001u
 #define I2C_SR1_ADDR  0x0002u
 #define I2C_SR1_BTF   0x0004u
@@ -36,6 +38,7 @@
 #define I2C_SR1_BERR  0x0100u
 #define I2C_SR1_ARLO  0x0200u
 #define I2C_SR1_AF    0x0400u
+#define I2C_SR1_ERRORS (I2C_SR1_BERR | I2C_SR1_ARLO | I2C_SR1_AF)
 #define I2C_SR2_MSL   0x0001u
 #define I2C_SR2_BUSY  0x0002u
 #define I2C_SR2_TRA   0x0004u
@@ -63,16 +66,28 @@ static void configure_pins(void)
     AFIO_PCFR1 &= ~(1u << 1); /* I2C1 no remap: PB6/PB7 */
 }
 
+static void clear_error_flags(void)
+{
+    /* BERR/ARLO/AF are cleared by writing zero to the corresponding STAR1
+     * bits.  This is the sequence specified by the CH32 STM32-compatible I2C
+     * block; do not use a read-modify-write on STAR1 status flags. */
+    I2C_STAR1 = (uint16_t)~I2C_SR1_ERRORS;
+}
+
 static int wait_status(uint16_t mask, int set)
 {
     uint32_t timeout = I2C_TIMEOUT;
 
     while ((((uint16_t)I2C_STAR1 & mask) != 0u) != (set != 0)) {
         uint16_t error = I2C_STAR1;
-        if ((error & (I2C_SR1_BERR | I2C_SR1_ARLO)) != 0u)
+        if ((error & (I2C_SR1_BERR | I2C_SR1_ARLO)) != 0u) {
+            clear_error_flags();
             return ECOS_ERR_IO;
-        if ((error & I2C_SR1_AF) != 0u)
+        }
+        if ((error & I2C_SR1_AF) != 0u) {
+            clear_error_flags();
             return ECOS_ERR_NOT_FOUND;
+        }
         if (timeout-- == 0u)
             return ECOS_ERR_TIMEOUT;
     }
@@ -83,8 +98,14 @@ static ecos_err_t wait_bus_idle(void)
 {
     uint32_t timeout = I2C_TIMEOUT;
     while ((I2C_STAR2 & I2C_SR2_BUSY) != 0u) {
-        if (I2C_STAR1 & (I2C_SR1_BERR | I2C_SR1_ARLO))
+        if (I2C_STAR1 & (I2C_SR1_BERR | I2C_SR1_ARLO)) {
+            clear_error_flags();
             return ECOS_ERR_IO;
+        }
+        if (I2C_STAR1 & I2C_SR1_AF) {
+            clear_error_flags();
+            return ECOS_ERR_NOT_FOUND;
+        }
         if (timeout-- == 0u)
             return ECOS_ERR_TIMEOUT;
     }
@@ -112,6 +133,72 @@ static ecos_err_t start_address(uint8_t address, int read)
         return result;
     clear_addr();
     return ECOS_OK;
+}
+
+static ecos_err_t stop_bus(void);
+
+/* Read-side address phase deliberately leaves ADDR set.  For a one- or
+ * two-byte receive ACK/POS and STOP must be programmed before clearing ADDR. */
+static ecos_err_t start_read_address(uint8_t address)
+{
+    ecos_err_t result;
+
+    I2C_CTLR1 |= I2C_CR1_START;
+    result = wait_status(I2C_SR1_SB, 1);
+    if (result != ECOS_OK)
+        return result;
+    I2C_DATAR = (uint16_t)((address << 1) | 1u);
+    return wait_status(I2C_SR1_ADDR, 1);
+}
+
+static ecos_err_t receive_bytes(uint8_t *data, size_t size)
+{
+    ecos_err_t result = ECOS_OK;
+    size_t index;
+
+    if (size == 1u) {
+        I2C_CTLR1 &= (uint16_t)~(I2C_CR1_ACK | I2C_CR1_POS);
+        clear_addr();
+        I2C_CTLR1 |= I2C_CR1_STOP;
+        result = wait_status(I2C_SR1_RXNE, 1);
+        if (result == ECOS_OK)
+            data[0] = (uint8_t)I2C_DATAR;
+    } else if (size == 2u) {
+        I2C_CTLR1 = (I2C_CTLR1 & (uint16_t)~I2C_CR1_ACK) | I2C_CR1_POS;
+        clear_addr();
+        result = wait_status(I2C_SR1_BTF, 1);
+        if (result == ECOS_OK) {
+            I2C_CTLR1 |= I2C_CR1_STOP;
+            data[0] = (uint8_t)I2C_DATAR;
+            data[1] = (uint8_t)I2C_DATAR;
+        }
+    } else {
+        clear_addr();
+        for (index = 0u; index < size - 3u; ++index) {
+            result = wait_status(I2C_SR1_RXNE, 1);
+            if (result != ECOS_OK)
+                break;
+            data[index] = (uint8_t)I2C_DATAR;
+        }
+        if (result == ECOS_OK)
+            result = wait_status(I2C_SR1_BTF, 1);
+        if (result == ECOS_OK) {
+            I2C_CTLR1 &= (uint16_t)~I2C_CR1_ACK;
+            data[size - 3u] = (uint8_t)I2C_DATAR;
+            result = wait_status(I2C_SR1_BTF, 1);
+        }
+        if (result == ECOS_OK) {
+            I2C_CTLR1 |= I2C_CR1_STOP;
+            data[size - 2u] = (uint8_t)I2C_DATAR;
+            data[size - 1u] = (uint8_t)I2C_DATAR;
+        }
+    }
+    I2C_CTLR1 = (I2C_CTLR1 & (uint16_t)~I2C_CR1_POS) | I2C_CR1_ACK;
+    if (result == ECOS_OK)
+        result = wait_bus_idle();
+    else
+        (void)stop_bus();
+    return result;
 }
 
 static ecos_err_t stop_bus(void)
@@ -155,6 +242,7 @@ ecos_err_t hal_i2c_init(hal_i2c_id_t id, const hal_i2c_config_t *config)
     I2C_CTLR1 = 0u;
     I2C_CTLR2 = 8u; /* APB1 frequency in MHz */
     I2C_CKCFGR = ccr;
+    I2C_TRISE = 9u; /* 8 MHz APB1, standard-mode 1000 ns rise-time limit */
     I2C_OADDR1 = 0x4000u; /* 7-bit master mode, own address disabled */
     I2C_CTLR1 = I2C_CR1_PE | I2C_CR1_ACK;
     initialized = 1u;
@@ -223,25 +311,18 @@ ecos_err_t hal_i2c_read(hal_i2c_id_t id, uint8_t address,
                         uint8_t *data, size_t size)
 {
     ecos_err_t result;
-    size_t index;
     if (data == NULL || size == 0u)
         return ECOS_ERR_INVALID_ARGUMENT;
     result = check(id, address);
     if (result != ECOS_OK)
         return result;
-    result = start_address(address, 1);
+    result = start_read_address(address);
     if (result != ECOS_OK)
         goto fail;
-    for (index = 0u; index < size; ++index) {
-        if (index + 1u == size)
-            I2C_CTLR1 &= (uint16_t)~I2C_CR1_ACK;
-        result = wait_status(I2C_SR1_RXNE, 1);
-        if (result != ECOS_OK)
-            goto fail;
-        data[index] = (uint8_t)I2C_DATAR;
-    }
-    I2C_CTLR1 |= I2C_CR1_ACK;
-    return stop_bus();
+    result = receive_bytes(data, size);
+    if (result != ECOS_OK)
+        goto fail;
+    return ECOS_OK;
 fail:
     (void)stop_bus();
     return result;
@@ -271,19 +352,13 @@ ecos_err_t hal_i2c_write_read(hal_i2c_id_t id, uint8_t address,
     result = wait_status(I2C_SR1_BTF, 1);
     if (result != ECOS_OK)
         goto fail;
-    result = start_address(address, 1);
+    result = start_read_address(address);
     if (result != ECOS_OK)
         goto fail;
-    for (index = 0u; index < read_size; ++index) {
-        if (index + 1u == read_size)
-            I2C_CTLR1 &= (uint16_t)~I2C_CR1_ACK;
-        result = wait_status(I2C_SR1_RXNE, 1);
-        if (result != ECOS_OK)
-            goto fail;
-        read_data[index] = (uint8_t)I2C_DATAR;
-    }
-    I2C_CTLR1 |= I2C_CR1_ACK;
-    return stop_bus();
+    result = receive_bytes(read_data, read_size);
+    if (result != ECOS_OK)
+        goto fail;
+    return ECOS_OK;
 fail:
     (void)stop_bus();
     return result;

@@ -1,0 +1,12 @@
+schema: 1
+id: hal-systick
+name: SysTick HAL Contract
+cmake_target: ecos::hal::systick
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-interrupt
+requires:
+  - systick
+  - interrupt

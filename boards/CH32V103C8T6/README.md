@@ -10,22 +10,32 @@ Target 为 `ch32v103`。
 - RV32IMAC + Zicsr/Zifencei、ILP32，使用 SDK 锁定的 xPack GCC 15.2.0-1。
 - 64 KiB Flash、20 KiB SRAM；Flash 链接至启动别名 `0x00000000`。
 - 默认 `flash` profile，保留 2 KiB 栈；提供基本 `.data` 搬运和 `.bss` 清零。
-- 轮询 USART1：SDK UART port 0 对应 USART1，TX PA9、RX PA10，115200 8N1。
+- 轮询 USART：SDK UART port 0 对应 USART1（TX PA9、RX PA10），port 1 对应
+  USART2（PA2/PA3），port 2 对应 USART3（PB10/PB11）；默认控制台为 USART1 115200 8N1。
 - 提供 GPIOA-D 的 0..15 号引脚基础输入/输出，Board 的 `gpio-demo` 使用 PA0 输入、PA1 输出。
 - 提供 TIM2 轮询/中断定时器：固定 HSI/APB1 8 MHz，长周期自动选择预分频量子，
   支持 1～536870912 微秒周期，1 秒周期无需改例程。
 - 提供 IWDG 看门狗：使用 LSI，支持合法硬件分频和 12-bit reload；启用后只能复位关闭。
 - 提供 I2C1 轮询主机：默认 PB6=SCL、PB7=SDA，标准模式，需外接上拉电阻。
-- 提供 SPI1 轮询主机：PA5=SCK、PA6=MISO、PA7=MOSI，PA4 由 Driver 作为软件 CS。
+- 提供 SPI1/SPI2 轮询主机：实例 0 为 SPI1（PA5/PA6/PA7），实例 1 为 SPI2
+  （PB13/PB14/PB15），依次为 SCK/MISO/MOSI；Board 默认 SPI1，PA4 为软件 CS。
 - 提供 TIM1 CH1 PWM 轮询输出，默认 PA8。
 - 提供 RTC/LSI 计数器和闹钟比较基础后端。
 - 提供 ADC1 单通道轮询采样，支持外部通道 0～15 和内部通道 16/17。
-- 当前 I2C/SPI/PWM/RTC 仅完成轮询、编译和链接验证，外设实机通信/波形/计时仍需按接线单独复测。
-- 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频。
-- 提供实验性 PFIC 中断、GPIO EXTI 边沿中断和 TIM2 周期回调；不提供 PLL 切换或 USB。
+- 提供基础 RCU/HSI 状态、片内 Flash、CRC、备份寄存器、PWR/低功耗、WWDG、DMA1
+  channel 1～7 和 USBFS 控制器生命周期接口；DMA 外设请求映射、USB class/descriptor
+  栈和真实 Flash 擦写仍需按具体板级连接单独验证。
+- 当前新增后端均完成编译/链接验证；PFIC/EXTI/TIM2 另有寄存器模型和 ELF 检查，
+  不代表其他后端已通过寄存器模型或实机验证。外设通信、波形、时钟、Flash 擦写和
+  低功耗行为仍需按接线单独复测。
+- 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频；USBFS 控制器初始化会
+  配置独立的 HSI/2×12=48 MHz USB PLL 时钟，不切换系统/USART 时钟。
+- 提供实验性 PFIC 中断、GPIO EXTI 边沿中断、TIM2 周期回调和 SysTick IRQ12；不依赖
+  `WCH-Interrupt-fast`。
 - 使用普通 RISC-V ABI 和软件保存现场，关闭 PFIC 硬件压栈/嵌套/VTF，不依赖
   `WCH-Interrupt-fast`；启动保持全局中断关闭，应用显式使能。
-- 异常默认记录 `mcause/mepc/mtval` 并停机；无 PLIC，也没有外设 DMA/异步 API。
+- 异常默认记录 `mcause/mepc/mtval` 并停机；无 PLIC。DMA1 有通用通道/回调 API，
+  尚未提供 ADC/SPI/I2C/UART 的集成 DMA 传输接口。
 - 声明 `wlink` 烧录 provider：`ecos flash` 通过 wlink CLI 烧录 Intel HEX；
   芯片处于读保护时按 Board 配置先执行 `unprotect`（全片擦除）。
 
@@ -125,7 +135,8 @@ EXTI0..4 独立 IRQ；5..9、10..15 分别共享 IRQ39/56，同组注册优先�
 优先级 1..16（越大越紧急）、阈值 0 放行全部；不支持中断嵌套或回调中打开全局中断。
 
 本次没有连接实物执行这些步骤：寄存器模拟、向量/现场 ELF 检查和构建通过，不能
-据此宣称真实中断已验收。UART/SPI/I2C/ADC/DMA 中断模式仍未提供。
+据此宣称真实中断已验收。UART/SPI/I2C/ADC 集成中断模式仍未提供；DMA1/SysTick
+回调已有后端，但其真实中断行为也需单独上板验证。
 详情见 [中断 API](../../docs/api/interrupt.md)。
 
 ### I2C1 扫描

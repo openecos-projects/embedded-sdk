@@ -2,7 +2,7 @@ schema: 1
 id: ch32v103
 name: CH32V103 (experimental)
 arch: riscv
-description: Experimental CH32V103 target with PFIC software-context interrupts, GPIO EXTI, TIM2 callbacks, and polling peripherals; hardware interrupt validation pending.
+description: Experimental CH32V103 target with PFIC software-context interrupts, GPIO EXTI, TIM2 callbacks, polling peripherals, DMA1, on-chip Flash, power, USBFS controller, and watchdog support; hardware validation pending.
 cpu:
   march: rv32imac_zicsr_zifencei
   abi: ilp32
@@ -29,6 +29,16 @@ build:
   capability_sources:
     adc:
       - hal/adc/adc.c
+    archinfo:
+      - hal/archinfo/archinfo.c
+    backup:
+      - hal/backup/backup.c
+    crc:
+      - hal/crc/crc.c
+    dma:
+      - hal/dma/dma.c
+    flash:
+      - hal/flash/flash.c
     gpio:
       - hal/gpio/gpio.c
     gpio-interrupt:
@@ -38,23 +48,45 @@ build:
       - hal/interrupt/trap.S
     i2c:
       - hal/i2c/i2c.c
+    power:
+      - hal/power/power.c
     pwm:
       - hal/pwm/pwm.c
+    rcu:
+      - hal/rcu/rcu.c
     rtc:
       - hal/rtc/rtc.c
     spi:
       - hal/spi/spi.c
+    systick:
+      - hal/systick/systick.c
     timer:
       - hal/timer/timer.c
     timer-interrupt:
       - hal/timer/timer_interrupt.c
     wdg:
       - hal/wdg/wdg.c
+    wwdg:
+      - hal/wwdg/wwdg.c
     uart:
       - hal/uart/uart.c
+    usb:
+      - hal/usb/usb.c
   capability_include_dirs:
     adc:
       - ../../../hal/adc/include
+    archinfo:
+      - ../../../hal/archinfo/include
+    backup:
+      - ../../../hal/backup/include
+    crc:
+      - ../../../hal/crc/include
+    dma:
+      - ../../../hal/dma/include
+      - ../../../hal/interrupt/include
+      - include
+    flash:
+      - ../../../hal/flash/include
     gpio:
       - ../../../hal/gpio/include
     gpio-interrupt:
@@ -63,12 +95,22 @@ build:
       - ../../../hal/interrupt/include
     i2c:
       - ../../../hal/i2c/include
+    power:
+      - ../../../hal/power/include
+      - ../../../hal/interrupt/include
+      - include
     pwm:
       - ../../../hal/pwm/include
+    rcu:
+      - ../../../hal/rcu/include
     rtc:
       - ../../../hal/rtc/include
     spi:
       - ../../../hal/spi/include
+    systick:
+      - ../../../hal/systick/include
+      - ../../../hal/interrupt/include
+      - include
     timer:
       - ../../../hal/timer/include
     timer-interrupt:
@@ -76,8 +118,12 @@ build:
       - ../../../hal/timer/include
     wdg:
       - ../../../hal/wdg/include
+    wwdg:
+      - ../../../hal/wwdg/include
     uart:
       - ../../../hal/uart/include
+    usb:
+      - ../../../hal/usb/include
   outputs:
     - elf
     - bin
@@ -88,14 +134,24 @@ build:
     - compile_commands
 capabilities:
   - adc
+  - archinfo
+  - backup
+  - crc
+  - dma
+  - flash
   - uart
   - gpio
   - gpio-interrupt
   - interrupt
   - i2c
+  - power
   - pwm
+  - rcu
   - rtc
   - spi
+  - systick
   - timer
   - timer-interrupt
   - wdg
+  - wwdg
+  - usb

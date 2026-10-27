@@ -1,0 +1,10 @@
+schema: 1
+id: hal-usb
+name: USBFS Controller HAL Contract
+cmake_target: ecos::hal::usb
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - usb

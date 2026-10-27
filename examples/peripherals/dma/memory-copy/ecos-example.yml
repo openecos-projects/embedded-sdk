@@ -1,0 +1,8 @@
+schema: 1
+name: dma-memory-copy
+sources:
+  - main.c
+components:
+  - driver-dma
+requires:
+  - console

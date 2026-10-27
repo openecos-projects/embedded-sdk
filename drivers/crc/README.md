@@ -14,6 +14,12 @@
 `ECOS_CRC_DEFAULT` 选择唯一实例。`ECOS_CRC_CONFIG_DEFAULT` 是板测验证过的
 组合（初值 0xFFFF、最终异或 0、模式 2）。
 
+## CH32V103 实现
+
+CH32V103 使用 WCH 固定 CRC-32 外设，硬件不提供公共 API 中的 init/xor/mode
+寄存器；这些字段在该 Target 上被忽略，结果是芯片固定 CRC 数据流。该限制已保留
+在 HAL 实现中，不能把 CH32 的结果与 ysyx-2512 的可编程模式直接比较。
+
 ## ysyx-2512 实现
 
 ysyx-2512-1 与 ysyx-2512-2 均提供该 IP（寄存器起始于 0x10301000），按 32 位字

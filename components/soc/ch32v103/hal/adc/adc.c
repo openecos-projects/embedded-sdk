@@ -32,7 +32,6 @@
 
 static uint8_t initialized;
 static uint8_t configured_channel;
-static uint8_t configured_sample_code;
 
 static uint8_t sample_code(uint8_t cycles)
 {
@@ -75,6 +74,17 @@ static void configure_analog_pin(uint8_t channel)
     *reg &= ~(0xFu << ((uint32_t)pin * 4u)); /* analog input: MODE=00,CNF=00 */
 }
 
+static int wait_flag_clear(uint32_t mask)
+{
+    uint32_t timeout = ADC_TIMEOUT;
+
+    while ((ADC1_CTLR2 & mask) != 0u) {
+        if (timeout-- == 0u)
+            return ECOS_ERR_TIMEOUT;
+    }
+    return ECOS_OK;
+}
+
 static int wait_eoc(void)
 {
     uint32_t timeout = ADC_TIMEOUT;
@@ -96,7 +106,8 @@ ecos_err_t hal_adc_init(hal_adc_id_t adc, const hal_adc_config_t *config)
     uint32_t sample_bits;
 
     if (!valid_id(adc) || config == NULL || !valid_channel(config->channel) ||
-        config->clock_divider < 2u || config->clock_divider > 8u)
+        (config->clock_divider != 2u && config->clock_divider != 4u &&
+         config->clock_divider != 6u && config->clock_divider != 8u))
         return ECOS_ERR_INVALID_ARGUMENT;
     code = sample_code(config->sample_cycles);
     RCC_APB2PCENR |= (1u << 9) | (1u << 2) | (1u << 3) | (1u << 4);
@@ -120,16 +131,16 @@ ecos_err_t hal_adc_init(hal_adc_id_t adc, const hal_adc_config_t *config)
     ADC1_RSQR2 = 0u;
     ADC1_RSQR3 = config->channel;
     ADC1_CTLR2 = ADC_CTLR2_ADON | ADC_CTLR2_EXTTRIG;
+    if (config->channel >= 16u)
+        ADC1_CTLR2 |= ADC_CTLR2_TSVREFE;
     ADC1_CTLR2 |= ADC_CTLR2_RSTCAL;
-    while ((ADC1_CTLR2 & ADC_CTLR2_RSTCAL) != 0u)
-        ;
+    if (wait_flag_clear(ADC_CTLR2_RSTCAL) != ECOS_OK)
+        return ECOS_ERR_TIMEOUT;
     ADC1_CTLR2 |= ADC_CTLR2_CAL;
-    while ((ADC1_CTLR2 & ADC_CTLR2_CAL) != 0u)
-        ;
+    if (wait_flag_clear(ADC_CTLR2_CAL) != ECOS_OK)
+        return ECOS_ERR_TIMEOUT;
     configured_channel = config->channel;
-    configured_sample_code = code;
     initialized = 1u;
-    (void)configured_sample_code;
     return ECOS_OK;
 }
 

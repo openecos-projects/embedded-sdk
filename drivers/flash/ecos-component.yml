@@ -1,0 +1,13 @@
+schema: 1
+id: driver-flash
+name: On-chip Flash Driver
+cmake_target: ecos::driver::flash
+sources:
+  - src/flash.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-flash
+requires:
+  - flash

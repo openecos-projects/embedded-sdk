@@ -1,0 +1,10 @@
+schema: 1
+id: hal-backup
+name: Backup Register HAL Contract
+cmake_target: ecos::hal::backup
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - backup

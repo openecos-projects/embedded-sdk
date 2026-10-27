@@ -1,0 +1,10 @@
+schema: 1
+id: hal-power
+name: Power and low-power HAL Contract
+cmake_target: ecos::hal::power
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - power

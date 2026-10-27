@@ -1,0 +1,14 @@
+schema: 1
+id: driver-dma
+name: DMA Driver
+cmake_target: ecos::driver::dma
+sources:
+  - src/dma.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-dma
+requires:
+  - dma
+  - interrupt

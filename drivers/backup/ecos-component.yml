@@ -1,0 +1,13 @@
+schema: 1
+id: driver-backup
+name: Backup Register Driver
+cmake_target: ecos::driver::backup
+sources:
+  - src/backup.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-backup
+requires:
+  - backup

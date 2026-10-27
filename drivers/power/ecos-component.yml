@@ -1,0 +1,13 @@
+schema: 1
+id: driver-power
+name: Power and low-power Driver
+cmake_target: ecos::driver::power
+sources:
+  - src/power.c
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+  - hal-power
+requires:
+  - power

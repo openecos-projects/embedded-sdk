@@ -6,9 +6,15 @@
 
 #define LOG_TAG "rcu-status"
 
-/* 控制位含义由 SoC 定义；0xB 是 2.x 冒烟使用的值，可按硬件文档调整。 */
+/* Control bits and divider are SoC-specific.  CH32 stays on HSI/8 MHz so
+ * the USART1 console remains valid after the status read. */
+#if defined(ECOS_SOC_CH32V103)
+#define RCU_CLOCK_DIVIDER 1u
+#define RCU_CONTROL_BITS  0u
+#else
 #define RCU_CLOCK_DIVIDER 256u
-#define RCU_CONTROL_BITS   0xBu
+#define RCU_CONTROL_BITS  0xBu
+#endif
 
 static void halt(void)
 {

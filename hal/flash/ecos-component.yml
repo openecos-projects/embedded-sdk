@@ -1,0 +1,10 @@
+schema: 1
+id: hal-flash
+name: On-chip Flash HAL Contract
+cmake_target: ecos::hal::flash
+include_dirs:
+  - include
+dependencies:
+  - core-runtime
+requires:
+  - flash

@@ -115,7 +115,13 @@ class CH32V103SelectionTest(unittest.TestCase):
             self.assertFalse((root / "hello").exists())
 
     def test_basic_ip_examples_are_supported(self):
-        for example in ("adc-oneshot", "gpio-basic", "gpio-interrupt", "i2c-scan", "pwm-basic", "rtc-counter", "spi-loopback", "timer-polling", "timer-interrupt", "wdg-reset"):
+        for example in (
+            "adc-oneshot", "archinfo-chip-id", "backup-registers", "crc-compute",
+            "dma-memory-copy", "flash-info", "gpio-basic", "gpio-interrupt",
+            "i2c-scan", "power-status", "pwm-basic", "rcu-status", "rtc-counter",
+            "spi-loopback", "systick-heartbeat", "timer-polling", "timer-interrupt",
+            "usb-controller", "wdg-reset", "wwdg-reset",
+        ):
             with self.subTest(example=example), tempfile.TemporaryDirectory() as directory:
                 output = StringIO()
                 with redirect_stdout(output), redirect_stderr(output):
@@ -352,6 +358,56 @@ class CH32V103BuildTest(unittest.TestCase):
                 "spi-loopback",
                 ("components/soc/ch32v103/hal/spi/spi.c", "drivers/spi/src/spi.c"),
                 ("<ecos_spi_transfer>", "<hal_spi_transfer_byte>"),
+            ),
+            (
+                "archinfo-chip-id",
+                ("components/soc/ch32v103/hal/archinfo/archinfo.c", "drivers/archinfo/src/archinfo.c"),
+                ("<ecos_archinfo_get_chip_id>", "<hal_archinfo_get_chip_id>"),
+            ),
+            (
+                "crc-compute",
+                ("components/soc/ch32v103/hal/crc/crc.c", "drivers/crc/src/crc.c"),
+                ("<ecos_crc_compute>", "<hal_crc_feed>"),
+            ),
+            (
+                "rcu-status",
+                ("components/soc/ch32v103/hal/rcu/rcu.c", "drivers/rcu/src/rcu.c"),
+                ("<ecos_rcu_get_status>", "<hal_rcu_get_status>"),
+            ),
+            (
+                "backup-registers",
+                ("components/soc/ch32v103/hal/backup/backup.c", "drivers/backup/src/backup.c"),
+                ("<ecos_backup_write>", "<hal_backup_write>"),
+            ),
+            (
+                "dma-memory-copy",
+                ("components/soc/ch32v103/hal/dma/dma.c", "drivers/dma/src/dma.c"),
+                ("<ecos_dma_start>", "<hal_dma_start>"),
+            ),
+            (
+                "flash-info",
+                ("components/soc/ch32v103/hal/flash/flash.c", "drivers/flash/src/flash.c"),
+                ("<ecos_flash_get_size>", "<hal_flash_get_size>"),
+            ),
+            (
+                "power-status",
+                ("components/soc/ch32v103/hal/power/power.c", "drivers/power/src/power.c"),
+                ("<ecos_power_get_flags>", "<hal_power_get_flags>"),
+            ),
+            (
+                "usb-controller",
+                ("components/soc/ch32v103/hal/usb/usb.c", "drivers/usb/src/usb.c"),
+                ("<ecos_usb_get_status>", "<hal_usb_get_status>"),
+            ),
+            (
+                "wwdg-reset",
+                ("components/soc/ch32v103/hal/wwdg/wwdg.c", "drivers/wwdg/src/wwdg.c"),
+                ("<ecos_wwdg_init>", "<hal_wwdg_init>"),
+            ),
+            (
+                "systick-heartbeat",
+                ("components/soc/ch32v103/hal/systick/systick.c", "drivers/systick/src/systick.c"),
+                ("<ecos_systick_start>", "<hal_systick_start>"),
             ),
         ):
             with self.subTest(example=example):

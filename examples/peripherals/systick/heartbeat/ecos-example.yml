@@ -1,0 +1,9 @@
+schema: 1
+name: systick-heartbeat
+sources:
+  - main.c
+components:
+  - driver-systick
+  - driver-interrupt
+requires:
+  - console
