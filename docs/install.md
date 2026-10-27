@@ -224,7 +224,22 @@ ecos completion bash
 
 安装结束后打开新终端，或重新加载对应启动文件。`--shell none` 不修改启动文件。
 
-## 7. 验证与移除
+## 7. 可选 Agent Skill
+
+SDK 自带 `.agents/skills/ecos-sdk/`，普通安装器不自动修改任何 Agent 设置。
+在 SDK 外的应用工程中使用时，可单独选择项目级、用户级或客户端自定义 Skill 目录：
+
+```bash
+python3 tools/install_skill.py --project /path/to/app --dry-run
+python3 tools/install_skill.py --project /path/to/app
+# 用户级是显式 opt-in：python3 tools/install_skill.py --user
+```
+
+Windows 使用 `python`。脚本离线运行，拒绝覆盖未受管或已被用户修改的同名 Skill；
+更新需显式 `--update`，不支持强制清除用户改动。安装 Skill 不会选择/切换 SDK，也不会
+自动构建或烧录。客户端发现、维护和只读诊断助手详见 [agent-skill.md](agent-skill.md)。
+
+## 8. 验证与移除
 
 ```bash
 ecos sdk current --format json

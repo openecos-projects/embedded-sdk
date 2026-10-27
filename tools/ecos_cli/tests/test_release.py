@@ -19,9 +19,11 @@ SPEC.loader.exec_module(release)
 FIXTURE_RELEASE_PATHS = (
     "LICENSE",
     "README.md",
+    ".agents/skills/ecos-sdk",
     "boards",
     "tools/ecos_cli/src",
     "tools/install.py",
+    "tools/install_skill.py",
     release.MANIFEST_PATH,
 )
 FIXTURE_RELEASE_EXCLUDES = (
@@ -57,6 +59,10 @@ class ReleaseBuilderTest(unittest.TestCase):
             else:
                 path.mkdir(parents=True, exist_ok=True)
                 (path / ".keep").write_text("fixture\n", encoding="utf-8")
+        (root / ".agents/skills/ecos-sdk/SKILL.md").write_text(
+            "---\nname: ecos-sdk\ndescription: Release fixture\n---\n",
+            encoding="utf-8",
+        )
         (root / "boards/StarrySkyC1").mkdir(parents=True, exist_ok=True)
         (root / "boards/StarrySkyC1/Makefile").write_text(
             "legacy make entry\n", encoding="utf-8"
@@ -137,6 +143,8 @@ class ReleaseBuilderTest(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as bundle:
                 names = set(bundle.namelist())
             self.assertIn(f"{prefix}/tools/install.py", names)
+            self.assertIn(f"{prefix}/tools/install_skill.py", names)
+            self.assertIn(f"{prefix}/.agents/skills/ecos-sdk/SKILL.md", names)
             self.assertFalse(any(name.startswith(f"{prefix}/bin/") for name in names))
             self.assertFalse(any(name.startswith(f"{prefix}/tools/fixdep/") for name in names))
             self.assertFalse(

@@ -4,6 +4,7 @@
 
 - [install.md](install.md) — 安装指南：Python 安装器、安装路径、工具链处理与多版本切换
 - [cli.md](cli.md) — `ecos` CLI 命令、JSON 输出和工程工作流
+- [agent-skill.md](agent-skill.md) — ECOS SDK Agent Skill：工程/适配/排错/验收流程及显式安装
 - [schemas.md](schemas.md) — Board、Target、Component 和 Example 的离线 schema 与样例
 - [VS Code 扩展](../tools/vscode-ecos/README.md) — 3.0 CLI 的编辑器预览集成与构建任务
 - [sdk-3.0-manual-validation.md](sdk-3.0-manual-validation.md) — 需要真实宿主、板卡和外部设备完成的验收清单

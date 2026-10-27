@@ -8,6 +8,11 @@
 !README*.md
 !.envrc
 
+!.agents/
+!.agents/skills/
+!.agents/skills/ecos-sdk/
+!.agents/skills/ecos-sdk/**
+
 !.github/
 !.github/workflows/
 !.github/workflows/release.yml
@@ -57,6 +62,7 @@ examples/ai/llm-chat/*.bin
 !tools
 !tools/ecos.py
 !tools/install.py
+!tools/install_skill.py
 !tools/release.py
 !tools/ci_host_smoke.py
 !tools/ci_firmware.py

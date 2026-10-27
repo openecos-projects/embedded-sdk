@@ -138,6 +138,20 @@ ecos flash --project ~/my_workspace/my_smoke_test
 ecos monitor --project ~/my_workspace/my_smoke_test --port /dev/ttyUSB0
 ```
 
+#### AI Agent Skill（可选）
+
+SDK 同仓提供标准 [ECOS SDK Skill](.agents/skills/ecos-sdk/SKILL.md)，指导 Agent 查询当前
+SDK/板卡能力、使用公共 API、执行适配/构建/排错流程并区分自动化检查与实机验收。
+支持显式复制到外部应用工程或用户级 Skill 目录，不随普通 SDK 安装自动启用：
+
+```bash
+python3 tools/install_skill.py --project /path/to/app --dry-run
+python3 tools/install_skill.py --project /path/to/app
+```
+
+客户端发现方式、安全更新、Windows 用法和只读工程检查助手见
+[docs/agent-skill.md](docs/agent-skill.md)。Skill 不会自动修改 Agent 设置、SDK 选择或执行烧录。
+
 ---
 
 ### 3. 第三方组件支持

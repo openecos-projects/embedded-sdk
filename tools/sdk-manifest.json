@@ -33,6 +33,7 @@
       "README.md",
       "README_EN.md",
       "CODE_OF_CONDUCT.md",
+      ".agents/skills/ecos-sdk",
       "components",
       "drivers",
       "hal",
@@ -45,6 +46,7 @@
       "tools/ecos_cli/README.md",
       "tools/ecos.py",
       "tools/install.py",
+      "tools/install_skill.py",
       "tools/sdk-manifest.json"
     ],
     "exclude": [

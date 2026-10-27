@@ -164,6 +164,22 @@ ecos flash --project ~/my_workspace/my_smoke_test
 ecos monitor --project ~/my_workspace/my_smoke_test --port /dev/ttyUSB0
 ```
 
+#### Optional Agent Skill
+
+The SDK includes a portable [ECOS SDK Agent Skill](.agents/skills/ecos-sdk/SKILL.md)
+for project development, porting, troubleshooting and evidence-based hardware
+validation. It queries the selected SDK instead of embedding a Board capability
+list. Installation into an external application or user skills directory is opt-in:
+
+```bash
+python3 tools/install_skill.py --project /path/to/app --dry-run
+python3 tools/install_skill.py --project /path/to/app
+```
+
+The normal SDK installer does not enable it or edit Agent settings. See
+[docs/agent-skill.md](docs/agent-skill.md) for safe updates, client discovery,
+Windows usage and the optional read-only project checker.
+
 ---
 
 ### 5. HAL V2 API Migration Guide
