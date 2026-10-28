@@ -315,19 +315,30 @@ class SkillInstallerTest(SkillTestBase):
 
 
 class SkillProjectCheckTest(SkillTestBase):
-    def selection(self, sdk):
+    def setUp(self):
+        super().setUp()
+        registry = mock.patch.dict(os.environ, {
+            "ECOS_SDK_REGISTRY": str(self.root / "host-registry.json"),
+        })
+        registry.start()
+        self.addCleanup(registry.stop)
+
+    def selection(self, sdk, sdk_version=None):
+        if sdk_version is None:
+            manifest = json.loads((sdk / "tools/sdk-manifest.json").read_text(encoding="utf-8"))
+            sdk_version = manifest["sdk_version"]
         return {
-            "root": str(sdk), "sdk_id": "ecos-embedded-sdk", "sdk_version": "3.0.0",
+            "root": str(sdk), "sdk_id": "ecos-embedded-sdk", "sdk_version": sdk_version,
             "channel": "development", "source": "project:pin",
         }
 
     def envelope(self, data=None, status="ok"):
         return {"cli_version": "3.0.0.dev0", "schema_version": "1.0", "status": status, "data": data, "diagnostics": []}
 
-    def mock_cli(self, sdk, toolchain="installed"):
+    def mock_cli(self, sdk, toolchain="installed", sdk_version=None):
         def run(argv, **kwargs):
             if "current" in argv:
-                data = self.selection(sdk)
+                data = self.selection(sdk, sdk_version)
             elif "toolchain" in argv:
                 data = {"installation": {"state": toolchain}}
             else:
@@ -408,7 +419,7 @@ class SkillProjectCheckTest(SkillTestBase):
         ):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.subTest(manifest=manifest), mock.patch.object(
-                check.subprocess, "run", side_effect=self.mock_cli(sdk)
+                check.subprocess, "run", side_effect=self.mock_cli(sdk, sdk_version="3.0.0")
             ) as run:
                 report = check.collect(str(cli), None, self.root, 1)
             self.assertEqual(report["status"], "error")
@@ -417,7 +428,9 @@ class SkillProjectCheckTest(SkillTestBase):
             "schema_version": 1, "sdk_id": "ecos-embedded-sdk", "sdk_version": "3.0.1",
             "cli_compatibility": {"major": 3, "schema_version": "1.0"},
         }), encoding="utf-8")
-        with mock.patch.object(check.subprocess, "run", side_effect=self.mock_cli(sdk)) as run:
+        with mock.patch.object(
+            check.subprocess, "run", side_effect=self.mock_cli(sdk, sdk_version="3.0.0")
+        ) as run:
             report = check.collect(str(cli), None, self.root, 1)
         self.assertEqual(report["status"], "error")
         self.assertIn("identities disagree", report["diagnostics"][0])

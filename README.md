@@ -6,6 +6,10 @@
 
 SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户更加自由的进行配置。采用python构建kconfig 图形化配置与 CMake/Ninja 构建系统，致力于提供高效、安全的嵌入式开发体验。同时替换默认工具链为Xpack 多平台交叉编译工具链，使得SDK可以在多平台进行工作（目前主要支持Windows和Linux）
 
+当前分支为 `v3.1`，SDK 标识为 `3.1.0-dev.0`，CLI 包版本为 `3.1.0.dev0`；
+这是开发版本，不是正式 `3.1.0` 发布。`3.0.1` 仅接收维护修复，CH32V103 实机验证边界保持不变。
+版本与发布规则见 [docs/versioning.md](docs/versioning.md)。
+
 ---
 
 ## 目录
@@ -31,12 +35,12 @@ SDK 3.0 引入了Driver和BSP层，将SoC和板卡定义分离开，方便用户
 详细的安装路径、参数、离线安装、多版本和故障排查见
 [docs/install.md](docs/install.md)。
 
-运行 Python 安装器。在 GNU/Linux 上默认安装到
-`~/.local/share/ecos/sdk/3.0.0`，并安装当前宿主对应的锁定工具链、CMake/Ninja 和 wlink：
+运行 Python 安装器。当前开发 checkout 默认注册源码目录，并安装当前宿主对应的
+CLI、锁定工具链、CMake/Ninja 和 wlink，不会复制 SDK 到版本目录：
 ```bash
 python3 tools/install.py
 ```
-安装器会读取 `tools/sdk-manifest.json` 中的 SDK `3.0.0` 标识，复制该清单并将安装结果
+安装器会读取 `tools/sdk-manifest.json` 中的 SDK `3.1.0-dev.0` 标识，并将当前 checkout
 注册为 active SDK。它会识别 Bash、Zsh、Fish 或 PowerShell，安装对应的 `ecos` 自动
 补全，并在该 Shell 的用户启动文件中维护带 `ECOS SDK` 标记的配置块。该配置块会添加
 SDK CLI、CMake/Ninja 路径和补全，不会持久设置 `ECOS_SDK_HOME`。安装完成后按输出提示
@@ -51,15 +55,15 @@ python3 tools/install.py --dry-run
 依赖仍会安装。使用
 `--shell bash|zsh|fish|powershell` 可以覆盖自动识别结果，
 `--shell-profile <path>` 可以指定启动文件，`--shell none` 可以禁用 Shell 配置。
-`--prefix <path>` 表示版本目录的父目录，安装器会从 SDK 清单自动追加版本号；例如
-`--prefix ~/ecos-sdks` 的实际安装路径是 `~/ecos-sdks/3.0.0`。
+正式 release 的 `--prefix <path>` 表示版本目录的父目录，安装器会自动追加清单版本号，
+例如 `~/ecos-sdks/<sdk_version>`；开发模式不复制 SDK，继续使用当前 checkout。
 `--registration-name <name>` 可以指定注册名，`--no-activate` 保留当前全局 active SDK，
 `--force` 强制重新部署 SDK、替换同名注册，并在未跳过工具链时重新安装工具链。
 `--replace-registration` 和 `--force-toolchain` 可用于只强制对应部分。完整参数见
 `python3 tools/install.py --help`。
 
 安装器会在主机级入口目录生成 Python `ecos` 启动器；SDK 源码树不再包含旧版 Shell
-命令。帮助和自动补全只公开 3.0 Python CLI 命令。
+命令。帮助和自动补全只公开 3.x Python CLI 命令。
 当前公开入口包括 `sdk`、`toolchain`、`project`、资源查询、`schema`、
 `validate`、`configure`、`menuconfig`、`build`、`clean`、`doctor`、
 `flash`、`monitor` 和 `completion`；完整命令表见
@@ -70,8 +74,8 @@ python3 tools/install.py --dry-run
 ecos sdk register /path/to/checkout --name dev --activate
 ecos sdk list
 ecos sdk current
-ecos sdk use 3.0.0
-ecos sdk pin 3.0.0 --project /path/to/project
+ecos sdk use 3.1.0-dev.0
+ecos sdk pin 3.1.0-dev.0 --project /path/to/project
 ecos sdk doctor
 ecos project list
 ecos project create hello --path ~/workspace
@@ -97,7 +101,7 @@ checkout、兼容变量 `ECOS_SDK_HOME`、注册表 active 项、源码入口 ch
 
 ### 2. 标准开发与测试流程 (必读)
 
-3.0 工程由 Python `ecos` CLI 创建和编排，核心构建使用 CMake/Ninja。不要在 SDK
+3.1 工程由 Python `ecos` CLI 创建和编排，核心构建使用 CMake/Ninja。不要在 SDK
 安装目录或 `examples/` 源码中修改应用源码；工程目录应位于 SDK 外部。
 
 #### 步骤 1：创建你的独立工程目录
@@ -157,7 +161,7 @@ python3 tools/install_skill.py --project /path/to/app
 ### 3. 第三方组件支持
 
 #### ECOS Core Runtime（错误与日志）
-Core Runtime 和 libc 子集是 SDK 3.0 工程的默认组件。Core Runtime 提供统一的 `ECOS_ERR_*` 错误语义和无堆内存日志服务，libc 提供裸机编译所需的内存操作。BSP Console 初始化成功后自动成为日志输出后端；默认输出 ASCII、CRLF 且不启用 ANSI 颜色。
+Core Runtime 和 libc 子集是 SDK 3.x 工程的默认组件。Core Runtime 提供统一的 `ECOS_ERR_*` 错误语义和无堆内存日志服务，libc 提供裸机编译所需的内存操作。BSP Console 初始化成功后自动成为日志输出后端；默认输出 ASCII、CRLF 且不启用 ANSI 颜色。
 
 - **代码使用示例**：
   ```c
@@ -184,11 +188,13 @@ Core Runtime 和 libc 子集是 SDK 3.0 工程的默认组件。Core Runtime 提
 
 仓库当前采用“版本分支 + 产品分支”的方式管理长期演进：
 
+- `main` / `v3.0`：保留已有 3.0 发布基线，本轮迁移不修改
 - `1.0`：维护 `v1.0.0` 及后续 `1.x` 稳定修复
-- `3.0`：当前主开发分支
+- `v3.1`：当前 3.1 功能开发分支，从 `59bcb77` 继承第一阶段 CH32 适配
+- `3.0.1`：保留既有历史，仅接收维护修复，不再作为新增功能分支
 - `starryskypi`：StarrySkyPi 产品线分支
 
-完整规则见 [docs/branching.md](docs/branching.md)。
+完整规则及 RC / 正式发布步骤见 [docs/versioning.md](docs/versioning.md)。
 
 ---
 

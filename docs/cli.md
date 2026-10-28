@@ -1,6 +1,6 @@
-# ECOS 3.0 命令行接口
+# ECOS 3.1 命令行接口
 
-本文管理 ECOS SDK 3.0 的 CLI 命令层级、命名规则、实现状态和公共行为。新增、重命名或
+本文管理 ECOS SDK 3.1 的 CLI 命令层级、命名规则、实现状态和公共行为。新增、重命名或
 废弃命令时，必须同时更新本文、Python 参数解析、帮助、四类 Shell 补全和对应测试。
 
 本文中的状态含义如下：
@@ -11,7 +11,7 @@
 | 计划中 | 已确定命令职责，但尚未实现；不得出现在正式帮助和补全中。 |
 | 已废弃 | 仅为迁移保留，执行时必须给出替代命令和移除版本。 |
 
-当前 CLI 包版本为 `3.0.0.dev0`。SDK 版本以 `tools/sdk-manifest.json` 为唯一来源，不能
+当前 CLI 包版本为 `3.1.0.dev0`。SDK 版本以 `tools/sdk-manifest.json` 为唯一来源，不能
 根据 CLI 包版本推断 SDK 版本。
 
 ## 1. 命令模型
@@ -72,14 +72,14 @@ ecos [--sdk NAME|VERSION|PATH] <command> [subcommand] [arguments] [options]
 `--sdk` 当前必须写在一级命令之前：
 
 ```bash
-ecos --sdk 3.0.0 toolchain status
+ecos --sdk 3.1.0-dev.0 toolchain status
 ecos --sdk /path/to/sdk sdk current
 ```
 
 以下形式不属于当前语法：
 
 ```bash
-ecos toolchain --sdk 3.0.0 status
+ecos toolchain --sdk 3.1.0-dev.0 status
 ```
 
 路径选择优先级固定为：命令行 `--sdk`、工程 pin、`ECOS_SDK_HOME` 兼容变量、
@@ -250,7 +250,7 @@ ecos project create hello --board starrysky-l4-c1
 ecos project create hello --name my-app
 ecos project create hello --name my-app --path ~/workspace --board starrysky-l4-c1
 ecos project create hello --target ysyx-2512-1
-ecos --sdk 3.0.0 project create hello --name hello-demo
+ecos --sdk 3.1.0-dev.0 project create hello --name hello-demo
 ```
 
 创建后可随时切换硬件选择：
@@ -463,6 +463,6 @@ ecos completion powershell
 4. 对机器接口增加 JSON envelope、诊断码和退出码契约测试。
 5. 更新 Bash、Zsh、Fish、PowerShell 补全及一致性测试。
 6. 将本文中的状态从“计划中”改为“已实现”，并补充完整参数说明。
-7. 涉及安装或迁移时同步更新 `docs/install.md` 和 SDK 3.0 开发边界。
+7. 涉及安装或迁移时同步更新 `docs/install.md` 和 [版本管理与发布规则](versioning.md)。
 
 命令只有在实现、帮助、补全、文档和测试一致时，才可以标记为“已实现”。

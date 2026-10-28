@@ -207,6 +207,33 @@ class ReleaseBuilderTest(unittest.TestCase):
                 checksum_lines,
             )
 
+    def test_31_release_and_candidate_keep_exact_semver_identity(self):
+        for version in ("3.1.0-rc.1", "3.1.0"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.create_repository(root, version=version)
+                result = release.build_release(
+                    root, tag=f"v{version}", ref="HEAD", output_dir=root / "dist"
+                )
+                self.assertEqual(result["version"], version)
+                prefix = f"ecos-embedded-sdk-{version}"
+                with zipfile.ZipFile(root / "dist" / f"{prefix}.zip") as bundle:
+                    manifest = json.loads(bundle.read(f"{prefix}/{release.MANIFEST_PATH}"))
+                self.assertEqual(manifest["sdk_version"], version)
+                self.assertEqual(manifest["channel"], "release")
+                sbom = json.loads((root / "dist" / f"{prefix}.spdx.json").read_text())
+                self.assertEqual(sbom["packages"][0]["versionInfo"], version)
+
+    def test_matching_dev_prerelease_tag_cannot_bypass_release_channel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.create_repository(root, version="3.1.0-dev.0", channel="development")
+            with self.assertRaisesRegex(release.ReleaseError, "channel 'release'"):
+                release.build_release(
+                    root, tag="v3.1.0-dev.0", ref="HEAD", output_dir=root / "dist"
+                )
+            self.assertFalse((root / "dist").exists())
+
     def test_rejects_tag_that_does_not_match_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

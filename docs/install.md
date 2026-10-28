@@ -1,8 +1,10 @@
-# ECOS SDK 3.0 安装指南
+# ECOS SDK 3.1 安装指南
 
-`tools/sdk-manifest.json` 是 SDK 身份、版本和发布文件范围的来源。当前仓库的
-`channel` 为 `development`，因此从本 checkout 运行 `python3 tools/install.py`
-默认只注册源码树，不复制 SDK。带有 `release` 通道清单的正式制品才会部署到版本目录。
+`tools/sdk-manifest.json` 是 SDK 身份、版本和发布文件范围的来源。当前 `v3.1` 分支的
+SDK 标识为 `3.1.0-dev.0`，CLI 包版本为 `3.1.0.dev0`，`channel` 为 `development`。
+因此从本 checkout 运行 `python3 tools/install.py` 默认只注册源码树，不复制 SDK。
+带有 `release` 通道清单的正式制品才会部署到版本目录。版本、分支及发布门槛见
+[versioning.md](versioning.md)。
 
 ## 1. 开发 checkout
 
@@ -25,10 +27,27 @@ Python `ecos` 启动器、CLI 依赖、CMake、Ninja、wlink、Shell 补全，�
 ecos sdk register /path/to/checkout --name dev --kind checkout --activate
 ```
 
+### 从旧开发版本切换到 `v3.1`
+
+同一路径从 `3.0.1` 切到 `v3.1` 后，注册项和工程 pin 中保存的旧身份不会自动更新。
+如果出现 `no longer matches registration` 或 pin 身份不一致，先核对当前清单和
+`ecos sdk list`，不要关闭校验或把正式 `3.0.0` 安装重命名为开发版本。
+对于确实指向此 checkout 的旧注册名，可显式刷新并重新 pin：
+
+```bash
+ecos sdk register /path/to/checkout --name dev --kind checkout --replace --activate
+ecos sdk pin dev --project /path/to/project
+```
+
+这里 `dev` 必须替换为该 checkout 的实际旧注册名；只有确认其路径正确后才使用
+`--replace`。需要同时保留不同开发线时，使用独立 checkout / worktree 和不同注册名，
+不要让旧工程 pin 随同一路径的分支切换而漂移。安装器 `--replace-registration`
+同样需要显式选择，不会自动修改已有工程 pin。
+
 ## 2. 正式 release
 
 发布制品须由匹配 `tools/sdk-manifest.json` 中 `sdk_version` 的 Git tag 生成，清单
-`channel` 必须为 `release`。发布脚本只打包清单 `release.paths` 声明的 3.0 路径，并排除
+`channel` 必须为 `release`。发布脚本只打包清单 `release.paths` 声明的 SDK 路径，并排除
 `release.exclude` 列出的用户 BSP、测试和开发目录；未声明的工作树文件不会进入制品。
 
 发布脚本同时生成归档对应的 SPDX 2.3 文件清单和锁定主机依赖清单
@@ -193,10 +212,10 @@ wlink，也不修改 Shell 配置。若有同名 SDK 注册冲突，确认目标
 ```bash
 ecos sdk list
 ecos sdk current
-ecos sdk use 3.0.0
-ecos sdk pin 3.0.0 --project /path/to/project
+ecos sdk use 3.1.0-dev.0
+ecos sdk pin 3.1.0-dev.0 --project /path/to/project
 ecos sdk doctor
-ecos sdk unregister 3.0.0
+ecos sdk unregister 3.1.0-dev.0
 ```
 
 `unregister` 只移除注册关系，不删除 checkout 或正式安装目录。SDK 选择优先级为单次
@@ -248,11 +267,12 @@ ecos toolchain status --format json
 ecos doctor --project /path/to/project --format json
 ```
 
-移除正式版本前先确认没有工程 pin 使用它，并预览准确路径：
+移除正式版本前先确认没有工程 pin 使用它，并预览准确路径（以下仅用于未来已安装的
+正式 `3.1.0`，不适用于当前开发 checkout）：
 
 ```bash
-ecos sdk uninstall 3.0.0 --dry-run --format json
-ecos sdk uninstall 3.0.0
+ecos sdk uninstall 3.1.0 --dry-run --format json
+ecos sdk uninstall 3.1.0
 ```
 
 卸载命令只删除带有效安装标记、内容摘要未改变且没有其他注册项引用的 release 版本目录，

@@ -1,7 +1,7 @@
 # ECOS Python CLI
 
-该目录保存 SDK 3.0 Python `ecos` CLI 的包配置、源码、工具链清单和测试。
-命令层级、已实现能力和 3.0 计划接口见
+该目录保存 SDK 3.x Python `ecos` CLI 的包配置、源码、工具链清单和测试。
+命令层级、已实现能力和 3.x 计划接口见
 [`docs/cli.md`](../../docs/cli.md)。
 
 从仓库直接运行：
@@ -52,7 +52,7 @@ python3 tools/ecos.py completion powershell
 完整路径、共享工具链及用户 BSP 布局见 [`docs/install.md`](../../docs/install.md)。
 
 主机级 `bin/ecos` 与 `bin/ecos.cmd` 由 Python 安装器生成；旧版 Shell 工程入口已从
-源码树移除，也不会出现在 3.0 帮助或自动补全中。
+源码树移除，也不会出现在 3.x 帮助或自动补全中。
 
 构建或安装 Python 包时，以本目录作为项目根目录：
 

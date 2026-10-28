@@ -109,6 +109,41 @@ class SdkRegistryTest(unittest.TestCase):
             self.assertTrue(refreshed["changed"])
             self.assertNotEqual(first["entry"]["revision"], refreshed["entry"]["revision"])
 
+    def test_checkout_version_migration_requires_explicit_refresh_and_repin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = create_sdk(root / "checkout", "3.0.0")
+            project = root / "application"
+            project.mkdir()
+            registry = SdkRegistry(root / "sdks.json")
+            registry.register(sdk, name="dev", activate=True)
+            resolver = SdkResolver(registry, environ={})
+            write_project_pin(project, resolver.resolve(explicit="dev"))
+            pin_path = project / ".ecos/sdk.json"
+            old_pin = pin_path.read_bytes()
+
+            manifest_path = sdk / "tools/sdk-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["sdk_version"] = "3.1.0-dev.0"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            old_registry = registry.path.read_bytes()
+            # Even an explicit path cannot silently bypass a stale registration.
+            with self.assertRaisesRegex(SdkResolutionError, "no longer matches registration"):
+                resolver.resolve(explicit=str(sdk))
+            with self.assertRaises(SdkRegistrationConflict):
+                registry.register(sdk, name="dev", activate=True)
+            self.assertEqual(registry.path.read_bytes(), old_registry)
+            self.assertEqual(pin_path.read_bytes(), old_pin)
+
+            registry.register(sdk, name="dev", replace=True, activate=True)
+            context = resolver.resolve(explicit="dev")
+            self.assertEqual(context.version, "3.1.0-dev.0")
+            with self.assertRaisesRegex(SdkResolutionError, "recorded identity"):
+                resolver.resolve(project=project)
+            self.assertEqual(pin_path.read_bytes(), old_pin)
+            write_project_pin(project, context)
+            self.assertEqual(resolver.resolve(project=project).version, "3.1.0-dev.0")
+
     def test_rejects_sdk_with_incompatible_cli_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             sdk = create_sdk(Path(directory) / "sdk", "3.0.0")

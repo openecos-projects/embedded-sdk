@@ -6,6 +6,11 @@ English | [中文](README.md)
 
 Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kconfig for graphical configuration and the CMake/Ninja build system, aiming to provide an efficient and secure embedded development experience.
 
+This is the `v3.1` development line: SDK `3.1.0-dev.0`, CLI package `3.1.0.dev0`.
+It is not the final `3.1.0` release. The `3.0.1` branch is maintenance-only, and the
+CH32V103 hardware-validation boundaries are unchanged. See
+[versioning and release policy](docs/versioning.md).
+
 ---
 
 ## Table of Contents
@@ -56,14 +61,14 @@ ecos/embedded-sdk/
 - Python 3.9 or newer
 
 #### Quick Installation
-Run the Python installer. On GNU/Linux it installs to
-`~/.local/share/ecos/sdk/3.0.0` by default together with the pinned toolchain, wlink and
-the CMake/Ninja build dependencies selected for the current host:
+Run the Python installer. This development checkout is registered in place; it is not
+copied to a version directory. The installer also installs the host CLI, pinned
+toolchain, wlink, and CMake/Ninja build dependencies selected for the current host:
 ```bash
 python3 tools/install.py
 ```
-The installer reads the SDK `3.0.0` identity from `tools/sdk-manifest.json`, copies the
-manifest, and registers the installed SDK as active. It detects Bash, Zsh, Fish, or
+The installer reads the SDK `3.1.0-dev.0` identity from `tools/sdk-manifest.json`
+and registers this checkout as the active SDK. It detects Bash, Zsh, Fish, or
 PowerShell, installs the matching `ecos` completion, and maintains a marked `ECOS SDK`
 block in that shell's user startup file. The block adds the SDK CLI and host build-tool
 paths plus completion; it does not persist `ECOS_SDK_HOME`. Reload the file using the
@@ -79,9 +84,10 @@ pip cache. `--skip-toolchain` skips only the cross compiler and `--skip-wlink` s
 wlink; the SDK's Python, CMake, and Ninja dependencies are still installed. Use
 `--shell bash|zsh|fish|powershell` to override shell
 detection, `--shell-profile <path>` to select a startup file, or `--shell none` to
-disable shell configuration. `--prefix <path>` names the parent directory; the installer
-appends the version from the SDK manifest. For example, `--prefix ~/ecos-sdks` installs
-this release at `~/ecos-sdks/3.0.0`. Use `--registration-name <name>` to choose the registration,
+disable shell configuration. For release installations, `--prefix <path>` names the
+parent directory and the installer appends the manifest version, for example
+`~/ecos-sdks/<sdk_version>`. Development mode keeps using the checkout.
+Use `--registration-name <name>` to choose the registration,
 `--no-activate` to preserve the current global selection, or `--force` to redeploy the SDK,
 replace its registration, and reinstall the toolchain when enabled. Use
 `--replace-registration` or `--force-toolchain` to force only that part. See
@@ -99,8 +105,8 @@ Toolchain detection, status inspection, and installation are provided by the Pyt
 ecos sdk register /path/to/checkout --name dev --activate
 ecos sdk list
 ecos sdk current
-ecos sdk use 3.0.0
-ecos sdk pin 3.0.0 --project /path/to/project
+ecos sdk use 3.1.0-dev.0
+ecos sdk pin 3.1.0-dev.0 --project /path/to/project
 ecos sdk doctor
 ecos project list
 ecos project create hello --path ~/workspace
@@ -127,7 +133,7 @@ writes. Use `--archive <path>` to import an offline official archive.
 
 ### 4. Standard Development and Testing Workflow (Must Read)
 
-SDK 3.0 projects are created and orchestrated by the Python `ecos` CLI. Core builds use
+SDK 3.1 projects are created and orchestrated by the Python `ecos` CLI. Core builds use
 CMake and Ninja. Keep application projects outside the SDK installation and do not edit
 the source files under `examples/`.
 
@@ -196,7 +202,7 @@ The SDK has completely deprecated the low-level register direct operation code f
 ### 6. Third-Party Component Support
 
 #### ECOS Core Runtime (Errors and Logging)
-Core Runtime and the minimal libc subset are included by default in SDK 3.0 projects. Core Runtime provides shared `ECOS_ERR_*` error semantics and a heap-free logging service; libc supplies the memory operations needed by the freestanding compiler. A successfully initialized BSP Console installs itself as the log writer; output defaults to ASCII with CRLF line endings and no ANSI color.
+Core Runtime and the minimal libc subset are included by default in SDK 3.x projects. Core Runtime provides shared `ECOS_ERR_*` error semantics and a heap-free logging service; libc supplies the memory operations needed by the freestanding compiler. A successfully initialized BSP Console installs itself as the log writer; output defaults to ASCII with CRLF line endings and no ANSI color.
 
 - **Code Usage Example**:
   ```c

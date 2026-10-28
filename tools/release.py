@@ -552,7 +552,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tag",
         required=True,
-        help="existing release tag, for example v3.0.0",
+        help="existing release tag, for example v3.1.0",
     )
     parser.add_argument(
         "--ref",

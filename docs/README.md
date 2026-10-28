@@ -4,10 +4,11 @@
 
 - [install.md](install.md) — 安装指南：Python 安装器、安装路径、工具链处理与多版本切换
 - [cli.md](cli.md) — `ecos` CLI 命令、JSON 输出和工程工作流
+- [versioning.md](versioning.md) — `v3.1` 开发身份、维护边界、SemVer 与后续 RC / 正式发布门槛
 - [agent-skill.md](agent-skill.md) — ECOS SDK Agent Skill：工程/适配/排错/验收流程及显式安装
 - [schemas.md](schemas.md) — Board、Target、Component 和 Example 的离线 schema 与样例
-- [VS Code 扩展](../tools/vscode-ecos/README.md) — 3.0 CLI 的编辑器预览集成与构建任务
-- [sdk-3.0-manual-validation.md](sdk-3.0-manual-validation.md) — 需要真实宿主、板卡和外部设备完成的验收清单
+- [VS Code 扩展](../tools/vscode-ecos/README.md) — 3.x CLI 的编辑器预览集成与构建任务
+- [sdk-3.0-manual-validation.md](sdk-3.0-manual-validation.md) — 3.0 历史基线的宿主、板卡和外部设备验收清单
 - [ch32v103-windows-test-checklist.md](ch32v103-windows-test-checklist.md) — CH32V103 / 3.0.1 Windows 构建、烧录、接线及实机测试清单
 - [toolchain-cli.md](toolchain-cli.md) — Python 工具链命令：`ecos` CLI 的工具链识别、状态检查与安装
 - [api/README.md](api/README.md) — 3.x 公共 API 概览：分层架构、错误模型、配置惯例与应用骨架
