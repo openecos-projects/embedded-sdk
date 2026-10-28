@@ -33,6 +33,7 @@
 #define PWR_DBP         0x00000100u
 #define BDCTLR_RTCSEL_LSI 0x00000200u
 #define BDCTLR_RTCEN    0x00008000u
+#define BDCTLR_BDRST    0x00010000u
 #define RTC_CNF         0x0010u
 #define RTC_RTOFF       0x0020u
 #define RTC_RSF         0x0008u
@@ -109,14 +110,18 @@ ecos_err_t hal_rtc_init(hal_rtc_id_t id, const hal_rtc_config_t *config)
     }
     RCC_APB1PCENR |= RCC_APB1_PWREN | RCC_APB1_BKPEN;
     PWR_CTLR |= PWR_DBP;
-    /* Do not reset the backup domain on every init: that would destroy a
-     * retained counter.  Reject a different already-selected RTC source. */
-    if ((RCC_BDCTLR & 0x0300u) == 0u) {
-        RCC_BDCTLR |= BDCTLR_RTCSEL_LSI | BDCTLR_RTCEN;
-    } else if ((RCC_BDCTLR & 0x0300u) != BDCTLR_RTCSEL_LSI ||
-               (RCC_BDCTLR & BDCTLR_RTCEN) == 0u) {
-        return ECOS_ERR_INVALID_STATE;
+    /* Preserve the counter when the backup domain already uses LSI. If a
+     * previous firmware selected LSE/HSE, RTCSEL cannot be changed safely
+     * without the documented backup-domain reset; reset it once and then
+     * select LSI instead of leaving the application in INVALID_STATE. */
+    if ((RCC_BDCTLR & 0x0300u) != 0u &&
+        (RCC_BDCTLR & 0x0300u) != BDCTLR_RTCSEL_LSI) {
+        RCC_BDCTLR |= BDCTLR_BDRST;
+        RCC_BDCTLR &= (uint32_t)~BDCTLR_BDRST;
     }
+    if ((RCC_BDCTLR & 0x0300u) == 0u)
+        RCC_BDCTLR |= BDCTLR_RTCSEL_LSI;
+    RCC_BDCTLR |= BDCTLR_RTCEN;
     result = wait_rtoff();
     if (result != ECOS_OK)
         return result;

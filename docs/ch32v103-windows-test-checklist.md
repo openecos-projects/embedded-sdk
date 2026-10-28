@@ -240,35 +240,35 @@ BIN 不带地址，WCH-LinkUtility 等按物理 Flash 地址操作时用 `0x0800
 
 | 序号 | 示例 | Windows 构建 | 实机结果 | 原样示例可核对内容 |
 | --- | --- | --- | --- | --- |
-| 01 | `hello` | [ ] | [ ] | 复位输出 `Hello, World!`，无乱码 |
-| 02 | `archinfo-chip-id` | [ ] | [ ] | 输出 system/chip ID；非全 0/全 1，与所测型号核对 |
-| 03 | `rcu-status` | [ ] | [ ] | 输出 RCU status，divider=1/control=0；不是 PLL 切换测试 |
+| 01 | `hello` | [ ] | PASS | 复位输出 `Hello, World!`，无乱码 |
+| 02 | `archinfo-chip-id` | [ ] | PASS | 输出 system/chip ID；非全 0/全 1，与所测型号核对 |
+| 03 | `rcu-status` | [ ] | PASS | 输出 RCU status，divider=1/control=0；不是 PLL 切换测试 |
 | 04 | `gpio-basic` | [ ] | [ ] | PA0 变化后 PA1 跟随，实测电平 |
 | 05 | `timer-polling` | [ ] | [ ] | 5 次 `period elapsed` 和 `timer polling completed`，PA1 有翻转 |
-| 06 | `timer-interrupt` | [ ] | [ ] | `Timer0 interrupt ready` 后 `ticks` 约每秒递增 |
+| 06 | `timer-interrupt` | [ ] | PASS | `Timer0 interrupt ready` 后 `ticks` 约每秒递增 |
 | 07 | `gpio-interrupt` | [ ] | [ ] | `PA0 interrupt ready` 后稳定边沿使 `edges` 增加 |
-| 08 | `systick-heartbeat` | [ ] | [ ] | 约每秒 `tick 1`；当前每次打印后清计数，不是累计序号 |
+| 08 | `systick-heartbeat` | [ ] | PASS | 约每秒 `tick 1`；当前每次打印后清计数，不是累计序号 |
 | 09 | `adc-oneshot` | [ ] | [ ] | PA0 的 0/中点/近 VDDA 输入得到相应 12-bit 读数 |
 | 10 | `pwm-basic` | [ ] | [ ] | PA8 约 1 kHz，25%→75%→停止，每阶段约 2 秒 |
-| 11 | `spi-loopback` | [ ] | [ ] | PA7 接 PA6，输出 `SPI1 loopback PASS: 4 bytes` |
-| 12 | `i2c-scan` | [ ] | [ ] | 有上拉、无从机为 0 设备；有从机显示真实地址，扫描能结束 |
+| 11 | `spi-loopback` | [ ] | PASS | PA7 接 PA6，输出 `SPI1 loopback PASS: 4 bytes` |
+| 12 | `i2c-scan` | [ ] | PASS | 有上拉、无从机为 0 设备；有从机显示真实地址，扫描能结束 |
 | 13 | `i2c-at24c64` | [ ] | [ ] | 备份后跨页写读，输出 `PASS: 40 bytes verified` |
 | 14 | `i2c-aht20` | [ ] | [ ] | 10 次温湿度采样与 `done`，数值符合环境 |
 | 15 | `i2c-pcf8563` | [ ] | [ ] | 写入初始时间后读取 10 次，秒数推进，输出 `done` |
 | 16 | `i2c-sgp30` | [ ] | [ ] | serial ID + 20 次采样；前约 15 秒默认 IAQ 值不是故障 |
-| 17 | `rtc-counter` | [ ] | [ ] | 原样参数不适合快速验收；按 §6.7 修改测试工程，记录闹钟和清理返回值 |
-| 18 | `backup-registers` | [ ] | [ ] | `DR1: 0xA55A`；只覆盖即写即读，不覆盖复位保持 |
-| 19 | `crc-compute` | [ ] | [ ] | 输出 4 个字的 CRC；另需独立参考比对，重复一致不足以证明算法正确 |
-| 20 | `dma-memory-copy` | [ ] | [ ] | 原样仅 `DMA configured`；必须检查完成、剩余数和目标缓冲，见 §6.9 |
-| 21 | `flash-info` | [ ] | [ ] | 输出 `65536 bytes, page 1024 bytes`；容量为后端常量，不是擦写/容量探测 PASS |
-| 22 | `power-status` | [ ] | [ ] | 输出 power flags；不覆盖 PVD/Wakeup/Sleep/Stop/Standby |
-| 23 | `usb-controller` | [ ] | [ ] | 无 MCU USB 数据线时先测初始化和 `USB status`；不能验收枚举 |
-| 24 | `coroutine-smoke` | [ ] | [ ] | worker round 1～3 与 `scheduler completed` |
-| 25 | `letter-shell-smoke` | [ ] | [ ] | help 输出与 `command parser completed`；非交互 Shell 常驻测试 |
-| 26 | `mini-os` | [ ] | [ ] | 心跳、worker、串口 `help/ps/spawn` 可用，连续运行 |
+| 17 | `rtc-counter` | [ ] | FAIL（已修复，待复测） | 原样参数不适合快速验收；按 §6.7 修改测试工程，记录闹钟和清理返回值 |
+| 18 | `backup-registers` | [ ] | PASS | `DR1: 0xA55A`；只覆盖即写即读，不覆盖复位保持 |
+| 19 | `crc-compute` | [ ] | PASS（待独立参考比对） | 输出 4 个字的 CRC；另需独立参考比对，重复一致不足以证明算法正确 |
+| 20 | `dma-memory-copy` | [ ] | PASS（仅初始化烟测） | 原样仅 `DMA configured`；必须检查完成、剩余数和目标缓冲，见 §6.9 |
+| 21 | `flash-info` | [ ] | PASS（容量接口烟测） | 输出 `65536 bytes, page 1024 bytes`；容量为后端常量，不是擦写/容量探测 PASS |
+| 22 | `power-status` | [ ] | PASS（状态读取烟测） | 输出 power flags；不覆盖 PVD/Wakeup/Sleep/Stop/Standby |
+| 23 | `usb-controller` | [ ] | PASS（控制器烟测） | 无 MCU USB 数据线时先测初始化和 `USB status`；不能验收枚举 |
+| 24 | `coroutine-smoke` | [ ] | PASS | worker round 1～3 与 `scheduler completed` |
+| 25 | `letter-shell-smoke` | [ ] | PASS | help 输出与 `command parser completed`；非交互 Shell 常驻测试 |
+| 26 | `mini-os` | [ ] | PASS | 心跳、worker、串口 `help/ps/spawn` 可用，连续运行 |
 | 27 | `pwm-buzzer` | [ ] | [ ] | 原样时钟常量非 CH32；先按 §6.5 改为 8 MHz，再测音调 |
-| 28 | `wdg-reset` | [ ] | [ ] | 最后执行：arming 后不再持续喂狗，发生自动复位循环 |
-| 29 | `wwdg-reset` | [ ] | [ ] | 最后执行：`WWDG enabled` 后自动复位循环，约数百毫秒量级 |
+| 28 | `wdg-reset` | [ ] | PASS | 最后执行：arming 后不再持续喂狗，发生自动复位循环 |
+| 29 | `wwdg-reset` | [ ] | PASS | 最后执行：`WWDG enabled` 后自动复位循环，约数百毫秒量级 |
 
 缺少外接模块时填 `BLOCKED`；串口只有 ready 日志不能代替设备读写验证。
 
@@ -390,7 +390,7 @@ const ecos_buzzer_config_t buzzer_config = {
 - [ ] 对 60 秒/更长时间实测计数并估算 LSI 频率，记录误差；LSI 不是精密 1 Hz 基准。
 - [ ] **扩展工程**：counter 在 0xFFFF→0x10000 处读取不跳变、不撕裂。
 - [ ] **扩展工程**：不调用 set_counter 的情况下重复 init，不应意外清空 retained counter。
-- [ ] 测试前若备份域选了别的 RTC 时钟源，记录 INVALID_STATE；备份完成后才允许显式复位备份域。
+- [ ] 若备份域此前选择了 LSE/HSE，首次运行本后端会按手册执行一次备份域复位并切换到 LSI；记录该动作，因为它会清除 retained counter。后续重复 init 不应再次清除。
 - [ ] `backup-registers` 即写即读得到 0xA55A。
 - [ ] **保持性修改版**：先读 DR1，再在需要时写入另一个模式；按键复位后确认原值保持。
   原样示例每次都写 0xA55A，不能用于证明复位保持。
