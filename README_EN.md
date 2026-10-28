@@ -7,8 +7,9 @@ English | [中文](README.md)
 Built around the new **HAL V2** hardware abstraction layer, this SDK utilizes Kconfig for graphical configuration and the CMake/Ninja build system, aiming to provide an efficient and secure embedded development experience.
 
 This is the `v3.1` development line: SDK `3.1.0-dev.0`, CLI package `3.1.0.dev0`.
-It is not the final `3.1.0` release. The `3.0.1` branch is maintenance-only, and the
-CH32V103 hardware-validation boundaries are unchanged. See
+It is not the final `3.1.0` release. Maintenance for the 3.0 series uses `v3.0`.
+The temporary `3.0.1` development branch has been retired; all its commits remain
+in `v3.1`, and the CH32V103 hardware-validation boundaries are unchanged. See
 [versioning and release policy](docs/versioning.md).
 
 ---
