@@ -41,6 +41,11 @@ ecos_err_t ecos_pwm_set_duty_cycle(ecos_pwm_id_t pwm,
                                    ecos_pwm_channel_t channel,
                                    uint8_t duty_percent);
 
+/* Set high time in divided input-clock ticks, from 0 to period_ticks inclusive. */
+ecos_err_t ecos_pwm_set_pulse_ticks(ecos_pwm_id_t pwm,
+                                    ecos_pwm_channel_t channel,
+                                    uint32_t high_ticks);
+
 ecos_err_t ecos_pwm_start(ecos_pwm_id_t pwm);
 ecos_err_t ecos_pwm_stop(ecos_pwm_id_t pwm);
 

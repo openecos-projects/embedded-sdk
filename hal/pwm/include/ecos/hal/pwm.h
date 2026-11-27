@@ -29,6 +29,11 @@ ecos_err_t hal_pwm_init(hal_pwm_id_t pwm, const hal_pwm_config_t *config);
 ecos_err_t hal_pwm_set_duty_cycle(hal_pwm_id_t pwm,
                                   hal_pwm_channel_t channel,
                                   uint8_t duty_percent);
+/* Set high time in divided input-clock ticks, from 0 to period_ticks inclusive. */
+ecos_err_t hal_pwm_set_pulse_ticks(hal_pwm_id_t pwm,
+                                   hal_pwm_channel_t channel,
+                                   uint32_t high_ticks);
+
 ecos_err_t hal_pwm_start(hal_pwm_id_t pwm);
 ecos_err_t hal_pwm_stop(hal_pwm_id_t pwm);
 

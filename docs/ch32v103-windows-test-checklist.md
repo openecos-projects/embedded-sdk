@@ -60,6 +60,7 @@
 | SPI instance 0 | SPI1 SCK=PA5，MISO=PA6，MOSI=PA7 | Board 默认软件 CS=PA4 |
 | SPI instance 1 | SPI2 SCK=PB13，MISO=PB14，MOSI=PB15 | 软件 CS 可选 PB12；需修改测试工程 |
 | PWM instance 0 channel 0 | TIM1 CH1 / PA8 | 默认系统时钟 HSI 8 MHz |
+| PWM instance 1 channel 0～3 | TIM3 CH1～CH4 / PB4、PB5、PB0、PB1 | 四路逻辑分析仪同时采样，共地 |
 | Timer instance 0 | TIM2 / PFIC IRQ44 | PA1 为轮询示例的观察输出，不是 TIM2 硬件通道输出 |
 | SysTick | PFIC IRQ12，HCLK/8 | HSI 默认配置下约 1 MHz tick |
 | RTC | LSI 自由运行计数器 | 不是日历 RTC，LSI 精度需实测 |
@@ -322,8 +323,11 @@ BIN 不带地址，WCH-LinkUtility 等按物理 Flash 地址操作时用 `0x0800
 - [ ] **扩展工程**：换测封装实际引出的其他外部通道；16/17 内部通道与相应参考量比对。
 - [ ] 合法时钟分频 2/4/6/8 分别测试；非法分频应返回参数错误，不应无限卡在校准。
 
-### 6.5 TIM1 PWM 与蜂鸣器
+### 6.5 TIM1、TIM3 PWM 与蜂鸣器
 
+- [ ] 运行 [pwm-servo-four](../examples/peripherals/pwm/servo-four/README.md)，捕获 PB4、PB5、PB0、
+  PB1 的初始高电平 1000、1490、1500、2000 µs，记录四路实测周期与 20 ms 的偏差。
+- [ ] 捕获 PB5 每 2 秒在 1490 和 1510 µs 间切换时的连续波形，确认其余三路的脉宽和周期稳定。
 - [ ] PA8 实测 `pwm-basic` 约 1 kHz，25% 和 75% 占空比；stop 后不再出现周期边沿。
 - [ ] stop 只保证计数停止，不要求引脚一定变低；如果负载要求关闭低电平，应先设置 0% 等安全状态。
 - [ ] **扩展工程**：测试 0%、1%、50%、99%、100%，并在 100%→25% 后确认恢复 PWM。

@@ -22,13 +22,15 @@ Windows 实机测试请按 [3.0.1 测试 Checklist](../../docs/ch32v103-windows-
 - 提供 I2C1 轮询主机：默认 PB6=SCL、PB7=SDA，标准模式，需外接上拉电阻。
 - 提供 SPI1/SPI2 轮询主机：实例 0 为 SPI1（PA5/PA6/PA7），实例 1 为 SPI2
   （PB13/PB14/PB15），依次为 SCK/MISO/MOSI；Board 默认 SPI1，PA4 为软件 CS。
-- 提供 TIM1 CH1 PWM 轮询输出，默认 PA8。
+- PWM 实例 0 的通道 0 使用 TIM1_CH1 / PA8。实例 1 的通道 0～3 使用部分重映射的
+  TIM3_CH1～CH4，对应 PB4、PB5、PB0、PB1，四路共用周期，脉宽可按 tick 独立更新。
+  封装脚号、复用冲突和波形验收见[四路 PWM 示例](../../examples/peripherals/pwm/servo-four/README.md)。
 - 提供 RTC/LSI 计数器和闹钟比较基础后端。
 - 提供 ADC1 单通道轮询采样，支持外部通道 0～15 和内部通道 16/17。
 - 提供基础 RCU/HSI 状态、片内 Flash、CRC、备份寄存器、PWR/低功耗、WWDG、DMA1
   channel 1～7 和 USBFS 控制器生命周期接口；DMA 外设请求映射、USB class/descriptor
   栈和真实 Flash 擦写仍需按具体板级连接单独验证。
-- 当前新增后端均完成编译/链接验证；PFIC/EXTI/TIM2 另有寄存器模型和 ELF 检查，
+- 当前新增后端均完成编译/链接验证；PFIC/EXTI/TIM2 另有寄存器模型和 ELF 检查，TIM1/TIM3 PWM 有寄存器模型测试，
   不代表其他后端已通过寄存器模型或实机验证。外设通信、波形、时钟、Flash 擦写和
   低功耗行为仍需按接线单独复测。
 - 使用内部 HSI 8 MHz，不依赖外部晶振，AHB/APB 使用一分频；USBFS 控制器初始化会

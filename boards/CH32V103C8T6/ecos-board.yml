@@ -41,6 +41,9 @@ resources:
     cs_gpio:
       controller: 0
       pin: 4
+  ch32v103-tim3-pwm:
+    driver: driver-pwm
+    controller: 1
   pwm-output:
     driver: driver-pwm
     controller: 0

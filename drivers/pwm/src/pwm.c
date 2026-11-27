@@ -49,6 +49,17 @@ ecos_err_t ecos_pwm_set_duty_cycle(ecos_pwm_id_t pwm,
     );
 }
 
+ecos_err_t ecos_pwm_set_pulse_ticks(ecos_pwm_id_t pwm,
+                                    ecos_pwm_channel_t channel,
+                                    uint32_t high_ticks)
+{
+    if (channel < ECOS_PWM_CHANNEL_0 || channel >= ECOS_PWM_CHANNEL_COUNT)
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return pwm_map_hal_result(
+        hal_pwm_set_pulse_ticks((hal_pwm_id_t)pwm, (hal_pwm_channel_t)channel, high_ticks)
+    );
+}
+
 ecos_err_t ecos_pwm_start(ecos_pwm_id_t pwm)
 {
     return pwm_map_hal_result(hal_pwm_start((hal_pwm_id_t)pwm));
