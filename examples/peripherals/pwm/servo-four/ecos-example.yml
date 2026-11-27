@@ -1,0 +1,10 @@
+schema: 1
+name: pwm-servo-four
+sources:
+  - main.c
+components:
+  - driver-pwm
+  - driver-timer
+requires:
+  - console
+  - ch32v103-tim3-pwm

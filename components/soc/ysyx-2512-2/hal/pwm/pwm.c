@@ -158,22 +158,30 @@ ecos_err_t hal_pwm_set_duty_cycle(hal_pwm_id_t pwm,
                                   hal_pwm_channel_t channel,
                                   uint8_t duty_percent)
 {
+    if (!pwm_id_is_valid(pwm) || duty_percent > 100u)
+        return ECOS_ERR_INVALID_ARGUMENT;
+    return hal_pwm_set_pulse_ticks(pwm, channel,
+                                   pwm_scale_percent(pwm_period_ticks[pwm], duty_percent));
+}
+
+ecos_err_t hal_pwm_set_pulse_ticks(hal_pwm_id_t pwm, hal_pwm_channel_t channel,
+                                   uint32_t high_ticks)
+{
     pwm_registers_t registers;
     int result;
 
-    if (!pwm_id_is_valid(pwm) || !pwm_channel_is_valid(channel) ||
-        duty_percent > 100u)
+    if (!pwm_id_is_valid(pwm) || !pwm_channel_is_valid(channel))
         return ECOS_ERR_INVALID_ARGUMENT;
     if (pwm_initialized[pwm] == 0u)
         return ECOS_ERR_NOT_INITIALIZED;
+    if (high_ticks > pwm_period_ticks[pwm])
+        return ECOS_ERR_INVALID_ARGUMENT;
 
     result = pwm_get_registers(pwm, &registers);
     if (result != ECOS_OK)
         return result;
     pwm_configure_channel_pin(pwm, channel);
-    *registers.duty[channel] = pwm_scale_percent(
-        pwm_period_ticks[pwm], duty_percent
-    );
+    *registers.duty[channel] = high_ticks;
     return ECOS_OK;
 }
 

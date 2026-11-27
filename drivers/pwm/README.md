@@ -5,6 +5,7 @@
 
 - `ecos_pwm_init()` 配置 PWM 控制器的时钟分频和周期，但不启动输出；
 - `ecos_pwm_set_duty_cycle()` 配置指定通道 `0..100%` 的占空比；
+- `ecos_pwm_set_pulse_ticks()` 按通道设置高电平 tick 数，范围为 `0..period_ticks`；
 - `ecos_pwm_start()` 启动已经配置的 PWM 控制器；
 - `ecos_pwm_stop()` 停止 PWM 控制器并保留当前配置；
 - `ecos_pwm_get_instance_count()` 返回当前 Target 提供的控制器数量。

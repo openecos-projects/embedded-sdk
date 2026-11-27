@@ -118,7 +118,7 @@ class CH32V103SelectionTest(unittest.TestCase):
         for example in (
             "adc-oneshot", "archinfo-chip-id", "backup-registers", "crc-compute",
             "dma-memory-copy", "flash-info", "gpio-basic", "gpio-interrupt",
-            "i2c-scan", "power-status", "pwm-basic", "rcu-status", "rtc-counter",
+            "i2c-scan", "power-status", "pwm-basic", "pwm-servo-four", "rcu-status", "rtc-counter",
             "spi-loopback", "systick-heartbeat", "timer-polling", "timer-interrupt",
             "usb-controller", "wdg-reset", "wwdg-reset",
         ):
@@ -348,6 +348,11 @@ class CH32V103BuildTest(unittest.TestCase):
                 "pwm-basic",
                 ("components/soc/ch32v103/hal/pwm/pwm.c", "drivers/pwm/src/pwm.c"),
                 ("<ecos_pwm_start>", "<hal_pwm_set_duty_cycle>"),
+            ),
+            (
+                "pwm-servo-four",
+                ("components/soc/ch32v103/hal/pwm/pwm.c", "drivers/pwm/src/pwm.c"),
+                ("<ecos_pwm_set_pulse_ticks>", "<hal_pwm_set_pulse_ticks>"),
             ),
             (
                 "rtc-counter",
