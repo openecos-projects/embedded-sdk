@@ -110,6 +110,8 @@ static void sample(timer_model_t *timer, unsigned ticks, unsigned high[4])
                 (mode == 5 || (mode == 6 && timer->count < timer->active[i])))
                 ++high[i];
         }
+        if (timer->reload == 0u)
+            continue; /* ARR=0 stops the counter: there is no natural update. */
         if (timer->count == timer->reload)
             update(timer);
         else
@@ -121,6 +123,29 @@ static void assert_pulses(unsigned a, unsigned b, unsigned c, unsigned d)
 {
     assert(timers[1].active[0] == a && timers[1].active[1] == b);
     assert(timers[1].active[2] == c && timers[1].active[3] == d);
+}
+
+static void test_single_tick_period(ecos_pwm_id_t id, ecos_pwm_channel_t channel)
+{
+    const ecos_pwm_config_t single_tick = {8u, 1u};
+    timer_model_t *timer = &timers[id];
+    unsigned high[4] = {0};
+    assert(ecos_pwm_init(id, &single_tick) == ECOS_OK);
+    assert(ecos_pwm_start(id) == ECOS_OK);
+    unsigned events = timer->updates;
+    assert(ecos_pwm_set_duty_cycle(id, channel, 100u) == ECOS_OK);
+    sample(timer, 5, high);
+    assert(high[channel] == 5);
+    assert(ecos_pwm_set_pulse_ticks(id, channel, 0u) == ECOS_OK);
+    sample(timer, 5, high);
+    assert(high[channel] == 5);
+    assert(ecos_pwm_set_pulse_ticks(id, channel, 1u) == ECOS_OK);
+    sample(timer, 5, high);
+    assert(high[channel] == 10);
+    for (unsigned i = 0; i < 4; ++i)
+        if (i != (unsigned)channel)
+            assert(high[i] == 0);
+    assert(timer->updates == events);
 }
 
 int main(void)
@@ -203,6 +228,8 @@ int main(void)
     assert(timers[0].reg[CHCTLR1 / 4] == 0x68);
     update(&timers[0]);
     assert(timers[0].active[0] == 1500);
+    test_single_tick_period(0u, ECOS_PWM_CHANNEL_0);
+    test_single_tick_period(1u, ECOS_PWM_CHANNEL_3);
     assert(!irq_locked);
     puts("TIM1/TIM3 PWM register tests passed");
     return 0;

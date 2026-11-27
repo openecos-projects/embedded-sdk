@@ -30,6 +30,7 @@
 #define TIM_OC_MODE   0x70u
 #define TIM_OC_PWM1   0x60u
 #define TIM_OC_ACTIVE 0x50u
+#define TIM_OC_INACTIVE 0x40u
 #define TIM_OC_PE     0x08u
 #define TIM_CC1E      0x0001u
 #define TIM_CC1E_TO_CC4E 0x1111u
@@ -93,6 +94,17 @@ ecos_err_t hal_pwm_init(hal_pwm_id_t id, const hal_pwm_config_t *config)
     return ECOS_OK;
 }
 
+/* Each CHCTLR register holds two channels. The caller holds the IRQ lock. */
+static void set_output_mode(uintptr_t base, hal_pwm_channel_t channel, uint16_t mode)
+{
+    uintptr_t control = base + (channel < HAL_PWM_CHANNEL_2 ? TIM_CHCTLR1 : TIM_CHCTLR2);
+    unsigned shift = ((unsigned)channel & 1u) * 8u;
+    uint16_t modes = ch32v103_read16(control);
+    uint16_t updated = (modes & ~(TIM_OC_MODE << shift)) | (mode << shift);
+    if (updated != modes)
+        ch32v103_write16(control, updated);
+}
+
 static ecos_err_t set_high_time(hal_pwm_id_t id, hal_pwm_channel_t channel,
                                 uint32_t value, bool is_percent)
 {
@@ -113,21 +125,16 @@ static ecos_err_t set_high_time(hal_pwm_id_t id, hal_pwm_channel_t channel,
 
     uint32_t ticks = is_percent ? period * value / 100u : value;
     uintptr_t base = timer_base[id];
-    uintptr_t compare = base + TIM_CH1CVR + 4u * (unsigned)channel;
-    /* With preloading, a CCR write takes effect at the next period boundary. */
-    if (ticks <= UINT16_MAX)
-        ch32v103_write16(compare, (uint16_t)ticks);
-
-    /* Only ARR=0xffff needs forced active for 100%. Adjacent channels share
-     * this mode register. Mode changes on TIM3 take effect immediately. */
-    if (period == 65536u) {
-        uintptr_t control = base + (channel < HAL_PWM_CHANNEL_2 ? TIM_CHCTLR1 : TIM_CHCTLR2);
-        unsigned shift = ((unsigned)channel & 1u) * 8u;
-        uint16_t modes = ch32v103_read16(control);
-        uint16_t mode = ticks == 65536u ? TIM_OC_ACTIVE : TIM_OC_PWM1;
-        uint16_t updated = (modes & ~(TIM_OC_MODE << shift)) | (mode << shift);
-        if (updated != modes)
-            ch32v103_write16(control, updated);
+    if (period == 1u) {
+        /* ARR=0 stops counting. Neither constant level can wait for overflow. */
+        set_output_mode(base, channel, ticks == 0u ? TIM_OC_INACTIVE : TIM_OC_ACTIVE);
+    } else if (ticks > UINT16_MAX) {
+        /* A full 65536-tick pulse cannot fit in the compare register. */
+        set_output_mode(base, channel, TIM_OC_ACTIVE);
+    } else {
+        ch32v103_write16(base + TIM_CH1CVR + 4u * (unsigned)channel, (uint16_t)ticks);
+        if (period == 65536u)
+            set_output_mode(base, channel, TIM_OC_PWM1);
     }
     ch32v103_irq_restore(state);
     return ECOS_OK;
